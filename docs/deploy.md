@@ -1,0 +1,37 @@
+# Deployment
+
+How a commit of this repository goes live. The testbed deploys it from the repository's own
+declaration, `testbed.toml`; nothing here deploys itself.
+
+## What a deployment does
+
+- **The release:** the testbed builds the workspace's binary, `bmo-face`, into the release's `bin/`,
+  installs the root and the screen's Bun packages (the declaration's setup), and, before the flip,
+  generates the screen with `bun run generate` in `client/`, into `client/.output/public`. The server
+  serves the screen from there: its own default is `client/.output/public` beside the release's
+  `bin/` (`docs/face.md`, 「The server」). The screen is generated in Korean, from the pack this
+  repository holds, `client/i18n/locales/ko.yaml`.
+- **The unit:** `deploy/bmo-face.service`, kept by the testbed as a user unit. It runs
+  `bin/bmo-face` in the release on 127.0.0.1:3217, with `BMO_FACE_DATA` naming the document and the
+  session database under the shared data root, `face/`. Its health is read from the document route
+  and from the generated screen's HTML.
+- **After health:** the release's binary, `tool.toml` and the two schemas are placed as one folder
+  and registered with the tool host as this service's own, under the repository's name. A failed
+  registration leaves the service live and is said.
+- **BMO:** the unit reads `env/face.env` under the data root where it exists, for the address of
+  BMO's archive (the editor's login) and of BMO's console (the passed-through listener routes).
+  Both are this machine's settings, never the repository's.
+- **The proxy:** `deploy/nginx.conf` holds the two `/bmo-face` locations of the host's server block:
+  the bare path redirected to the one with the slash, and everything under it passed to port 3217
+  through the shared proxy snippet, which does not buffer, so a stream passes as it comes. No basic
+  auth stands in front: the display signs in with a BMO account and the editor with its own
+  session. A deployment never touches the proxy; the path and the port are fixed.
+
+## Where things stand
+
+- **The deploy tree** is the testbed's, `~/.local/share/bmo-face/deploy`, under the root
+  `testbed.toml` names; the unit runs from there and never from a checkout.
+- **The data root** is the shared one, `~/.local/share/bmo/data`; the face keeps its document and
+  session database under `face/` (`docs/face.md`, 「The server」).
+- **A failed step** stops the deployment before the unit is restarted, so what is served has not
+  moved.

@@ -1,0 +1,11 @@
+node_modules/
+.output/
+.nuxt/
+.data/
+client/.output/
+client/dist
+bin/
+target/
+server/target/
+__pycache__/
+.env

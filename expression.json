@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "properties": {
+    "emotion": {
+      "type": "string",
+      "description": "The emotion the briefing is spoken with.",
+      "enum": ["기본", "기쁨", "슬픔", "놀람", "화남", "졸림", "폭소", "걱정", "아픔", "안간힘"],
+      "default": "기본"
+    }
+  },
+  "additionalProperties": false
+}

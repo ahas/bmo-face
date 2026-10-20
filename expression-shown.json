@@ -1,0 +1,10 @@
+{
+  "type": "object",
+  "properties": {
+    "expression": {
+      "type": "string",
+      "description": "The face the briefing shows."
+    }
+  },
+  "required": ["expression"]
+}

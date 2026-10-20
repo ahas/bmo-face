@@ -1,0 +1,70 @@
+# How the testbed tests, checks, builds and deploys this repository, in the testbed's declaration format.
+
+testbed = 0
+name = "bmo-face"
+
+[test]
+# The server's crate, and the Bun test files of the root project: the expression document's check,
+# its fixtures and the development copy. The screen under client/ is a project of its own, whose
+# check script is its typecheck and its domain tests.
+languages = ["cargo", "bun"]
+setup = ["bun install --frozen-lockfile", "cd client && bun install --frozen-lockfile"]
+
+[check]
+# The sweeps that read the tree before anything runs: Korean in the code, the README's folder table and
+# the dependencies the manifests name. The ledger is the Korean left in a code file. The face reaches
+# BMO's archive and console as a configured address, never as another repository's code.
+quick = ["korean", "layout", "dependencies"]
+korean_ledger = "korean-ledger.json"
+base_libraries = []
+
+[[check.step]]
+id = "check"
+command = "cargo check --workspace --all-targets"
+lane = "wide"
+
+[[check.step]]
+id = "clippy"
+command = "cargo clippy --workspace --all-targets -- -D warnings"
+lane = "wide"
+
+[[check.step]]
+id = "fmt"
+command = "cargo fmt --all --check"
+
+[[check.step]]
+id = "types"
+command = "bun run check:types"
+
+# The server's binary goes into a release's bin/.
+[build]
+binaries = ["bmo-face"]
+
+# The face's own deploy tree and the shared data root its document and session database stand under.
+[deploy]
+root = "~/.local/share/bmo-face"
+link = "deploy"
+data_root = "~/.local/share/bmo/data"
+units = ["deploy/*.service"]
+# Answers 0 once the server answers its document and serves the generated screen.
+health = '''curl -sf http://127.0.0.1:3217/bmo-face/api/faces >/dev/null && curl -sf http://127.0.0.1:3217/bmo-face/ | grep -qi '<html' '''
+
+# The screen, generated into the release where the server serves it from beside the binary.
+[[deploy.step]]
+id = "screen"
+phase = "before-flip"
+command = "cd client && bun run generate"
+
+# The tool entry placed with the tool host once the service answers: the release's binary, manifest and
+# schemas as one folder, registered as this service's own.
+[[deploy.step]]
+id = "register-tool"
+phase = "after-health"
+command = '''
+set -eu
+rm -rf .tool
+mkdir -p .tool
+cp bin/bmo-face tool.toml expression.json expression-shown.json .tool/
+bmo pocket put .tool --placed --service bmo-face
+rm -rf .tool
+'''

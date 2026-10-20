@@ -1,0 +1,116 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+/* How wide reading and entry content stands before it stops growing. */
+:root {
+  --ui-container: 48rem;
+}
+
+/* How much of the window is actually on the screen, and where that part begins. */
+:root {
+  --bmo-screen: 100dvh;
+  --bmo-screen-top: 0px;
+}
+
+/* What a phone drawing the page edge to edge lays over it: its status bar and its gesture bar. */
+:root {
+  --bmo-safe-top: env(safe-area-inset-top, 0px);
+  --bmo-safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Every scrollbar is the thin one, in the colour the borders are, on no track of its own. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ui-border-accented) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--ui-border-accented);
+  border-radius: 9999px;
+}
+
+/* Pretendard, Copyright (c) 2021 Kil Hyung-jin, SIL Open Font License 1.1.
+   The files next to this one are the subset build; the licence sits with them. */
+
+@font-face {
+  font-family: "Pretendard";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/Pretendard-Regular.subset.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Pretendard";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("../fonts/Pretendard-Medium.subset.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Pretendard";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("../fonts/Pretendard-SemiBold.subset.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Pretendard";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../fonts/Pretendard-Bold.subset.woff2") format("woff2");
+}
+
+/* CaskaydiaCove, the Nerd Fonts build of Cascadia Code, Copyright (c) 2019 Microsoft Corporation,
+   SIL Open Font License 1.1. Its licence sits beside it as Pretendard's does. One weight, cut to
+   the letters, digits and punctuation a time or an identifier is written in. */
+
+@font-face {
+  font-family: "CaskaydiaCove NFM";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/CaskaydiaCoveNFM-Regular.subset.woff2") format("woff2");
+}
+
+@theme {
+  /* The smallest size drawn is 14px: the Nuxt UI components that ask for the step below it are
+     drawn at 14px as well. */
+  --text-xs: 0.875rem;
+  --text-xs--line-height: calc(1.25 / 0.875);
+
+  --font-sans:
+    "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", Roboto, "Helvetica Neue",
+    "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji",
+    sans-serif;
+
+  /* CaskaydiaCove has no Korean, so Pretendard stands second and a Korean word in a fixed-width
+     place is still this screen's own face. */
+  --font-mono:
+    "CaskaydiaCove NFM", "Pretendard", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+}
+
+/* A coloured badge in the light theme. The 500 shade is a fill colour, and a word drawn in it falls
+   short of 4.5:1, as does a white word on it; inside this class each colour takes its 800 shade, so
+   every shape reads. The dark theme's 400 shade already reads and is left alone. */
+:root:not(.dark) .badge-ink {
+  --ui-primary: var(--ui-color-primary-800);
+  --ui-secondary: var(--ui-color-secondary-800);
+  --ui-success: var(--ui-color-success-800);
+  --ui-info: var(--ui-color-info-800);
+  --ui-warning: var(--ui-color-warning-800);
+  --ui-error: var(--ui-color-error-800);
+}

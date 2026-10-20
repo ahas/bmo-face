@@ -1,0 +1,22 @@
+# BMO's face as a tool of the tool host (docs/face.md, 「The expression entry」): the `face/expression`
+# entry the voice calls while it speaks a briefing, answered by `bmo-face tool`. The deployment places
+# the binary, this manifest and its schemas alone.
+
+[tool]
+name = "face"
+protocol = 1
+language = "rust"
+build = 'CARGO_TARGET_DIR="$BMO_CARGO_TARGET" cargo build --release --bin bmo-face && cp "$BMO_CARGO_TARGET/release/bmo-face" "$BMO_TOOL_OUT/"'
+check = "cargo test --test tool"
+run = ["bmo-face", "tool"]
+timeout = 10
+
+[[entry]]
+namespace = "face"
+name = "expression"
+title = "Expression"
+description = "The face a briefing shows, by the emotion it is spoken with."
+input = "expression.json"
+output = "expression-shown.json"
+hints = { read_only = true }
+system = true

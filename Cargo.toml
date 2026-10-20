@@ -1,0 +1,24 @@
+# The Cargo workspace: the face's one Rust project, the server and its tool entry. The root Bun
+# project holds the expression document's TypeScript statement and the scripts; the screen under
+# client/ is a Bun project of its own.
+
+[workspace]
+resolver = "3"
+members = ["server"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# The editor's password check, unoptimised, takes most of a second a login, which the tests make
+# dozens of.
+[profile.dev.package.argon2]
+opt-level = 3
+
+[profile.dev.package.blake2]
+opt-level = 3
+
+[profile.release]
+debug = false
+strip = "debuginfo"
