@@ -22,10 +22,10 @@
               <UButton icon="i-material-symbols-arrow-back" color="neutral" variant="ghost" :aria-label="t('edit.action.outline')" @click="leave" />
             </UTooltip>
             <template v-if="tab === 'faces'">
-              <USelect v-model="face" :items="faceItems" :aria-label="t('edit.target.face')" class="w-32" />
-              <USelect v-model="group" :items="groupItems" :aria-label="t('edit.target.group')" class="w-28" />
+              <USelect v-model="face" :items="faceItems" :aria-label="t('edit.target.face')" class="w-32 min-w-0" />
+              <USelect v-model="group" :items="groupItems" :aria-label="t('edit.target.group')" class="w-28 min-w-0" />
             </template>
-            <USelect v-else v-model="stage" :items="stageItems" :aria-label="t('edit.target.stage')" class="w-24" />
+            <USelect v-else v-model="stage" :items="stageItems" :aria-label="t('edit.target.stage')" class="w-24 min-w-0" />
 
             <!-- Wide, the actions stand as icon buttons in groups of three or fewer. -->
             <div class="hidden items-center gap-1 lg:flex">

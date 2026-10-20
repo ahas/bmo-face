@@ -307,6 +307,23 @@ expression document both the display and the editor read, and the server that se
   left drawing a document whose shape its own drawing does not know, and a document its own check
   refuses is not drawn: the last one it drew stays.
 
+## The screens' shared style
+
+- **One focus ring.** A control reached by the keyboard draws the theme's accent, 2px wide, in a
+  small gap outside the control, so the ring follows the control's own corners. The ring is stated
+  once as tokens and no component writes a colour or width of its own. A control focused by a mouse
+  press or a finger draws none.
+- **A field shows focus on its own edge.** An input, a textarea or a select takes the accent on the
+  edge it already draws, with no ring outside it.
+- **A region with a fixed surface states the ring's step.** The display paints the face on a
+  surface of its own whatever the theme, and the message island is fixed dark in both themes, so
+  each names the accent step that reads at 3:1 on that surface.
+- **A toolbar is one row of equal cells.** An icon-only button in a toolbar is a square as tall as
+  the toolbar's row, so the row reads as one band and a finger has the whole height to aim at.
+- **The theme's colours are measured.** Every badge's words read at 4.5:1 and the focus ring at
+  3:1 against every surface they are drawn on, in every theme and every badge shape, and a browser
+  test keeps the measurement.
+
 ## The server
 
 - **It is a Rust program,** the workspace's one crate in `server/`. It starts on `BMO_FACE_PORT`

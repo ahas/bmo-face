@@ -149,6 +149,9 @@ useHead({ title: () => t("face.title") });
 
 <style scoped>
 .face-page {
+  /* The display paints the face on a surface of its own whatever the theme, so its focus ring
+     takes the accent step that reads on that paint rather than the theme's surface step. */
+  --bmo-focus-color: var(--ui-color-primary-800);
   position: fixed;
   inset: 0;
   display: flex;
@@ -174,6 +177,10 @@ useHead({ title: () => t("face.title") });
 }
 
 .face-start {
+  /* The prompt is one dark wash over the whole screen in both themes, so its ring takes the light
+     accent step and is drawn inside the screen's edge. */
+  --bmo-focus-color: var(--ui-color-primary-200);
+  --bmo-focus-gap: calc(-1 * var(--bmo-focus-width));
   background: rgb(0 0 0 / 0.35);
   color: #ffffff;
   cursor: pointer;

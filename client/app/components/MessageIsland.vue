@@ -31,7 +31,7 @@
                 :is="canPress ? 'button' : 'div'"
                 :type="canPress ? 'button' : undefined"
                 class="flex w-full items-start gap-3 p-4 text-start transition-colors"
-                :class="canPress ? 'cursor-pointer hover:bg-white/10 active:bg-white/20 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary' : ''"
+                :class="canPress ? 'cursor-pointer hover:bg-white/10 active:bg-white/20 [--bmo-focus-gap:calc(-1*var(--bmo-focus-width))]' : ''"
                 @click="canPress ? press() : undefined"
               >
                 <UIcon :name="message.icon" class="size-5 shrink-0" :class="MARK_TONES[message.tone]" />
@@ -58,8 +58,8 @@
                   size="sm"
                   :color="action.tone === 'error' ? 'error' : action.tone === 'primary' ? 'primary' : 'neutral'"
                   :variant="action.tone === 'error' || action.tone === 'primary' ? 'solid' : 'ghost'"
-                  :ui="action.tone === 'error' || action.tone === 'primary' ? undefined : { base: 'min-h-11 text-white hover:bg-white/15 active:bg-white/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary' }"
-                  :class="action.tone === 'error' || action.tone === 'primary' ? 'badge-ink min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary' : ''"
+                  :ui="action.tone === 'error' || action.tone === 'primary' ? undefined : { base: 'min-h-11 text-white hover:bg-white/15 active:bg-white/25' }"
+                  :class="action.tone === 'error' || action.tone === 'primary' ? 'badge-ink min-h-11' : ''"
                   @click="take(action)"
                 />
               </div>
@@ -223,6 +223,9 @@ async function take(action: IslandAction): Promise<void> {
    size: at the height of one line it is a pill, and grown into a card it is the same rounding,
    which is what makes the widening read as one thing changing shape rather than two things. */
 .bmo-island {
+  /* The pill paints its own fixed dark surface in both themes, so its focus ring takes the accent
+     step that reads on that surface rather than the one the theme's own surfaces take. */
+  --bmo-focus-color: var(--ui-color-primary-300);
   border-radius: 26px;
   /* The clip reaches past the box, so its shadow stands at rest and only the widening is clipped. */
   clip-path: inset(-40px);

@@ -68,6 +68,26 @@ export default defineAppConfig({
     skeleton: {
       base: "animate-pulse rounded-md bg-elevated motion-reduce:animate-none"
     },
+    // An icon-only button is the square the theme names, so every mark of its kind is the same
+    // cell wherever it stands. A toolbar raises that token to its own row's height (main.css).
+    button: {
+      variants: {
+        square: {
+          true: "size-(--bmo-control-square) shrink-0 p-0"
+        }
+      }
+    },
+    // A toolbar is one row of equal cells: the square above is as tall as the row, and the row is
+    // not clipped, so the shared focus ring stands outside its cells as it does everywhere else.
+    dashboardToolbar: {
+      slots: {
+        root: "overflow-visible [--bmo-control-square:var(--bmo-toolbar-height)]",
+        // A target field on the left shrinks with the row rather than pushing the actions off it;
+        // the actions themselves keep their cells.
+        left: "min-w-0",
+        right: "shrink-0"
+      }
+    },
     // Every badge carries the class that darkens its colours in the light theme (main.css), so its
     // words read at 4.5:1 whatever shape and colour it is given. Nothing is drawn under 14px.
     badge: {

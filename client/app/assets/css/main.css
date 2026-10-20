@@ -29,6 +29,49 @@
   --bmo-ease-move: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* The one focus ring these screens draw: the accent, thin, and a small gap outside the element. A
+   row that clips what stands past its edge draws the ring inside by making the gap negative. The
+   accent steps are the ones that read at 3:1 on this theme's surfaces. */
+:root {
+  --bmo-focus-color: var(--ui-color-primary-800);
+  --bmo-focus-width: 2px;
+  --bmo-focus-gap: 2px;
+}
+
+.dark {
+  --bmo-focus-color: var(--ui-color-primary-400);
+}
+
+/* The square an icon-only button is drawn in, and the row height a toolbar raises it to. The
+   toolbar's own box carries one more pixel, its bottom border. */
+:root {
+  --bmo-control-square: 2rem;
+  --bmo-toolbar-height: 3rem;
+}
+
+/* A button, a link or a switch reached by the keyboard draws the one ring above. The library
+   writes its own colour and width into the utilities layer; this rule stands outside every layer,
+   so what it draws is what is seen. The colour stands on the element at rest too, so the ring
+   appears at its colour rather than fading into it from the library's own. */
+:where(a[href], button, [role="button"], [role="tab"], [role="switch"], [role="checkbox"], [role="radio"], summary) {
+  outline-color: var(--bmo-focus-color);
+}
+
+:where(a[href], button, [role="button"], [role="tab"], [role="switch"], [role="checkbox"], [role="radio"], summary):focus-visible {
+  outline: var(--bmo-focus-width) solid var(--bmo-focus-color);
+  outline-offset: var(--bmo-focus-gap);
+}
+
+/* A field shows focus on its own edge, and never as a ring: the edge it already draws takes the
+   accent. A field drawn with no edge steps its background up instead, as the library does. */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+button[role="combobox"]:focus-visible {
+  outline: none;
+  --tw-ring-color: var(--bmo-focus-color);
+}
+
 /* Every scrollbar is the thin one, in the colour the borders are, on no track of its own. */
 * {
   scrollbar-width: thin;
