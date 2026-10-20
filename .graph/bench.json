@@ -1,0 +1,26 @@
+[
+  {
+    "id": "bench/dev",
+    "title": "Development bench",
+    "what": "Runs the face away from the live document: the copy of the data root a bench works against, and the server with the screen's dev server started together against BMO's development console.",
+    "files": [
+      "scripts/dev.ts",
+      "scripts/dev-data.ts",
+      "src/dev-data.ts",
+      "tests/dev-data.test.ts",
+      "docs/development.md"
+    ],
+    "symbols": [
+      "refreshDevData",
+      "devDataRoot",
+      "realDataRoot",
+      "FACES_FILE"
+    ],
+    "aliases": [],
+    "needs": [
+      "document/check"
+    ],
+    "base": "c86dd8a3fbc5e986f918ab80bafcb7e677495062",
+    "changed": 1792500474560
+  }
+]

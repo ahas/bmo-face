@@ -1,0 +1,9 @@
+repository = "bmo-face"
+base = false
+
+[coverage]
+# The bmo-next layout reaches the crate's src/ and the screen project; the root Bun project's src/ and
+# scripts/ stand under the whole repository the roots default to. The crate's root only lists its
+# modules, so it carries no feature.
+layout = "bmo-next"
+unindexed = ["server/src/lib.rs"]

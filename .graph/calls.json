@@ -1,0 +1,23 @@
+[
+  {
+    "id": "calls/bmo-web",
+    "title": "BMO console API",
+    "what": "BMO's console routes a display's requests pass through: signing a screen in, the listener stream with its cursor, stopping a briefing, and a voice message's sound with ranges.",
+    "files": [
+      "server/src/pass.rs",
+      "docs/face.md"
+    ],
+    "symbols": [],
+    "aliases": [],
+    "needs": [
+      "server/pass-through"
+    ],
+    "base": "c86dd8a3fbc5e986f918ab80bafcb7e677495062",
+    "changed": 1792500474524,
+    "boundary": {
+      "side": "calls",
+      "repository": "bmo-web",
+      "api": "api/http"
+    }
+  }
+]

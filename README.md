@@ -10,6 +10,7 @@ listener stream, which carries every briefing with its emotion and BMO's presenc
 
 | Folder | Holds |
 |---|---|
+| `.graph/` | the code graph: one file per area of features, the boundary nodes for the APIs this repository exposes and calls, and `settings.toml` with its coverage; it is written only with `bmo graph` |
 | `client/` | the screen, a Bun project of its own: the Nuxt display and editor on `@nuxt/ui`, every word it shows as a key into `i18n/locales/ko.yaml`, and its domain tests under `tests/` |
 | `deploy/` | the user unit `bmo-face.service`, which a deployment keeps, and the proxy's two `/bmo-face` locations |
 | `docs/` | the canonical statements: the face and its server (`face.md`), the design it is drawn from (`expressions.md`), the deployment (`deploy.md`) and the development bench (`development.md`) |

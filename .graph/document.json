@@ -1,0 +1,74 @@
+[
+  {
+    "id": "document/check",
+    "title": "Expression document check",
+    "what": "The one statement of the expression document: the check every save and every drawn document goes through, the default faces it starts from, and the shared fixtures both the TypeScript and the Rust check are held to.",
+    "files": [
+      "src/faces.ts",
+      "src/fixtures.ts",
+      "scripts/fixtures.ts",
+      "server/src/faces.rs",
+      "tests/fixtures/",
+      "docs/face.md",
+      "docs/expressions.md",
+      "tests/faces.test.ts",
+      "tests/fixtures.test.ts"
+    ],
+    "symbols": [
+      "checkFaceDocument",
+      "DEFAULT_FACES",
+      "faceFor",
+      "check_document",
+      "default_document"
+    ],
+    "aliases": [],
+    "needs": [],
+    "base": "c86dd8a3fbc5e986f918ab80bafcb7e677495062",
+    "changed": 1792500474502
+  },
+  {
+    "id": "document/store",
+    "title": "Expression document store",
+    "what": "The document in the data root as the server keeps it: prepared once at start, read without writing, saved only by one that names the version it was edited from, and announced on saves a display hears.",
+    "files": [
+      "server/src/store.rs",
+      "server/src/numbers.rs",
+      "docs/face.md",
+      "server/tests/contract.rs"
+    ],
+    "symbols": [
+      "FaceStore",
+      "Saved",
+      "Preparation",
+      "document_text",
+      "number",
+      "same"
+    ],
+    "aliases": [],
+    "needs": [
+      "document/check",
+      "document/upgrade"
+    ],
+    "base": "c86dd8a3fbc5e986f918ab80bafcb7e677495062",
+    "changed": 1792500474505
+  },
+  {
+    "id": "document/upgrade",
+    "title": "Expression document upgrade",
+    "what": "Turns a stored document of the point-and-ellipse shape into the path shape, taking colours and faces it lacks from the default and shortening handles that fall off the screen.",
+    "files": [
+      "server/src/upgrade.rs",
+      "server/tests/fixtures/upgrades.json",
+      "docs/face.md"
+    ],
+    "symbols": [
+      "upgrade_document"
+    ],
+    "aliases": [],
+    "needs": [
+      "document/check"
+    ],
+    "base": "c86dd8a3fbc5e986f918ab80bafcb7e677495062",
+    "changed": 1792500474508
+  }
+]

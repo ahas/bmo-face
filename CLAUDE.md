@@ -11,6 +11,10 @@ of BMO's is imported.
   would make it wrong or incomplete repairs it first, stating what is true now, and the code is then
   written to match. `docs/face.md` states the display, the expression document, the editor and every
   route; `docs/deploy.md` states the release, the unit and the tool entry.
+- **`.graph/` is written only with `bmo graph`.** It holds the repository's feature nodes and the
+  boundary nodes for the APIs it exposes and calls; no other command and no hand edit changes it, and
+  a change to code carries the node it touches in the same commit. The format is `docs/graph.md` in
+  the bmo-graph repository.
 - **No dependency from another repository.** The base libraries are none; BMO is reached over the
   address a setting names. The testbed's dependency sweep fails on anything else.
 - **English in code, comments, tests, documents and commit messages.** Every word a person reads on

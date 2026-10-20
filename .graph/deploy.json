@@ -1,0 +1,21 @@
+[
+  {
+    "id": "deploy/service",
+    "title": "Face deployment",
+    "what": "How a commit of the face goes live: the testbed declaration's release and setup, the user unit, the screen generated before the flip, the tool entry registered after health, and the proxy's two locations.",
+    "files": [
+      "testbed.toml",
+      "deploy/bmo-face.service",
+      "deploy/nginx.conf",
+      "docs/deploy.md"
+    ],
+    "symbols": [],
+    "aliases": [],
+    "needs": [
+      "server/tool",
+      "screen/app"
+    ],
+    "base": "c86dd8a3fbc5e986f918ab80bafcb7e677495062",
+    "changed": 1792500474562
+  }
+]

@@ -1,0 +1,79 @@
+[
+  {
+    "id": "screen/app",
+    "title": "Screen app shell",
+    "what": "The Nuxt application the face is generated from: its configuration, base path and icon bundle, the theme and colour marks the screens share, its Korean words, and the one island every screen stands on.",
+    "files": [
+      "client/app/app.vue",
+      "client/app/app.config.ts",
+      "client/nuxt.config.ts",
+      "client/i18n/locales/ko.yaml",
+      "client/app/assets/css/main.css",
+      "client/package.json",
+      "docs/face.md"
+    ],
+    "symbols": [],
+    "aliases": [],
+    "needs": [
+      "screen/island",
+      "display/page",
+      "editor/page"
+    ],
+    "base": "c86dd8a3fbc5e986f918ab80bafcb7e677495062",
+    "changed": 1792500533182
+  },
+  {
+    "id": "screen/back",
+    "title": "Back gesture layers",
+    "what": "Everything standing over a screen registered as a layer, so the back gesture takes the top one off rather than leaving the page: the library's floating layers found on the page, stale presses refused, and a focus handed back ignored.",
+    "files": [
+      "client/app/domain/layers.ts",
+      "client/app/domain/overlays.ts",
+      "client/app/plugins/overlays.client.ts",
+      "docs/face.md"
+    ],
+    "symbols": [
+      "useBackClose",
+      "openLayer",
+      "closeLayer",
+      "handlePop",
+      "watchOverlays",
+      "refuseStalePresses",
+      "refuseHandedBackFocus"
+    ],
+    "aliases": [],
+    "needs": [],
+    "base": "c86dd8a3fbc5e986f918ab80bafcb7e677495062",
+    "changed": 1792500474554
+  },
+  {
+    "id": "screen/island",
+    "title": "Message island",
+    "what": "The one pill at the top of the screen for what an action did and the question a press cannot take back: the queue behind it, the tones and their times, and its own shape as it widens.",
+    "files": [
+      "client/app/domain/island.ts",
+      "client/app/components/MessageIsland.vue",
+      "client/app/domain/numbers.ts",
+      "client/app/domain/screen.ts",
+      "client/tests/domain/island.test.ts",
+      "client/tests/domain/numbers.test.ts",
+      "docs/face.md"
+    ],
+    "symbols": [
+      "useIsland",
+      "raise",
+      "settle",
+      "messageOf",
+      "questionOf",
+      "countText",
+      "visibleFrame",
+      "SCREEN_TOP_PROPERTY"
+    ],
+    "aliases": [],
+    "needs": [
+      "screen/back"
+    ],
+    "base": "c86dd8a3fbc5e986f918ab80bafcb7e677495062",
+    "changed": 1792500474552
+  }
+]
