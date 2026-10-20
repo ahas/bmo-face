@@ -25,8 +25,8 @@
       "display/draw",
       "document/check"
     ],
-    "base": "b12a92e3b40aafeca6e0a38d45f4823727f147fe",
-    "changed": 1792504037616
+    "base": "5784e7974af89f06ac51bac5b8909985c3b79201",
+    "changed": 1792516411806
   },
   {
     "id": "editor/fields",
@@ -47,8 +47,8 @@
       "screen/tooltip",
       "document/check"
     ],
-    "base": "b12a92e3b40aafeca6e0a38d45f4823727f147fe",
-    "changed": 1792504037619
+    "base": "5784e7974af89f06ac51bac5b8909985c3b79201",
+    "changed": 1792516411815
   },
   {
     "id": "editor/page",
@@ -73,8 +73,8 @@
       "screen/tooltip",
       "document/check"
     ],
-    "base": "b12a92e3b40aafeca6e0a38d45f4823727f147fe",
-    "changed": 1792504037621
+    "base": "5784e7974af89f06ac51bac5b8909985c3b79201",
+    "changed": 1792516411822
   },
   {
     "id": "editor/preview",
@@ -89,7 +89,7 @@
     "needs": [
       "display/draw"
     ],
-    "base": "b12a92e3b40aafeca6e0a38d45f4823727f147fe",
-    "changed": 1792504037624
+    "base": "5784e7974af89f06ac51bac5b8909985c3b79201",
+    "changed": 1792516411827
   }
 ]
