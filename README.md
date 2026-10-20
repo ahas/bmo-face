@@ -22,7 +22,8 @@ listener stream, which carries every briefing with its emotion and BMO's presenc
 At the root stand the Cargo workspace manifest and its lockfile, whose one member is `server/`; the
 root Bun project's manifest, lockfile and `tsconfig.json`, which hold `src/`, `scripts/` and `tests/`;
 `VERSION`; `testbed.toml`; `tool.toml` with its two schemas; `rustfmt.toml`; `korean-ledger.json`;
-`LICENSE`; and `CLAUDE.md`.
+`LICENSE`; and `CLAUDE.md`. `docs/PERSONAL-DATA.md` names the check `tests/personal-data.test.ts`,
+which the suite runs with the rest.
 
 ## Documents
 
@@ -32,6 +33,7 @@ root Bun project's manifest, lockfile and `tsconfig.json`, which hold `src/`, `s
 | `docs/expressions.md` | BMO's face as its finished official design draws it: the reference pictures, what was measured on them, the colours, and what each default face and mouth stage takes from them |
 | `docs/deploy.md` | how a commit goes live: the release, the unit, the generated screen, the tool entry and the proxy |
 | `docs/development.md` | the development bench: the copy of the data root, the server and the screen run against it, BMO's development console behind it, and how a login is made for it |
+| `docs/PERSONAL-DATA.md` | the personal data no file may hold, the values allowed, and the pattern check that keeps it out (`tests/personal-data.test.ts`) |
 
 ## Build and test
 

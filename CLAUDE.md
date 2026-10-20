@@ -21,8 +21,9 @@ of BMO's is imported.
   the screen stands in `client/i18n/locales/ko.yaml`, named by key. The Korean the code still holds is
   the debt `korean-ledger.json` records file by file; a file it does not name is allowed none, and the
   ledger only shrinks.
-- **No owner names, agent names, host names, home paths or private network addresses** in code,
-  documents or commits. A test's data is a neutral name and value.
+- **No personal data in code, comments, documents, test fixtures or commit messages.**
+  `docs/PERSONAL-DATA.md` states what that forbids, the values it allows and where a value belongs; a
+  test's data is a neutral name and value, and `tests/personal-data.test.ts` is the pattern check.
 - **Tests live in `tests/`:** the crate's integration tests in `server/tests/`, the screen's in
   `client/tests/`, and the expression document's, its fixtures' and the development copy's in the root
   `tests/`, with their support under `tests/support/`. A unit test of a private helper stands beside it
