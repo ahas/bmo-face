@@ -218,10 +218,29 @@ function drop(event: PointerEvent): void {
 
 .edit-part {
   cursor: pointer;
+  transition: opacity var(--bmo-motion-quick) var(--bmo-ease-move);
 }
 
+/* Every part is a press that chooses it, so each stands dimmer under the pointer and dimmer again
+   while it is pressed, chosen or not. */
 .edit-part:not(.chosen) {
   opacity: 0.85;
+}
+
+.edit-part:not(.chosen):hover {
+  opacity: 0.6;
+}
+
+.edit-part:not(.chosen):active {
+  opacity: 0.45;
+}
+
+.edit-part.chosen:hover {
+  opacity: 0.8;
+}
+
+.edit-part.chosen:active {
+  opacity: 0.65;
 }
 
 .edit-arms line {
@@ -252,5 +271,11 @@ function drop(event: PointerEvent): void {
 
 .edit-handle-reach:active + .edit-handle-mark {
   fill: var(--ui-color-primary-700);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .edit-part {
+    transition: none;
+  }
 }
 </style>

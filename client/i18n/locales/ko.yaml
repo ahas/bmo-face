@@ -74,7 +74,7 @@ edit:
   conflict: 다른 창에서 먼저 저장했어요. 여기서 고친 것을 버리고 저장된 표정을 불러올까요?
   fields:
     title: 모양
-    none: 모양을 눌러 고르세요.
+    none: 모양을 눌러 선택하세요.
     empty: 이 부위에는 모양이 없어요.
     closed: 닫힌 선
     fill: 채우기
@@ -82,7 +82,7 @@ edit:
     width: 선 굵기
     node: 노드
     node_n: "노드 {n}"
-    node_none: 노드를 눌러 고르세요.
+    node_none: 노드를 눌러 선택하세요.
     anchor: 위치
     coming: 들어오는 손잡이
     leaving: 나가는 손잡이

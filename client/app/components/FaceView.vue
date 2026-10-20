@@ -88,10 +88,10 @@ const groups = computed(() =>
 
 .face-group path {
   transition:
-    d 180ms ease-out,
-    fill 180ms ease-out,
-    stroke 180ms ease-out,
-    stroke-width 180ms ease-out;
+    d var(--bmo-motion-quick) var(--bmo-ease-move),
+    fill var(--bmo-motion-quick) var(--bmo-ease-move),
+    stroke var(--bmo-motion-quick) var(--bmo-ease-move),
+    stroke-width var(--bmo-motion-quick) var(--bmo-ease-move);
 }
 
 .face-group.still path {

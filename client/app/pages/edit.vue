@@ -28,7 +28,7 @@
             <USelect v-else v-model="stage" :items="stageItems" :aria-label="t('edit.target.stage')" class="w-24" />
 
             <!-- Wide, the actions stand as icon buttons in groups of three or fewer. -->
-            <div class="hidden items-center gap-1.5 lg:flex">
+            <div class="hidden items-center gap-1 lg:flex">
               <USeparator orientation="vertical" class="h-6" />
               <UDropdownMenu :items="addItems">
                 <UTooltip :text="t('edit.action.add_part')">
@@ -113,6 +113,7 @@
           <EditPreview :document="edited" :face="previewFace" :stage="tab === 'mouths' ? stage : null" />
         </template>
         <USkeleton v-else-if="!loadFailed" class="edit-preview-skeleton" role="status" :aria-label="t('edit.preview.title')" />
+        <p v-else class="text-base text-error">{{ t("edit.error.load_failed") }}</p>
       </template>
     </UDashboardPanel>
   </UDashboardGroup>

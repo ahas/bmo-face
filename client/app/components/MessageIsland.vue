@@ -26,12 +26,12 @@
             :aria-live="message.question ? 'assertive' : 'polite'"
             :aria-label="message.question ? message.title : undefined"
           >
-            <div ref="body" class="absolute start-0 top-0 w-max max-w-[calc(100vw-2rem)]" :class="wide ? 'min-w-[16rem]' : ''">
+            <div ref="body" class="bmo-island-content absolute start-0 top-0 w-max max-w-[calc(100vw-2rem)]" :class="wide ? 'min-w-[16rem]' : ''">
               <component
                 :is="canPress ? 'button' : 'div'"
                 :type="canPress ? 'button' : undefined"
                 class="flex w-full items-start gap-3 p-4 text-start transition-colors"
-                :class="canPress ? 'cursor-pointer hover:bg-white/10 active:bg-white/20 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white/70' : ''"
+                :class="canPress ? 'cursor-pointer hover:bg-white/10 active:bg-white/20 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary' : ''"
                 @click="canPress ? press() : undefined"
               >
                 <UIcon :name="message.icon" class="size-5 shrink-0" :class="MARK_TONES[message.tone]" />
@@ -58,8 +58,8 @@
                   size="sm"
                   :color="action.tone === 'error' ? 'error' : action.tone === 'primary' ? 'primary' : 'neutral'"
                   :variant="action.tone === 'error' || action.tone === 'primary' ? 'solid' : 'ghost'"
-                  :ui="action.tone === 'error' || action.tone === 'primary' ? undefined : { base: 'min-h-11 text-white hover:bg-white/15 active:bg-white/25 focus-visible:outline-white/70' }"
-                  :class="action.tone === 'error' || action.tone === 'primary' ? 'badge-ink min-h-11' : ''"
+                  :ui="action.tone === 'error' || action.tone === 'primary' ? undefined : { base: 'min-h-11 text-white hover:bg-white/15 active:bg-white/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary' }"
+                  :class="action.tone === 'error' || action.tone === 'primary' ? 'badge-ink min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary' : ''"
                   @click="take(action)"
                 />
               </div>
@@ -224,36 +224,51 @@ async function take(action: IslandAction): Promise<void> {
    which is what makes the widening read as one thing changing shape rather than two things. */
 .bmo-island {
   border-radius: 26px;
+  /* The clip reaches past the box, so its shadow stands at rest and only the widening is clipped. */
+  clip-path: inset(-40px);
   transition:
-    width 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    height 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    width var(--bmo-motion-unfold) var(--bmo-ease-enter),
+    height var(--bmo-motion-unfold) var(--bmo-ease-enter),
+    clip-path var(--bmo-motion-unfold) var(--bmo-ease-enter);
 }
 
-.bmo-island-enter-active,
-.bmo-island-leave-active {
-  transition:
-    opacity 200ms ease,
-    transform 320ms cubic-bezier(0.2, 0.9, 0.25, 1.1);
-}
-
-/* It comes down out of the top edge and shrinks back into it, so the place it belongs to is read
-   off the movement rather than having to be remembered. */
+/* A notice appears from nowhere in particular, so it unfolds sideways from its own centre: the
+   box is unclipped from the middle out, and only what stands in it fades. */
 .bmo-island-enter-from,
 .bmo-island-leave-to {
+  clip-path: inset(-40px 50% -40px 50%);
+}
+
+.bmo-island-leave-active {
+  transition: clip-path var(--bmo-motion-unfold) var(--bmo-ease-exit);
+}
+
+.bmo-island-enter-active .bmo-island-content,
+.bmo-island-leave-active .bmo-island-content {
+  transition: opacity var(--bmo-motion-quick) var(--bmo-ease-move);
+}
+
+.bmo-island-enter-from .bmo-island-content,
+.bmo-island-leave-to .bmo-island-content {
   opacity: 0;
-  transform: translateY(-12px) scale(0.86);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .bmo-island,
-  .bmo-island-enter-active,
-  .bmo-island-leave-active {
+  .bmo-island-leave-active,
+  .bmo-island-enter-active .bmo-island-content,
+  .bmo-island-leave-active .bmo-island-content {
     transition: none;
   }
 
   .bmo-island-enter-from,
   .bmo-island-leave-to {
-    transform: none;
+    clip-path: inset(-40px);
+  }
+
+  .bmo-island-enter-from .bmo-island-content,
+  .bmo-island-leave-to .bmo-island-content {
+    opacity: 1;
   }
 }
 </style>

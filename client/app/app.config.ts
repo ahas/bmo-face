@@ -64,6 +64,10 @@ export default defineAppConfig({
       primary: "teal",
       neutral: "zinc"
     },
+    // A place waiting on its content does not pulse for a reader who asked for less movement.
+    skeleton: {
+      base: "animate-pulse rounded-md bg-elevated motion-reduce:animate-none"
+    },
     // Every badge carries the class that darkens its colours in the light theme (main.css), so its
     // words read at 4.5:1 whatever shape and colour it is given. Nothing is drawn under 14px.
     badge: {

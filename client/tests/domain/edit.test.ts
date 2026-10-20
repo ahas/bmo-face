@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { checkFaceDocument, DEFAULT_FACES, LIMITS, ovalNodes, splineNodes } from "#faces";
+import { checkFaceDocument, DEFAULT_FACES, FACE_NAMES, LIMITS, ovalNodes, splineNodes } from "#faces";
 
 import { drawnSegments, pointOn } from "../../app/domain/draw";
 import {
@@ -305,6 +305,18 @@ describe("saving", () => {
   test("a document is changed only where what it draws differs, not its version", () => {
     expect(changed({ ...doc(), savedAt: 5 }, doc())).toBe(false);
     expect(changed(withParts(doc(), { tab: "mouths", stage: 0 }, [dot]), doc())).toBe(true);
+  });
+
+  test("a document is not changed by the order its keys were written in", () => {
+    const saved = doc();
+    const name = FACE_NAMES[0]!;
+    const face = saved.faces[name]!;
+    const reordered: FaceDocument = {
+      ...saved,
+      faces: { ...saved.faces, [name]: { mouth: face.mouth, marks: face.marks, eyes: face.eyes, cheeks: face.cheeks, brows: face.brows } },
+    };
+
+    expect(changed(reordered, saved)).toBe(false);
   });
 
   test("a document the server would refuse is refused here first, with the same sentence", () => {

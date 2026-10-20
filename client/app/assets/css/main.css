@@ -18,6 +18,17 @@
   --bmo-safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* The one set of movements these screens move by, and the easings with them. No screen writes a
+   length or a curve of its own. */
+:root {
+  --bmo-motion-quick: 150ms;
+  --bmo-motion-pop: 200ms;
+  --bmo-motion-unfold: 320ms;
+  --bmo-ease-enter: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --bmo-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --bmo-ease-move: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 /* Every scrollbar is the thin one, in the colour the borders are, on no track of its own. */
 * {
   scrollbar-width: thin;
@@ -90,6 +101,10 @@
      drawn at 14px as well. */
   --text-xs: 0.875rem;
   --text-xs--line-height: calc(1.25 / 0.875);
+
+  /* A transition written without a length or a curve takes the set's quick one on the move easing. */
+  --default-transition-duration: var(--bmo-motion-quick);
+  --default-transition-timing-function: var(--bmo-ease-move);
 
   --font-sans:
     "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", Roboto, "Helvetica Neue",

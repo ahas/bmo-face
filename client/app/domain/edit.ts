@@ -442,9 +442,30 @@ export function saveBody(document: FaceDocument, basedOn: number): { document: O
   return { document: rest, basedOn };
 }
 
+/**
+ * A value with every object's keys in one order, so two documents written by different hands are
+ * compared by what they hold. The server hands a saved document back with its keys in the order
+ * its check writes them, which is not always the order a screen built one in.
+ */
+function ordered(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(ordered);
+  }
+
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.keys(value as Record<string, unknown>)
+        .sort()
+        .map((key) => [key, ordered((value as Record<string, unknown>)[key])]),
+    );
+  }
+
+  return value;
+}
+
 /** Whether the edited document differs from the one saved. */
 export function changed(edited: FaceDocument, saved: FaceDocument): boolean {
-  return JSON.stringify(saveBody(edited, 0).document) !== JSON.stringify(saveBody(saved, 0).document);
+  return JSON.stringify(ordered(saveBody(edited, 0).document)) !== JSON.stringify(ordered(saveBody(saved, 0).document));
 }
 
 /** Why the edited document would be refused, checked here before it is sent; null for one that passes. */
