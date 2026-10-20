@@ -2,7 +2,7 @@
   {
     "id": "screen/app",
     "title": "Screen app shell",
-    "what": "The Nuxt application the face is generated from: its configuration, base path and icon bundle, the theme and colour marks the screens share, its Korean words, and the one island every screen stands on.",
+    "what": "The Nuxt application the face is generated from: its configuration, base path and icon bundle, the theme and colour marks the screens share, its Korean words, the one island every screen stands on, and the tooltip layer over them.",
     "files": [
       "client/app/app.vue",
       "client/app/app.config.ts",
@@ -17,10 +17,11 @@
     "needs": [
       "screen/island",
       "display/page",
-      "editor/page"
+      "editor/page",
+      "screen/tooltip"
     ],
-    "base": "c86dd8a3fbc5e986f918ab80bafcb7e677495062",
-    "changed": 1792500533182
+    "base": "b12a92e3b40aafeca6e0a38d45f4823727f147fe",
+    "changed": 1792504037627
   },
   {
     "id": "screen/back",
@@ -43,8 +44,8 @@
     ],
     "aliases": [],
     "needs": [],
-    "base": "c86dd8a3fbc5e986f918ab80bafcb7e677495062",
-    "changed": 1792500474554
+    "base": "b12a92e3b40aafeca6e0a38d45f4823727f147fe",
+    "changed": 1792504037629
   },
   {
     "id": "screen/island",
@@ -73,7 +74,39 @@
     "needs": [
       "screen/back"
     ],
-    "base": "c86dd8a3fbc5e986f918ab80bafcb7e677495062",
-    "changed": 1792500474552
+    "base": "b12a92e3b40aafeca6e0a38d45f4823727f147fe",
+    "changed": 1792504037631
+  },
+  {
+    "id": "screen/tooltip",
+    "title": "Tooltips and cut text",
+    "what": "The one tooltip every screen uses, opened by a held finger on a touch screen, and the layer over the whole interface that shows text cut short under the pointer, the keyboard's focus or a held finger.",
+    "files": [
+      "client/app/components/AppTooltip.vue",
+      "client/app/components/ClippedTextTooltip.vue",
+      "client/app/domain/long-press.ts",
+      "client/app/domain/tooltips.ts",
+      "client/app/domain/clip.ts",
+      "client/tests/domain/long-press.test.ts",
+      "client/tests/domain/clip.test.ts",
+      "docs/face.md"
+    ],
+    "symbols": [
+      "claimPress",
+      "pressGauge",
+      "holdTouchTooltip",
+      "closeTouchTooltip",
+      "clippedAt",
+      "lineAt",
+      "visiblePart"
+    ],
+    "aliases": [
+      "툴팁",
+      "잘린 글",
+      "툴팁 층"
+    ],
+    "needs": [],
+    "base": "b12a92e3b40aafeca6e0a38d45f4823727f147fe",
+    "changed": 1792504037634
   }
 ]

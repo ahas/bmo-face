@@ -320,6 +320,20 @@ expression document both the display and the editor read, and the server that se
   each names the accent step that reads at 3:1 on that surface.
 - **A toolbar is one row of equal cells.** An icon-only button in a toolbar is a square as tall as
   the toolbar's row, so the row reads as one band and a finger has the whole height to aim at.
+- **Every tooltip is one component.** A screen gives it the words and whether a press on what it
+  stands on does something else; how it opens, how wide it grows and how a finger reaches it are the
+  component's. On a touch screen a held finger opens it and the lift presses nothing, and the next
+  touch anywhere puts it away. Its words wrap inside the room a phone has rather than being cut a
+  second time.
+- **One long press.** A finger resting on a point is read by one shared mechanism. It is cancelled
+  the moment the finger slides beyond the platform's touch distance from where it landed, the page
+  scrolls, a second finger lands or the finger lifts, so it is never taken for a scroll or a drag.
+  Once it has fired, what it opened stays.
+- **Text cut short is shown whole.** One layer over the whole interface finds the line cut short
+  under the pointer, the keyboard's focus or a held finger, and shows its whole text in a tooltip.
+  Whether it is cut is measured as the tooltip is about to open, so a wider box needs no tooltip and
+  a narrower one does. Text that fits carries none, and a line that already has a tooltip of its own
+  is left to that tooltip.
 - **The theme's colours are measured.** Every badge's words read at 4.5:1 and the focus ring at
   3:1 against every surface they are drawn on, in every theme and every badge shape, and a browser
   test keeps the measurement.

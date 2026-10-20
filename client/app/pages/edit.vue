@@ -6,9 +6,9 @@
       <template #header>
         <UDashboardNavbar :title="t('edit.title')" :toggle="false">
           <template #right>
-            <UTooltip :text="t('edit.action.logout')">
+            <AppTooltip :text="t('edit.action.logout')">
               <UButton icon="i-material-symbols-logout" color="neutral" variant="ghost" :aria-label="t('edit.action.logout')" @click="logout" />
-            </UTooltip>
+            </AppTooltip>
           </template>
         </UDashboardNavbar>
 
@@ -18,9 +18,9 @@
 
         <UDashboardToolbar class="edit-toolbar">
           <template #left>
-            <UTooltip v-if="outline !== null" :text="t('edit.action.outline')">
+            <AppTooltip v-if="outline !== null" :text="t('edit.action.outline')">
               <UButton icon="i-material-symbols-arrow-back" color="neutral" variant="ghost" :aria-label="t('edit.action.outline')" @click="leave" />
-            </UTooltip>
+            </AppTooltip>
             <template v-if="tab === 'faces'">
               <USelect v-model="face" :items="faceItems" :aria-label="t('edit.target.face')" class="w-32 min-w-0" />
               <USelect v-model="group" :items="groupItems" :aria-label="t('edit.target.group')" class="w-28 min-w-0" />
@@ -31,30 +31,30 @@
             <div class="hidden items-center gap-1 lg:flex">
               <USeparator orientation="vertical" class="h-6" />
               <UDropdownMenu :items="addItems">
-                <UTooltip :text="t('edit.action.add_part')">
+                <AppTooltip :text="t('edit.action.add_part')">
                   <UButton icon="i-material-symbols-add" color="neutral" variant="ghost" :aria-label="t('edit.action.add_part')" :disabled="!edited" />
-                </UTooltip>
+                </AppTooltip>
               </UDropdownMenu>
-              <UTooltip :text="t('edit.action.remove_part')">
+              <AppTooltip :text="t('edit.action.remove_part')">
                 <UButton icon="i-material-symbols-delete-outline" color="neutral" variant="ghost" :aria-label="t('edit.action.remove_part')" :disabled="chosen === null" @click="removePart" />
-              </UTooltip>
+              </AppTooltip>
 
               <template v-if="tab === 'mouths'">
                 <USeparator orientation="vertical" class="h-6" />
-                <UTooltip :text="t('edit.action.add_stage')">
+                <AppTooltip :text="t('edit.action.add_stage')">
                   <UButton icon="i-material-symbols-library-add-outline" color="neutral" variant="ghost" :aria-label="t('edit.action.add_stage')" :disabled="!canAddStage" @click="moreStage" />
-                </UTooltip>
-                <UTooltip :text="t('edit.action.remove_stage')">
+                </AppTooltip>
+                <AppTooltip :text="t('edit.action.remove_stage')">
                   <UButton icon="i-material-symbols-layers-clear-outline" color="neutral" variant="ghost" :aria-label="t('edit.action.remove_stage')" :disabled="!canRemoveStage" @click="dropStage" />
-                </UTooltip>
+                </AppTooltip>
               </template>
             </div>
 
             <!-- Narrow, they gather into one menu, the numbers' drawer with them. -->
             <UDropdownMenu :items="narrowItems" class="lg:hidden">
-              <UTooltip :text="t('edit.action.more')">
+              <AppTooltip :text="t('edit.action.more')">
                 <UButton icon="i-material-symbols-more-vert" color="neutral" variant="ghost" :aria-label="t('edit.action.more')" class="lg:hidden" :disabled="!edited" />
-              </UTooltip>
+              </AppTooltip>
             </UDropdownMenu>
           </template>
 
@@ -63,9 +63,9 @@
             <span v-else-if="dirty" class="hidden text-sm text-muted lg:inline">{{ t("edit.status.changed") }}</span>
             <UButton icon="i-material-symbols-save-outline" :label="t('edit.action.save')" :loading="saving" :disabled="!dirty" class="hidden lg:inline-flex" @click="save" />
             <UChip :show="dirty" color="warning" class="lg:hidden">
-              <UTooltip :text="dirty ? `${t('edit.action.save')} · ${t('edit.status.changed')}` : t('edit.action.save')">
+              <AppTooltip :text="dirty ? `${t('edit.action.save')} · ${t('edit.status.changed')}` : t('edit.action.save')">
                 <UButton icon="i-material-symbols-save-outline" :aria-label="t('edit.action.save')" :loading="saving" :disabled="!dirty" class="lg:hidden" @click="save" />
-              </UTooltip>
+              </AppTooltip>
             </UChip>
           </template>
         </UDashboardToolbar>
@@ -119,6 +119,11 @@
   </UDashboardGroup>
 
   <UDrawer v-model:open="drawer" :title="t('edit.fields.title')">
+    <template #close="{ ui }">
+      <AppTooltip :text="t('common.action.close')">
+        <UButton icon="i-material-symbols-close" color="neutral" variant="ghost" :aria-label="t('common.action.close')" :class="ui.close()" />
+      </AppTooltip>
+    </template>
     <template #body>
       <div v-if="edited" class="flex flex-col gap-4">
         <PartFields

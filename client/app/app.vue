@@ -5,6 +5,7 @@
     <NuxtPage />
 
     <MessageIsland />
+    <ClippedTextTooltip />
   </UApp>
 </template>
 

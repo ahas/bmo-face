@@ -5,15 +5,15 @@
        button names itself in a tooltip, and the figures keep their width as a drag moves them. -->
   <UInputNumber v-bind="$attrs" :orientation="narrow ? 'horizontal' : 'vertical'" :ui="{ base: 'tabular-nums' }">
     <template #increment>
-      <UTooltip :text="t('common.aria.increase')">
+      <AppTooltip :text="t('common.aria.increase')">
         <UButton :key="String(narrow)" :icon="narrow ? appConfig.ui.icons.plus : appConfig.ui.icons.chevronUp" color="neutral" variant="link" :aria-label="t('common.aria.increase')" />
-      </UTooltip>
+      </AppTooltip>
     </template>
 
     <template #decrement>
-      <UTooltip :text="t('common.aria.decrease')">
+      <AppTooltip :text="t('common.aria.decrease')">
         <UButton :key="String(narrow)" :icon="narrow ? appConfig.ui.icons.minus : appConfig.ui.icons.chevronDown" color="neutral" variant="link" :aria-label="t('common.aria.decrease')" />
-      </UTooltip>
+      </AppTooltip>
     </template>
   </UInputNumber>
 </template>

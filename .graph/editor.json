@@ -25,8 +25,8 @@
       "display/draw",
       "document/check"
     ],
-    "base": "c86dd8a3fbc5e986f918ab80bafcb7e677495062",
-    "changed": 1792500474544
+    "base": "b12a92e3b40aafeca6e0a38d45f4823727f147fe",
+    "changed": 1792504037616
   },
   {
     "id": "editor/fields",
@@ -44,10 +44,11 @@
     "aliases": [],
     "needs": [
       "editor/canvas",
+      "screen/tooltip",
       "document/check"
     ],
-    "base": "c86dd8a3fbc5e986f918ab80bafcb7e677495062",
-    "changed": 1792500533200
+    "base": "b12a92e3b40aafeca6e0a38d45f4823727f147fe",
+    "changed": 1792504037619
   },
   {
     "id": "editor/page",
@@ -69,10 +70,11 @@
       "editor/preview",
       "screen/island",
       "screen/back",
+      "screen/tooltip",
       "document/check"
     ],
-    "base": "c86dd8a3fbc5e986f918ab80bafcb7e677495062",
-    "changed": 1792500533197
+    "base": "b12a92e3b40aafeca6e0a38d45f4823727f147fe",
+    "changed": 1792504037621
   },
   {
     "id": "editor/preview",
@@ -87,7 +89,7 @@
     "needs": [
       "display/draw"
     ],
-    "base": "c86dd8a3fbc5e986f918ab80bafcb7e677495062",
-    "changed": 1792500474549
+    "base": "b12a92e3b40aafeca6e0a38d45f4823727f147fe",
+    "changed": 1792504037624
   }
 ]

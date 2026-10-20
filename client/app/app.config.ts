@@ -102,10 +102,13 @@ export default defineAppConfig({
       }
     },
     // A tooltip's words are the only words that say what an icon button does; they take the caption
-    // size in the box the library already gave them.
+    // size in the box the library already gave them. A tooltip that carries a whole cut line wraps
+    // inside the room a phone has rather than being cut a second time, and it stands over the
+    // message pill, whose own layer has a number of its own.
     tooltip: {
       slots: {
-        content: "text-sm/4"
+        content: "z-[110] h-auto min-h-6 max-w-[calc(100vw-1rem)] text-sm/4",
+        text: "text-clip whitespace-normal break-words text-start"
       }
     },
     select: { slots: dropdown("min-w-[min(var(--reka-select-trigger-width),calc(100vw-1rem))]") },

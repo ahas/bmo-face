@@ -27,10 +27,10 @@
       <section class="flex flex-col gap-4">
         <div class="flex items-center gap-2">
           <USelect :model-value="chosenNode ?? undefined" :items="nodeItems" :placeholder="t('edit.fields.node')" :aria-label="t('edit.fields.node')" class="min-w-0 flex-1" @update:model-value="(value) => emit('chooseNode', Number(value))" />
-          <UTooltip :text="t('edit.action.add_node')">
+          <AppTooltip :text="t('edit.action.add_node')">
             <UButton icon="i-material-symbols-add" color="neutral" variant="ghost" :aria-label="t('edit.action.add_node')" :disabled="part.nodes.length >= LIMITS.maxNodes" @click="moreNode" />
-          </UTooltip>
-          <UTooltip :text="t('edit.action.remove_node')">
+          </AppTooltip>
+          <AppTooltip :text="t('edit.action.remove_node')">
             <UButton
               icon="i-material-symbols-remove"
               color="neutral"
@@ -39,7 +39,7 @@
               :disabled="node === null || part.nodes.length <= LIMITS.minNodes"
               @click="dropNode"
             />
-          </UTooltip>
+          </AppTooltip>
         </div>
 
         <p v-if="node === null" class="text-sm text-muted">{{ t("edit.fields.node_none") }}</p>
