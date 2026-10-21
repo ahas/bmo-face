@@ -13,8 +13,9 @@ of BMO's is imported.
   route; `docs/deploy.md` states the release, the unit and the tool entry.
 - **`.graph/` is written only with `bmo graph`.** It holds the repository's feature nodes and the
   boundary nodes for the APIs it exposes and calls; no other command and no hand edit changes it, and
-  a change to code carries the node it touches in the same commit. The format is `docs/graph.md` in
-  the bmo-graph repository.
+  a change to code brings the node it touches up to date in the checkout. Its area files are generated
+  and untracked, so a fresh checkout builds them again, while `settings.toml` is the repository's
+  configuration and stays tracked. The format is `docs/graph.md` in the bmo-graph repository.
 - **No dependency from another repository.** The base libraries are none; BMO is reached over the
   address a setting names. The testbed's dependency sweep fails on anything else.
 - **English in code, comments, tests, documents and commit messages.** Every word a person reads on
