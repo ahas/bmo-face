@@ -1,4 +1,5 @@
-//! Everything the server answers under `/bmo-face` (docs/face.md, 「The server」).
+//! Everything the server answers under `/bmo-face` (docs/face.md, 「The server」 and 「The console
+//! screen」).
 
 use std::net::SocketAddr;
 use std::path::{Component, Path, PathBuf};
@@ -14,6 +15,7 @@ use futures_util::stream;
 use serde_json::{Value, json};
 use tokio::sync::broadcast;
 
+use crate::console::{Console, MANIFEST_ROUTE, Need};
 use crate::login::{EditorLogin, LoginResult, cleared_cookie, session_cookie};
 use crate::pass::{Upstream, pass_through, passes_through, upstream};
 use crate::store::{FaceStore, Saved};
@@ -33,6 +35,8 @@ pub struct Face {
   /// How often an open display's stream of saves says it is still there.
   pub keep: Duration,
   pub upstream: Upstream,
+  /// The console screen's manifest, bundle and guard.
+  pub console: Console,
 }
 
 impl Face {
@@ -42,6 +46,7 @@ impl Face {
     static_dir: PathBuf,
     console_url: String,
     keep: Duration,
+    console: Console,
   ) -> Face {
     Face {
       store,
@@ -50,6 +55,7 @@ impl Face {
       console_url,
       keep,
       upstream: upstream(),
+      console,
     }
   }
 }
@@ -177,6 +183,107 @@ fn saves(face: &Arc<Face>) -> Response {
   response
 }
 
+// The expression document as it stands, for a display, the editor and the console screen alike.
+fn document_answer(face: &Face) -> Response {
+  match face.store.read() {
+    Ok(document) => json_answer(StatusCode::OK, &document, &[]),
+    Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+  }
+}
+
+// A save the editor or the console screen sends: the document with the version it was edited from.
+fn save_answer(face: &Face, body: &Bytes) -> Response {
+  let sent = serde_json::from_slice::<Value>(body).unwrap_or(Value::Null);
+  let nothing = Value::Null;
+  match face
+    .store
+    .save(sent.get("document").unwrap_or(&nothing), sent.get("basedOn").unwrap_or(&nothing))
+  {
+    Ok(Saved::Saved(saved)) => json_answer(StatusCode::OK, &saved, &[]),
+    Ok(Saved::Conflict(current)) => json_answer(
+      StatusCode::CONFLICT,
+      &json!({ "error": "다른 창에서 먼저 저장했어요. 새로 불러온 뒤 다시 고쳐 주세요.", "current": current }),
+      &[],
+    ),
+    Ok(Saved::Refused(said)) => error(StatusCode::BAD_REQUEST, &said),
+    Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+  }
+}
+
+// A console's call (docs/face.md, 「The console screen」): the console's credential before anything,
+// the reader's role before anything the screen reads, and no origin to match, since a console's
+// server makes the call.
+async fn console_answer(
+  face: &Face,
+  route: &str,
+  method: &Method,
+  headers: &HeaderMap,
+  body: Body,
+) -> Response {
+  let refused = |status: StatusCode| {
+    let said = if status == StatusCode::UNAUTHORIZED {
+      "The console's credential is missing or not this service's."
+    } else {
+      "The reader's role does not open this screen."
+    };
+    error(status, said)
+  };
+  let open = *method == Method::GET;
+  let words = face.console.words_route();
+
+  if route == MANIFEST_ROUTE || route == words {
+    if let Err(status) = face.console.guard(headers, Need::Credential) {
+      return refused(status);
+    }
+    if !open {
+      return error(StatusCode::METHOD_NOT_ALLOWED, "Only read here.");
+    }
+    if route == MANIFEST_ROUTE {
+      return match face.console.manifest().await {
+        Some(manifest) => json_answer(StatusCode::OK, &manifest, &[]),
+        None => error(StatusCode::NOT_FOUND, "No console bundle is built."),
+      };
+    }
+    return match face.console.words().await {
+      Some(bytes) => {
+        let mut response = Response::new(Body::from(bytes));
+        let kept = response.headers_mut();
+        kept.insert(header::CONTENT_TYPE, HeaderValue::from_static("application/json;charset=utf-8"));
+        kept.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
+        response
+      }
+      None => error(StatusCode::NOT_FOUND, "No console bundle is built."),
+    };
+  }
+
+  if let Err(status) = face.console.guard(headers, Need::Reader) {
+    return refused(status);
+  }
+
+  if route == format!("{}/faces", face.console.api_prefix()) {
+    if open {
+      return document_answer(face);
+    }
+    if *method == Method::PUT {
+      return match axum::body::to_bytes(body, BODY_LIMIT).await {
+        Ok(body) => save_answer(face, &body),
+        Err(_) => StatusCode::PAYLOAD_TOO_LARGE.into_response(),
+      };
+    }
+    return error(StatusCode::METHOD_NOT_ALLOWED, "Only read and save here.");
+  }
+
+  if open && let Some(built) = face.console.built(route).await {
+    let mut response = Response::new(Body::from(built.bytes));
+    let kept = response.headers_mut();
+    kept.insert(header::CONTENT_TYPE, HeaderValue::from_static(built.content_type));
+    kept.insert(header::CACHE_CONTROL, HeaderValue::from_static("public, max-age=31536000, immutable"));
+    return response;
+  }
+
+  error(StatusCode::NOT_FOUND, "Nothing of the console's stands here.")
+}
+
 // Whether a write comes from this site: its `Origin` names this host.
 fn from_this_site(headers: &HeaderMap) -> bool {
   let header = |name: header::HeaderName| headers.get(name).and_then(|value| value.to_str().ok());
@@ -237,6 +344,11 @@ async fn answer(
     return StatusCode::PAYLOAD_TOO_LARGE.into_response();
   }
 
+  // A console's routes stand behind its credential rather than this site's origin.
+  if face.console.owns(route) {
+    return console_answer(&face, route, &method, &headers, body).await;
+  }
+
   // A write must come from this site; the check stands before anything is read.
   if method != Method::GET && method != Method::HEAD && !from_this_site(&headers) {
     return error(StatusCode::FORBIDDEN, "요청 출처를 확인할 수 없습니다.");
@@ -262,10 +374,7 @@ async fn answer(
   let sent = || serde_json::from_slice::<Value>(&body).unwrap_or(Value::Null);
 
   if route == "/api/faces" && method == Method::GET {
-    return match face.store.read() {
-      Ok(document) => json_answer(StatusCode::OK, &document, &[]),
-      Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-    };
+    return document_answer(&face);
   }
   if route == "/api/faces/events" && method == Method::GET {
     return saves(&face);
@@ -300,21 +409,7 @@ async fn answer(
     return (StatusCode::NO_CONTENT, [(header::SET_COOKIE, cleared_cookie())]).into_response();
   }
   if route == "/api/faces" && method == Method::PUT {
-    let sent = sent();
-    let nothing = Value::Null;
-    return match face
-      .store
-      .save(sent.get("document").unwrap_or(&nothing), sent.get("basedOn").unwrap_or(&nothing))
-    {
-      Ok(Saved::Saved(saved)) => json_answer(StatusCode::OK, &saved, &[]),
-      Ok(Saved::Conflict(current)) => json_answer(
-        StatusCode::CONFLICT,
-        &json!({ "error": "다른 창에서 먼저 저장했어요. 새로 불러온 뒤 다시 고쳐 주세요.", "current": current }),
-        &[],
-      ),
-      Ok(Saved::Refused(said)) => error(StatusCode::BAD_REQUEST, &said),
-      Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-    };
+    return save_answer(&face, &body);
   }
 
   error(StatusCode::NOT_FOUND, "찾을 수 없습니다.")

@@ -1,23 +1,23 @@
 <template>
   <div class="flex flex-col gap-4">
     <div v-if="inside" class="flex">
-      <UButton icon="i-material-symbols-arrow-back" color="neutral" variant="ghost" :label="t('edit.action.outline')" @click="emit('leave')" />
+      <UButton icon="i-material-symbols-arrow-back" color="neutral" variant="ghost" :label="t('face.edit.action.outline')" @click="emit('leave')" />
     </div>
 
-    <p v-if="part === null" class="text-sm text-muted">{{ empty ? t("edit.fields.empty") : t("edit.fields.none") }}</p>
+    <p v-if="part === null" class="text-sm text-muted">{{ empty ? t("face.edit.fields.empty") : t("face.edit.fields.none") }}</p>
 
     <template v-else>
       <section class="flex flex-col gap-4">
-        <USwitch :model-value="part.closed" :label="t('edit.fields.closed')" :disabled="part.closed && holdsInside" @update:model-value="setOpenness" />
+        <USwitch :model-value="part.closed" :label="t('face.edit.fields.closed')" :disabled="part.closed && holdsInside" @update:model-value="setOpenness" />
         <div class="grid grid-cols-2 gap-4">
-          <UFormField :label="t('edit.fields.fill')">
+          <UFormField :label="t('face.edit.fields.fill')">
             <USelect :model-value="part.fill ?? NONE" :items="fillItems" :disabled="!part.closed" class="w-full" @update:model-value="setFill" />
           </UFormField>
-          <UFormField :label="t('edit.fields.line')">
+          <UFormField :label="t('face.edit.fields.line')">
             <USelect :model-value="part.line?.paint ?? NONE" :items="lineItems" class="w-full" @update:model-value="setLine" />
           </UFormField>
         </div>
-        <UFormField v-if="part.line" :label="t('edit.fields.width')">
+        <UFormField v-if="part.line" :label="t('face.edit.fields.width')">
           <NumberInput :model-value="part.line.width" :step="0.2" :min="LIMITS.minWidth" :max="LIMITS.maxWidth" class="w-full" @update:model-value="setWidth" />
         </UFormField>
       </section>
@@ -26,38 +26,38 @@
 
       <section class="flex flex-col gap-4">
         <div class="flex items-center gap-2">
-          <USelect :model-value="chosenNode ?? undefined" :items="nodeItems" :placeholder="t('edit.fields.node')" :aria-label="t('edit.fields.node')" class="min-w-0 flex-1" @update:model-value="(value) => emit('chooseNode', Number(value))" />
-          <AppTooltip :text="t('edit.action.add_node')">
-            <UButton icon="i-material-symbols-add" color="neutral" variant="ghost" :aria-label="t('edit.action.add_node')" :disabled="part.nodes.length >= LIMITS.maxNodes" @click="moreNode" />
+          <USelect :model-value="chosenNode ?? undefined" :items="nodeItems" :placeholder="t('face.edit.fields.node')" :aria-label="t('face.edit.fields.node')" class="min-w-0 flex-1" @update:model-value="(value) => emit('chooseNode', Number(value))" />
+          <AppTooltip :text="t('face.edit.action.add_node')">
+            <UButton icon="i-material-symbols-add" color="neutral" variant="ghost" :aria-label="t('face.edit.action.add_node')" :disabled="part.nodes.length >= LIMITS.maxNodes" @click="moreNode" />
           </AppTooltip>
-          <AppTooltip :text="t('edit.action.remove_node')">
+          <AppTooltip :text="t('face.edit.action.remove_node')">
             <UButton
               icon="i-material-symbols-remove"
               color="neutral"
               variant="ghost"
-              :aria-label="t('edit.action.remove_node')"
+              :aria-label="t('face.edit.action.remove_node')"
               :disabled="node === null || part.nodes.length <= LIMITS.minNodes"
               @click="dropNode"
             />
           </AppTooltip>
         </div>
 
-        <p v-if="node === null" class="text-sm text-muted">{{ t("edit.fields.node_none") }}</p>
+        <p v-if="node === null" class="text-sm text-muted">{{ t("face.edit.fields.node_none") }}</p>
         <template v-else>
-          <UFormField v-for="row in rows" :key="row.kind" :label="t(`edit.fields.${row.kind}`)">
+          <UFormField v-for="row in rows" :key="row.kind" :label="t(`face.edit.fields.${row.kind}`)">
             <div class="grid grid-cols-2 gap-2">
               <NumberInput
                 v-for="axis in AXES"
                 :key="axis"
                 :model-value="row.value[axis]"
                 :step="0.5"
-                :aria-label="`${t(`edit.fields.${row.kind}`)} ${t(axis === 0 ? 'edit.fields.x' : 'edit.fields.y')}`"
+                :aria-label="`${t(`face.edit.fields.${row.kind}`)} ${t(axis === 0 ? 'edit.fields.x' : 'edit.fields.y')}`"
                 class="w-full"
                 @update:model-value="(value: number | null) => setNumber(row.kind, axis, value)"
               />
             </div>
           </UFormField>
-          <USwitch :model-value="node.kind === 'smooth'" :label="t('edit.fields.smooth')" @update:model-value="(value) => emitPart(setSmooth(part!, chosenNode!, value))" />
+          <USwitch :model-value="node.kind === 'smooth'" :label="t('face.edit.fields.smooth')" @update:model-value="(value) => emitPart(setSmooth(part!, chosenNode!, value))" />
         </template>
       </section>
 
@@ -66,10 +66,10 @@
 
         <section class="flex flex-col gap-2">
           <div class="flex items-center justify-between gap-2">
-            <h3 class="text-base font-semibold">{{ t("edit.fields.inside") }}</h3>
+            <h3 class="text-base font-semibold">{{ t("face.edit.fields.inside") }}</h3>
             <div class="flex items-center gap-2">
-              <UButton icon="i-material-symbols-add" color="neutral" variant="outline" :label="t('edit.action.add_teeth')" :disabled="insideFull" @click="emitPart(addInside(part!, 'teeth'))" />
-              <UButton icon="i-material-symbols-add" color="neutral" variant="outline" :label="t('edit.action.add_tongue')" :disabled="insideFull" @click="emitPart(addInside(part!, 'tongue'))" />
+              <UButton icon="i-material-symbols-add" color="neutral" variant="outline" :label="t('face.edit.action.add_teeth')" :disabled="insideFull" @click="emitPart(addInside(part!, 'teeth'))" />
+              <UButton icon="i-material-symbols-add" color="neutral" variant="outline" :label="t('face.edit.action.add_tongue')" :disabled="insideFull" @click="emitPart(addInside(part!, 'tongue'))" />
             </div>
           </div>
           <ul v-if="holdsInside" class="flex flex-col gap-1">
@@ -78,7 +78,7 @@
                 color="neutral"
                 variant="ghost"
                 trailing-icon="i-material-symbols-chevron-right"
-                :label="t('edit.fields.inside_part', { paint: paintName(inner), n: index + 1 })"
+                :label="t('face.edit.fields.inside_part', { paint: paintName(inner), n: index + 1 })"
                 class="w-full"
                 :ui="{ trailingIcon: 'ms-auto' }"
                 @click="emit('enter', index)"
@@ -121,12 +121,12 @@ const insideFull = computed(() => (props.part?.inside ?? []).length >= LIMITS.pa
 
 // A part keeps a fill or a line: "none" is not offered for one while the other is none already.
 const paintItems = (otherIsNone: boolean) => [
-  { label: t("edit.paint.none"), value: NONE, disabled: otherIsNone },
-  ...PAINTS.map((paint) => ({ label: t(`edit.paint.${paint}`), value: paint })),
+  { label: t("face.edit.paint.none"), value: NONE, disabled: otherIsNone },
+  ...PAINTS.map((paint) => ({ label: t(`face.edit.paint.${paint}`), value: paint })),
 ];
 const fillItems = computed(() => paintItems(props.part?.line === null));
 const lineItems = computed(() => paintItems(props.part?.fill === null));
-const nodeItems = computed(() => (props.part?.nodes ?? []).map((_, index) => ({ label: t("edit.fields.node_n", { n: index + 1 }), value: index })));
+const nodeItems = computed(() => (props.part?.nodes ?? []).map((_, index) => ({ label: t("face.edit.fields.node_n", { n: index + 1 }), value: index })));
 
 const rows = computed(() => {
   const own = node.value;
@@ -140,7 +140,7 @@ const rows = computed(() => {
       ];
 });
 
-const paintName = (part: Part) => t(`edit.paint.${part.fill ?? part.line?.paint ?? NONE}`);
+const paintName = (part: Part) => t(`face.edit.paint.${part.fill ?? part.line?.paint ?? NONE}`);
 
 function emitPart(part: Part | null): void {
   if (part !== null) {

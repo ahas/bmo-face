@@ -1,7 +1,8 @@
-//! The face server's wire contract (docs/face.md, 「The server」), asked of the command under test as a
-//! display, the editor and a stranger ask it: the server started as a process on a free port over a
-//! scratch data root, a scratch screen, a scratch archive holding one BMO account, and a stand-in for
-//! BMO's console that writes down what it was asked. The command is the package's binary, or the one
+//! The face server's wire contract (docs/face.md, 「The server」 and 「The console screen」), asked of the
+//! command under test as a display, the editor, a console and a stranger ask it: the server started as
+//! a process on a free port over a scratch data root, a scratch screen, a scratch console bundle, a
+//! scratch archive holding one BMO account, and a stand-in for BMO's console that writes down what it
+//! was asked. The command is the package's binary, or the one
 //! `FACE_CONTRACT_COMMAND` names.
 
 use std::os::unix::process::CommandExt;
@@ -29,6 +30,10 @@ use tokio::net::{TcpListener, TcpStream};
 const HOST: &str = "face.test";
 const ORIGIN: &str = "http://face.test";
 const DEFAULT: &str = include_str!("../../tests/fixtures/default-faces.json");
+const FIXED: &str = include_str!("../../console-manifest.json");
+/// The credential the scratch console calls with, as the server is given it.
+const TOKEN: &str = "console-token";
+const BEARER: &str = "Bearer console-token";
 
 /// One request BMO's stand-in console was sent.
 #[derive(Clone, Debug)]
@@ -91,6 +96,8 @@ struct Face {
   port: u16,
   console: Log,
   console_url: String,
+  /// The console's credential the server is started with; none for a server given no token.
+  token: Option<&'static str>,
   // The port of a console that is not there, held by a socket bound and never listening, so a
   // connection to it is refused and no other process takes it.
   _absent: Option<tokio::net::TcpSocket>,
@@ -110,6 +117,10 @@ impl Face {
     if let Some(stored) = stored {
       std::fs::write(root.join("data/faces.json"), stored).unwrap();
     }
+    std::fs::create_dir_all(root.join("console")).unwrap();
+    std::fs::write(root.join("console/bundle.js"), "export default { routes: [] };\n").unwrap();
+    std::fs::write(root.join("console/bundle.css"), ".face-test { color: red }\n").unwrap();
+    std::fs::write(root.join("console/words.json"), r#"{"ko":{"face":{"title":"face"}}}"#).unwrap();
 
     let hash = argon2::Argon2::default()
       .hash_password(b"secret", &SaltString::from_b64("c2NyYXRjaHNhbHQxMjM0").unwrap())
@@ -146,6 +157,7 @@ impl Face {
       port: 0,
       console: log,
       console_url,
+      token: Some(TOKEN),
       _absent: absent,
     }
   }
@@ -160,13 +172,19 @@ impl Face {
 
   async fn start(mut self) -> Face {
     let log = std::fs::File::create(self.root().join("server.log")).unwrap();
+    let mut command = command();
+    match self.token {
+      Some(token) => command.env("BMO_FACE_TOKEN", token),
+      None => command.env_remove("BMO_FACE_TOKEN"),
+    };
     self.server = Some(
-      command()
+      command
         .env("BMO_FACE_DATA", self.root().join("data"))
         // A port of its own choosing, which it names as it starts answering, so no other process
         // can take the port between its choosing and its binding.
         .env("BMO_FACE_PORT", "0")
         .env("BMO_FACE_STATIC", self.root().join("public"))
+        .env("BMO_FACE_CONSOLE", self.root().join("console"))
         .env("BMO_DB_PATH", self.root().join("archive.db"))
         .env("BMO_CONSOLE_URL", &self.console_url)
         .env("BMO_FACE_KEEP_MS", "200")
@@ -263,6 +281,21 @@ impl Face {
   async fn document(&self) -> Value {
     serde_json::from_str(&self.get("/bmo-face/api/faces").await.2).unwrap()
   }
+
+  /// The manifest as a console reads it.
+  async fn manifest(&self) -> (u16, Value) {
+    let (status, _, body) =
+      self.call("GET", "/bmo-face/console-manifest", &[("authorization", BEARER)], "").await;
+    (status, serde_json::from_str(&body).unwrap_or(Value::Null))
+  }
+}
+
+/// The path a console bundle's file is answered at, by its bytes.
+fn hashed(file: &str, bytes: &[u8]) -> String {
+  use sha2::Digest;
+  let hex: String = sha2::Sha256::digest(bytes).iter().map(|byte| format!("{byte:02x}")).collect();
+  let (stem, extension) = file.rsplit_once('.').unwrap();
+  format!("/console/{stem}.{}.{extension}", &hex[..16])
 }
 
 impl Drop for Face {
@@ -615,4 +648,145 @@ async fn a_stored_document_is_made_right_before_the_server_answers() {
   assert_eq!(aside.len(), 1);
   assert_eq!(std::fs::read_to_string(&aside[0]).unwrap(), "{ half a docu");
   assert!(face.said().contains("was refused (it is not JSON)"), "{}", face.said());
+}
+
+#[tokio::test]
+async fn a_console_reads_the_manifest_and_the_words_with_its_credential_alone() {
+  let face = Face::new(None, true).await.start().await;
+
+  for refused in [vec![], vec![("authorization", "Bearer other")], vec![("authorization", TOKEN)]] {
+    assert_eq!(face.call("GET", "/bmo-face/console-manifest", &refused, "").await.0, 401);
+    assert_eq!(face.call("GET", "/bmo-face/console/words", &refused, "").await.0, 401);
+  }
+
+  let (status, headers, body) =
+    face.call("GET", "/bmo-face/console-manifest", &[("authorization", BEARER)], "").await;
+  assert_eq!(status, 200);
+  assert!(headers["content-type"].to_str().unwrap().starts_with("application/json"));
+  let mut expected: Value = serde_json::from_str(FIXED).unwrap();
+  expected["bundle"] = json!(hashed("bundle.js", b"export default { routes: [] };\n"));
+  expected["stylesheet"] = json!(hashed("bundle.css", b".face-test { color: red }\n"));
+  expected["words"] = json!("/console/words");
+  assert_eq!(serde_json::from_str::<Value>(&body).unwrap(), expected);
+  assert_eq!(expected["role"], "member");
+  assert_eq!(expected["ownerKey"], false);
+
+  let (status, _, body) =
+    face.call("GET", "/bmo-face/console/words", &[("authorization", BEARER)], "").await;
+  assert_eq!((status, body.as_str()), (200, r#"{"ko":{"face":{"title":"face"}}}"#));
+}
+
+#[tokio::test]
+async fn the_screens_routes_need_the_credential_and_a_role_the_manifest_allows() {
+  let face = Face::new(None, true).await.start().await;
+  let manifest = face.manifest().await.1;
+  let module = format!("/bmo-face{}", manifest["bundle"].as_str().unwrap());
+  let stylesheet = format!("/bmo-face{}", manifest["stylesheet"].as_str().unwrap());
+
+  for path in [
+    module.as_str(),
+    stylesheet.as_str(),
+    "/bmo-face/console/faces",
+    "/bmo-face/console/elsewhere",
+  ] {
+    assert_eq!(face.call("GET", path, &[], "").await.0, 401, "{path}");
+    assert_eq!(
+      face
+        .call("GET", path, &[("authorization", "Bearer other"), ("owner-role", "member")], "")
+        .await
+        .0,
+      401
+    );
+    assert_eq!(face.call("GET", path, &[("authorization", BEARER)], "").await.0, 403, "{path}");
+    assert_eq!(
+      face
+        .call("GET", path, &[("authorization", BEARER), ("owner-role", "guest")], "")
+        .await
+        .0,
+      403
+    );
+  }
+  for role in ["member", "administrator"] {
+    let reader = [("authorization", BEARER), ("owner-role", role)];
+    let (status, headers, body) = face.call("GET", &module, &reader, "").await;
+    assert_eq!((status, body.as_str()), (200, "export default { routes: [] };\n"));
+    assert!(headers["content-type"].to_str().unwrap().starts_with("text/javascript"));
+    assert!(headers["cache-control"].to_str().unwrap().contains("immutable"));
+    let (status, headers, _) = face.call("GET", &stylesheet, &reader, "").await;
+    assert_eq!(status, 200);
+    assert!(headers["content-type"].to_str().unwrap().starts_with("text/css"));
+    let (status, _, body) = face.call("GET", "/bmo-face/console/faces", &reader, "").await;
+    assert_eq!((status, serde_json::from_str::<Value>(&body).unwrap()), (200, default_document()));
+    assert_eq!(face.call("GET", "/bmo-face/console/elsewhere", &reader, "").await.0, 404);
+  }
+}
+
+#[tokio::test]
+async fn the_console_screen_saves_as_the_editor_does_without_a_session_or_this_sites_origin() {
+  let face = Face::new(None, true).await.start().await;
+  let mut edited = default_document();
+  edited["colors"]["body"] = json!("#223344");
+  let save = json!({ "document": edited, "basedOn": 0 });
+  let console = [("origin", "http://console.test"), ("authorization", BEARER), ("owner-role", "member")];
+
+  assert_eq!(face.write("PUT", "/bmo-face/console/faces", &save, &[]).await.0, 401);
+  assert_eq!(
+    face
+      .write("PUT", "/bmo-face/console/faces", &save, &[("authorization", BEARER)])
+      .await
+      .0,
+    403
+  );
+
+  let (status, _, body) = face.write("PUT", "/bmo-face/console/faces", &save, &console).await;
+  assert_eq!(status, 200);
+  let saved: Value = serde_json::from_str(&body).unwrap();
+  assert_eq!(saved["colors"]["body"], "#223344");
+  assert_eq!(face.document().await, saved);
+
+  let (status, _, body) = face.write("PUT", "/bmo-face/console/faces", &save, &console).await;
+  assert_eq!(status, 409);
+  assert_eq!(serde_json::from_str::<Value>(&body).unwrap()["current"]["savedAt"], saved["savedAt"]);
+}
+
+#[tokio::test]
+async fn the_module_path_follows_its_bytes_and_no_bundle_is_no_manifest() {
+  let face = Face::new(None, true).await.start().await;
+  let reader = [("authorization", BEARER), ("owner-role", "member")];
+  let first = face.manifest().await.1["bundle"].as_str().unwrap().to_owned();
+  assert_eq!(face.call("GET", &format!("/bmo-face{first}"), &reader, "").await.0, 200);
+
+  std::fs::write(face.root().join("console/bundle.js"), "export default { routes: [{}] };\n").unwrap();
+  let second = face.manifest().await.1["bundle"].as_str().unwrap().to_owned();
+  assert_ne!(first, second);
+  assert_eq!(second, hashed("bundle.js", b"export default { routes: [{}] };\n"));
+  assert_eq!(face.call("GET", &format!("/bmo-face{first}"), &reader, "").await.0, 404);
+  assert_eq!(face.call("GET", &format!("/bmo-face{second}"), &reader, "").await.0, 200);
+
+  std::fs::remove_file(face.root().join("console/bundle.css")).unwrap();
+  assert!(face.manifest().await.1.get("stylesheet").is_none());
+  std::fs::remove_file(face.root().join("console/bundle.js")).unwrap();
+  assert_eq!(face.manifest().await.0, 404);
+}
+
+#[tokio::test]
+async fn a_server_given_no_token_refuses_every_console_route_and_serves_the_rest() {
+  let mut face = Face::new(None, true).await;
+  face.token = None;
+  let face = face.start().await;
+
+  assert_eq!(face.manifest().await.0, 401);
+  assert_eq!(
+    face
+      .call(
+        "GET",
+        "/bmo-face/console/faces",
+        &[("authorization", BEARER), ("owner-role", "member")],
+        ""
+      )
+      .await
+      .0,
+    401
+  );
+  assert_eq!(face.get("/bmo-face/api/faces").await.0, 200);
 }

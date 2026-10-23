@@ -4,10 +4,10 @@
   <UDashboardGroup v-else-if="editor !== undefined" storage="local" storage-key="bmo-face-edit" unit="%">
     <UDashboardPanel id="canvas" resizable :default-size="68" :min-size="50" :max-size="80" :ui="{ body: 'p-0 sm:p-0 gap-0 sm:gap-0' }">
       <template #header>
-        <UDashboardNavbar :title="t('edit.title')" :toggle="false">
+        <UDashboardNavbar :title="t('face.edit.title')" :toggle="false">
           <template #right>
-            <AppTooltip :text="t('edit.action.logout')">
-              <UButton icon="i-material-symbols-logout" color="neutral" variant="ghost" :aria-label="t('edit.action.logout')" @click="logout" />
+            <AppTooltip v-if="road.session" :text="t('face.edit.action.logout')">
+              <UButton icon="i-material-symbols-logout" color="neutral" variant="ghost" :aria-label="t('face.edit.action.logout')" @click="logout" />
             </AppTooltip>
           </template>
         </UDashboardNavbar>
@@ -18,53 +18,53 @@
 
         <UDashboardToolbar class="edit-toolbar">
           <template #left>
-            <AppTooltip v-if="outline !== null" :text="t('edit.action.outline')">
-              <UButton icon="i-material-symbols-arrow-back" color="neutral" variant="ghost" :aria-label="t('edit.action.outline')" @click="leave" />
+            <AppTooltip v-if="outline !== null" :text="t('face.edit.action.outline')">
+              <UButton icon="i-material-symbols-arrow-back" color="neutral" variant="ghost" :aria-label="t('face.edit.action.outline')" @click="leave" />
             </AppTooltip>
             <template v-if="tab === 'faces'">
-              <USelect v-model="face" :items="faceItems" :aria-label="t('edit.target.face')" class="w-32 min-w-0" />
-              <USelect v-model="group" :items="groupItems" :aria-label="t('edit.target.group')" class="w-28 min-w-0" />
+              <USelect v-model="face" :items="faceItems" :aria-label="t('face.edit.target.face')" class="w-32 min-w-0" />
+              <USelect v-model="group" :items="groupItems" :aria-label="t('face.edit.target.group')" class="w-28 min-w-0" />
             </template>
-            <USelect v-else v-model="stage" :items="stageItems" :aria-label="t('edit.target.stage')" class="w-24 min-w-0" />
+            <USelect v-else v-model="stage" :items="stageItems" :aria-label="t('face.edit.target.stage')" class="w-24 min-w-0" />
 
             <!-- Wide, the actions stand as icon buttons in groups of three or fewer. -->
             <div class="hidden items-center gap-1 lg:flex">
               <USeparator orientation="vertical" class="h-6" />
               <UDropdownMenu :items="addItems">
-                <AppTooltip :text="t('edit.action.add_part')">
-                  <UButton icon="i-material-symbols-add" color="neutral" variant="ghost" :aria-label="t('edit.action.add_part')" :disabled="!edited" />
+                <AppTooltip :text="t('face.edit.action.add_part')">
+                  <UButton icon="i-material-symbols-add" color="neutral" variant="ghost" :aria-label="t('face.edit.action.add_part')" :disabled="!edited" />
                 </AppTooltip>
               </UDropdownMenu>
-              <AppTooltip :text="t('edit.action.remove_part')">
-                <UButton icon="i-material-symbols-delete-outline" color="neutral" variant="ghost" :aria-label="t('edit.action.remove_part')" :disabled="chosen === null" @click="removePart" />
+              <AppTooltip :text="t('face.edit.action.remove_part')">
+                <UButton icon="i-material-symbols-delete-outline" color="neutral" variant="ghost" :aria-label="t('face.edit.action.remove_part')" :disabled="chosen === null" @click="removePart" />
               </AppTooltip>
 
               <template v-if="tab === 'mouths'">
                 <USeparator orientation="vertical" class="h-6" />
-                <AppTooltip :text="t('edit.action.add_stage')">
-                  <UButton icon="i-material-symbols-library-add-outline" color="neutral" variant="ghost" :aria-label="t('edit.action.add_stage')" :disabled="!canAddStage" @click="moreStage" />
+                <AppTooltip :text="t('face.edit.action.add_stage')">
+                  <UButton icon="i-material-symbols-library-add-outline" color="neutral" variant="ghost" :aria-label="t('face.edit.action.add_stage')" :disabled="!canAddStage" @click="moreStage" />
                 </AppTooltip>
-                <AppTooltip :text="t('edit.action.remove_stage')">
-                  <UButton icon="i-material-symbols-layers-clear-outline" color="neutral" variant="ghost" :aria-label="t('edit.action.remove_stage')" :disabled="!canRemoveStage" @click="dropStage" />
+                <AppTooltip :text="t('face.edit.action.remove_stage')">
+                  <UButton icon="i-material-symbols-layers-clear-outline" color="neutral" variant="ghost" :aria-label="t('face.edit.action.remove_stage')" :disabled="!canRemoveStage" @click="dropStage" />
                 </AppTooltip>
               </template>
             </div>
 
             <!-- Narrow, they gather into one menu, the numbers' drawer with them. -->
             <UDropdownMenu :items="narrowItems" class="lg:hidden">
-              <AppTooltip :text="t('edit.action.more')">
-                <UButton icon="i-material-symbols-more-vert" color="neutral" variant="ghost" :aria-label="t('edit.action.more')" class="lg:hidden" :disabled="!edited" />
+              <AppTooltip :text="t('face.edit.action.more')">
+                <UButton icon="i-material-symbols-more-vert" color="neutral" variant="ghost" :aria-label="t('face.edit.action.more')" class="lg:hidden" :disabled="!edited" />
               </AppTooltip>
             </UDropdownMenu>
           </template>
 
           <template #right>
             <span v-if="refusal" class="hidden text-sm text-error lg:inline">{{ refusal }}</span>
-            <span v-else-if="dirty" class="hidden text-sm text-muted lg:inline">{{ t("edit.status.changed") }}</span>
-            <UButton icon="i-material-symbols-save-outline" :label="t('edit.action.save')" :loading="saving" :disabled="!dirty" class="hidden lg:inline-flex" @click="save" />
+            <span v-else-if="dirty" class="hidden text-sm text-muted lg:inline">{{ t("face.edit.status.changed") }}</span>
+            <UButton icon="i-material-symbols-save-outline" :label="t('face.edit.action.save')" :loading="saving" :disabled="!dirty" class="hidden lg:inline-flex" @click="save" />
             <UChip :show="dirty" color="warning" class="lg:hidden">
-              <AppTooltip :text="dirty ? `${t('edit.action.save')} · ${t('edit.status.changed')}` : t('edit.action.save')">
-                <UButton icon="i-material-symbols-save-outline" :aria-label="t('edit.action.save')" :loading="saving" :disabled="!dirty" class="lg:hidden" @click="save" />
+              <AppTooltip :text="dirty ? `${t('face.edit.action.save')} · ${t('face.edit.status.changed')}` : t('face.edit.action.save')">
+                <UButton icon="i-material-symbols-save-outline" :aria-label="t('face.edit.action.save')" :loading="saving" :disabled="!dirty" class="lg:hidden" @click="save" />
               </AppTooltip>
             </UChip>
           </template>
@@ -87,15 +87,15 @@
             @change="changeLayer"
             @choose="choose"
           />
-          <p v-else-if="loadFailed" class="text-base text-error">{{ t("edit.error.load_failed") }}</p>
-          <USkeleton v-else class="edit-skeleton" role="status" :aria-label="t('edit.title')" />
+          <p v-else-if="loadFailed" class="text-base text-error">{{ t("face.edit.error.load_failed") }}</p>
+          <USkeleton v-else class="edit-skeleton" role="status" :aria-label="t('face.edit.title')" />
         </div>
       </template>
     </UDashboardPanel>
 
     <UDashboardPanel id="side" class="hidden lg:flex">
       <template #header>
-        <UDashboardNavbar :title="t('edit.fields.title')" :toggle="false" />
+        <UDashboardNavbar :title="t('face.edit.fields.title')" :toggle="false" />
       </template>
       <template #body>
         <template v-if="edited">
@@ -112,13 +112,13 @@
           <USeparator />
           <EditPreview :document="edited" :face="previewFace" :stage="tab === 'mouths' ? stage : null" />
         </template>
-        <USkeleton v-else-if="!loadFailed" class="edit-preview-skeleton" role="status" :aria-label="t('edit.preview.title')" />
-        <p v-else class="text-base text-error">{{ t("edit.error.load_failed") }}</p>
+        <USkeleton v-else-if="!loadFailed" class="edit-preview-skeleton" role="status" :aria-label="t('face.edit.preview.title')" />
+        <p v-else class="text-base text-error">{{ t("face.edit.error.load_failed") }}</p>
       </template>
     </UDashboardPanel>
   </UDashboardGroup>
 
-  <UDrawer v-model:open="drawer" :title="t('edit.fields.title')">
+  <UDrawer v-model:open="drawer" :title="t('face.edit.fields.title')">
     <template #close="{ ui }">
       <AppTooltip :text="t('common.action.close')">
         <UButton icon="i-material-symbols-close" color="neutral" variant="ghost" :aria-label="t('common.action.close')" :class="ui.close()" />
@@ -152,13 +152,17 @@ import { useBackClose } from "~/domain/layers";
 import type { DropdownMenuItem } from "@nuxt/ui";
 import type { FaceName, Part, PartGroup } from "#faces";
 import type { EditTarget, NewPart } from "~/domain/edit";
+import type { EditorRoad } from "~/composables/useEditor";
 
 // The expression editor (docs/face.md, 「The editor」): one face's group or one mouth stage at a time
 // on the canvas — or the parts inside one of its parts — the chosen part's numbers and the preview
-// beside it, and one save for the whole.
+// beside it, and one save for the whole. The page's own route reaches the server behind the editor's
+// login; the console screen hands it the console's road, which needs none (「The console screen」).
 
+const props = defineProps<{ road?: EditorRoad }>();
+const road = props.road ?? sessionRoad();
 const { t } = useI18n();
-const { editor, edited, loadFailed, saving, refusal, dirty, login, logout, save } = useEditor();
+const { editor, edited, loadFailed, saving, refusal, dirty, login, logout, save } = useEditor(road);
 
 const tab = ref<"faces" | "mouths">("faces");
 const face = ref<FaceName>("기본");
@@ -172,15 +176,15 @@ const chosenNode = ref<number | null>(null);
 const drawer = ref(false);
 
 const tabs = computed(() => [
-  { label: t("edit.tab.faces"), value: "faces" },
-  { label: t("edit.tab.mouths"), value: "mouths" },
+  { label: t("face.edit.tab.faces"), value: "faces" },
+  { label: t("face.edit.tab.mouths"), value: "mouths" },
 ]);
 const faceItems = computed(() => FACE_NAMES.map((name) => ({ label: t(`face.name.${name}`), value: name })));
-const groupItems = computed(() => PART_GROUPS.map((name) => ({ label: t(`edit.group.${name}`), value: name })));
-const stageItems = computed(() => (edited.value?.mouths ?? []).map((_, index) => ({ label: t("edit.stage", { n: index + 1 }), value: index })));
+const groupItems = computed(() => PART_GROUPS.map((name) => ({ label: t(`face.edit.group.${name}`), value: name })));
+const stageItems = computed(() => (edited.value?.mouths ?? []).map((_, index) => ({ label: t("face.edit.stage", { n: index + 1 }), value: index })));
 const newItems = (): DropdownMenuItem[] => [
-  { label: t("edit.action.add_oval"), icon: "i-material-symbols-circle-outline", disabled: layerFull.value, onSelect: () => addPart("oval") },
-  { label: t("edit.action.add_line"), icon: "i-material-symbols-gesture", disabled: layerFull.value, onSelect: () => addPart("line") },
+  { label: t("face.edit.action.add_oval"), icon: "i-material-symbols-circle-outline", disabled: layerFull.value, onSelect: () => addPart("oval") },
+  { label: t("face.edit.action.add_line"), icon: "i-material-symbols-gesture", disabled: layerFull.value, onSelect: () => addPart("line") },
 ];
 const addItems = computed(() => [newItems()]);
 
@@ -190,14 +194,14 @@ const canRemoveStage = computed(() => edited.value !== null && edited.value.mout
 // On a narrow screen every action of the toolbar stands in one menu, in the order they are reached for.
 const narrowItems = computed((): DropdownMenuItem[][] => [
   [
-    { label: t("edit.action.fields"), icon: "i-material-symbols-tune", onSelect: () => (drawer.value = true) },
+    { label: t("face.edit.action.fields"), icon: "i-material-symbols-tune", onSelect: () => (drawer.value = true) },
   ],
-  [...newItems(), { label: t("edit.action.remove_part"), icon: "i-material-symbols-delete-outline", disabled: chosen.value === null, onSelect: removePart }],
+  [...newItems(), { label: t("face.edit.action.remove_part"), icon: "i-material-symbols-delete-outline", disabled: chosen.value === null, onSelect: removePart }],
   ...(tab.value === "mouths"
     ? [
         [
-          { label: t("edit.action.add_stage"), icon: "i-material-symbols-library-add-outline", disabled: !canAddStage.value, onSelect: moreStage },
-          { label: t("edit.action.remove_stage"), icon: "i-material-symbols-layers-clear-outline", disabled: !canRemoveStage.value, onSelect: dropStage },
+          { label: t("face.edit.action.add_stage"), icon: "i-material-symbols-library-add-outline", disabled: !canAddStage.value, onSelect: moreStage },
+          { label: t("face.edit.action.remove_stage"), icon: "i-material-symbols-layers-clear-outline", disabled: !canRemoveStage.value, onSelect: dropStage },
         ],
       ]
     : []),
@@ -211,9 +215,9 @@ const layer = computed<Part[]>(() => (outline.value === null ? parts.value : (ou
 const layerFull = computed(() => layer.value.length >= (outline.value === null ? LIMITS.partsPerGroup : LIMITS.partsInside));
 const chosenPart = computed(() => (chosen.value === null ? null : (layer.value[chosen.value] ?? null)));
 const targetLabel = computed(() => {
-  const named = tab.value === "faces" ? `${t(`face.name.${face.value}`)} · ${t(`edit.group.${group.value}`)}` : t("edit.stage", { n: stage.value + 1 });
+  const named = tab.value === "faces" ? `${t(`face.name.${face.value}`)} · ${t(`face.edit.group.${group.value}`)}` : t("face.edit.stage", { n: stage.value + 1 });
 
-  return outline.value === null ? named : `${named} · ${t("edit.fields.inside")}`;
+  return outline.value === null ? named : `${named} · ${t("face.edit.fields.inside")}`;
 });
 
 // The rest of the face behind what is being edited, each part in its own paints: the face's other
@@ -336,7 +340,7 @@ function dropStage(): void {
   }
 }
 
-useHead({ title: () => t("edit.title") });
+useHead({ title: () => t("face.edit.title") });
 </script>
 
 <style scoped>

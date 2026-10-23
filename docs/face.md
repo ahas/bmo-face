@@ -10,8 +10,11 @@ expression document both the display and the editor read, and the server that se
   it speaks with, and the whole face with what BMO is doing.
 - **The editor** — `/bmo-face/edit`, where a person draws and corrects the faces and the mouth
   stages and saves them. What it saves is what every display shows, with no rebuild and no reload.
-- **The server** — serves both pages, keeps the expression document, logs the editor in, and passes
-  a display's requests through to BMO's listener routes.
+- **The server** — serves both pages, keeps the expression document, logs the editor in, passes
+  a display's requests through to BMO's listener routes, and answers a console for the console screen.
+- **The console screen** — the editor again, as a console bundle: a console that keeps bmo-ui's
+  console plugin contract finds it by the face's manifest and opens it under `/face`, behind the
+  console's own sign-in (「The console screen」).
 - **Any screen with a browser.** The case's own screen is not settled, so nothing here assumes a
   board, a resolution or an aspect ratio. A choice that turns on the device is asked of the owner as a
   numbered question rather than guessed.
@@ -93,6 +96,8 @@ expression document both the display and the editor read, and the server that se
   twenty failed logins from one address in five minutes.
 - **The display itself needs no editor session:** the expression document is read openly, since it
   is drawings and nothing else.
+- **The console screen signs in nowhere here.** Whoever the console lets onto it edits; the face
+  holds the console's credential and the reader's role to account instead (「The console screen」).
 
 ## The faces
 
@@ -348,17 +353,22 @@ expression document both the display and the editor read, and the server that se
   - `GET /api/faces`, openly, and `PUT /api/faces` with an editor session;
   - `GET /api/faces/events`, the saves as they happen, with a keep frame every five seconds;
   - `POST /api/login`, `POST /api/logout` and `GET /api/me` for the editor;
-  - the four passed-through routes under `/bmo`.
+  - the four passed-through routes under `/bmo`;
+  - `GET /console-manifest` and the routes under `/console`, for a console alone (「The console
+    screen」).
 - **A write must come from this site.** A `POST` or `PUT` whose `Origin` is not this host is refused
-  before anything else is read.
+  before anything else is read. The console's routes are the exception: a console's server makes
+  those calls, and its credential guards them in place of the origin.
 - **The data root** is the one `BMO_FACE_DATA` names: the expression document and the session
   database. The unit names `~/.local/share/bmo/data/face/`, under the data root this machine shares
   with BMO's other units; a process without the variable uses `~/.local/share/bmo-face/`. It is live
   data: never committed, never written by a test, and never opened by development work, which uses a
   copy (`docs/development.md`).
 - **What it reads from its environment:** `BMO_FACE_DATA`, `BMO_FACE_PORT`, `BMO_FACE_STATIC` (the
-  generated screen, `client/.output/public` beside the binary's project by default), BMO's archive
-  for the editor's login and `BMO_CONSOLE_URL`. The archive is the address `BMO_ARCHIVE_URL` names,
+  generated screen, `client/.output/public` beside the binary's project by default),
+  `BMO_FACE_CONSOLE` (the built console bundle, `client/.output/console` beside it by default),
+  `BMO_FACE_TOKEN` (the console's credential), BMO's archive for the editor's login and
+  `BMO_CONSOLE_URL`. The archive is the address `BMO_ARCHIVE_URL` names,
   else the file `BMO_DB_PATH` names, else the address the data root's `env/archive-url` holds, else
   its `bmo.db`. `BMO_FACE_KEEP_MS` shortens the keep frame's beat, for a test that cannot spend
   seconds on it. A port of 0 is one the system chooses, named in the line the service prints as it
@@ -368,4 +378,73 @@ expression document both the display and the editor read, and the server that se
   BMO writes there.
 - **Its check** is the crate's tests: the document's check and its preparing against the shared
   fixtures, the tool entry, and a contract test that stands the binary on a free port over a scratch
-  data root, a scratch archive and a stand-in for BMO's console.
+  data root, a scratch archive and a stand-in for BMO's console. The screen's own test stands the
+  same binary up once more and reads its console manifest through bmo-ui's `consoleManifest`.
+
+## The console screen
+
+- **The contract is bmo-ui's console plugin contract** (bmo-ui's `docs/console-bundles.md`), at the
+  layer version this repository vendors under `client/vendor/`. The face is one more service a
+  console lists by its address and credential and finds by its manifest; nothing in a console is
+  written for the face, and nothing here names a console.
+- **What the screen is:** the editor (「The editor」) whole, under the screen path `/face`, without
+  its login and its log-out: the console's sign-in stands in their place. What it saves is the one
+  document every display draws, heard by them as any save is.
+- **The service's API is everything under `/bmo-face`,** so a console's setting names the face at
+  its address with that path, and every path below is written from there.
+- **The manifest**, `GET /console-manifest`:
+  - `name` `face`, its words' namespace; `title` `face.title`; `icon` `i-material-symbols-face-outline`;
+    `screenPath` `/face`; `serviceName` `face`;
+  - `apiPrefix` `/console`: everything the screen calls stands under it;
+  - `role` `member`: an administrator or a member opens it;
+  - `ownerKey` false: the expression document is the machine's one document, no owner's own, so
+    nothing here reads who the reader is;
+  - `events` false and `websocket` false: the editor reads the document when it opens and after a
+    conflict, and listens for nothing; `pushKinds` none;
+  - `bundle`, `stylesheet` and `words`: the module's, the stylesheet's and the words' paths below.
+  - What does not follow from the built bundle — every field but those three paths — stands once, in
+    `console-manifest.json` at the repository's root. The server answers it with the three paths
+    added, and the bundle reads its screen path, service name and API prefix from the same file.
+- **The routes under `/console`:**
+  - `GET /console/bundle.<hash>.js` — the module; `GET /console/bundle.<hash>.css` — the
+    stylesheet. The hash is the first sixteen hexadecimal digits of the SHA-256 of the file's bytes,
+    so a path changes whenever its bytes do. A path naming bytes that are not the ones built is a
+    404, and the ones built are answered as kept for good.
+  - `GET /console/words` — the words.
+  - `GET /console/faces` — the expression document, as `GET /api/faces` answers it.
+  - `PUT /console/faces` — a save, taking and answering what `PUT /api/faces` does: the same check,
+    the same version it must name, the same conflict.
+- **The guard:**
+  - Every console route — the manifest among them — needs `Authorization: Bearer` with the token
+    `BMO_FACE_TOKEN` names. Without it, or with any other, the answer is a 401; a server with no
+    token set refuses every one of them so, and the display and the editor are untouched by it.
+  - The manifest and the words need nothing more, as the contract has it.
+  - The module, the stylesheet and the document also need `Owner-Role` naming a role that allows
+    the manifest's: `administrator` or `member`. A role missing or any other is a 403. Where the
+    manifest asks for the owner key, a call without `Owner-Key` is a 403 too; this manifest does not
+    ask for it.
+- **No bundle built, no manifest.** Where the built folder holds no module, the manifest is a 404,
+  so a console leaves the face out rather than load a screen that is not there.
+- **The bundle** is built by `bun run console` in `client/`, into `client/.output/console`: the
+  module `bundle.js`, the stylesheet `bundle.css` and the words `words.json`. The server reads that
+  folder on every request, so a bundle built again is answered under its new paths at once.
+  - **The module** is an ECMAScript module whose default export is `{ routes }`: one route at the
+    screen path, the editor's page, handed the road to the console routes through bmo-ui's
+    `relayAddress` for the service's name.
+  - **It leaves unbundled** every import of `vue`, `vue-router`, `vue-i18n`, `nuxt/app`, `@nuxt/ui`
+    and `bmo-ui`, written as the package's own path: a Nuxt UI component as
+    `@nuxt/ui/components/<Name>.vue`, a composable Nuxt makes available on its own as `nuxt/app`.
+    Everything else of the screen it carries.
+  - **The island and the back gesture are the console's.** The bundle takes bmo-ui's `island` and
+    `layers` modules where the screen has its own copies, so the editor's notices and questions stand
+    on the console's island and inside a part is left by the console's one history of layers.
+  - **The stylesheet** is the utility classes the screen's pages and components write, built against
+    the theme's names without the theme, the base or the library's own classes, and the components'
+    own styles. The theme, the focus ring and the fonts are the console's.
+  - **The words** are the `face` tree of the pack, under `ko`. Every word the screens show stands
+    under `face` in `client/i18n/locales/ko.yaml`, beside the `common.*` words a console answers
+    itself, so the standalone screens and the bundle read one pack by the same keys.
+- **Tested:** the crate's contract test asks every console route without the credential, without a
+  role and with one, and writes the module twice to see its path follow its bytes; the screen's
+  test reads the manifest the binary answers through bmo-ui's `consoleManifest`, and the module's
+  imports against the libraries it may leave unbundled.

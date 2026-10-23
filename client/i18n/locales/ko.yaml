@@ -17,16 +17,90 @@ face:
     writing: 답 쓰는 중
     thinking: 생각 중
     idle: 쉬는 중
-signin:
-  title: 비모 얼굴 로그인
-  name: 아이디
-  password: 비밀번호
-  device: 기기 이름
-  device_default: 비모 얼굴 화면
-  submit: 로그인
-  wrong: 아이디 또는 비밀번호가 맞지 않아요.
-  unreachable: 비모에 닿지 않아요. 잠시 뒤 다시 해 주세요.
-  refused: 로그인하지 못했어요. 잠시 뒤 다시 해 주세요.
+  signin:
+    title: 비모 얼굴 로그인
+    name: 아이디
+    password: 비밀번호
+    device: 기기 이름
+    device_default: 비모 얼굴 화면
+    submit: 로그인
+    wrong: 아이디 또는 비밀번호가 맞지 않아요.
+    unreachable: 비모에 닿지 않아요. 잠시 뒤 다시 해 주세요.
+    refused: 로그인하지 못했어요. 잠시 뒤 다시 해 주세요.
+  edit:
+    title: 표정 에디터
+    tab:
+      faces: 감정 표정
+      mouths: 입 모양 단계
+    group:
+      eyes: 눈
+      brows: 눈썹
+      cheeks: 볼
+      mouth: 입
+      marks: 눈물·땀
+    stage: "{n}단계"
+    target:
+      face: 표정
+      group: 부위
+      stage: 단계
+    action:
+      save: 저장
+      logout: 로그아웃
+      add_part: 모양 추가
+      add_oval: 타원
+      add_line: 선
+      remove_part: 모양 삭제
+      add_stage: 단계 추가
+      remove_stage: 단계 삭제
+      add_node: 노드 추가
+      remove_node: 노드 삭제
+      add_teeth: 윗니
+      add_tongue: 혀
+      outline: 바깥 모양
+      fields: 모양
+      more: 더 보기
+      reload: 불러오기
+    status:
+      changed: 바뀜
+      saved: 저장했어요.
+    conflict: 다른 창에서 먼저 저장했어요. 여기서 고친 것을 버리고 저장된 표정을 불러올까요?
+    fields:
+      title: 모양
+      none: 모양을 눌러 선택하세요.
+      empty: 이 부위에는 모양이 없어요.
+      closed: 닫힌 선
+      fill: 채우기
+      line: 선
+      width: 선 굵기
+      node: 노드
+      node_n: "노드 {n}"
+      node_none: 노드를 눌러 선택하세요.
+      anchor: 위치
+      coming: 들어오는 손잡이
+      leaving: 나가는 손잡이
+      x: 가로
+      y: 세로
+      smooth: 부드럽게
+      inside: 안쪽 모양
+      inside_part: "{paint} {n}"
+    paint:
+      none: 없음
+      ink: 검정
+      light: 흰색
+      mouth: 입 속
+      tongue: 혀
+      cheek: 볼
+      tear: 눈물
+    preview:
+      title: 미리보기
+      talk: 입 움직이기
+    login:
+      title: 표정 에디터 로그인
+      wrong: 아이디 또는 비밀번호가 맞지 않아요.
+      failed: 로그인하지 못했어요. 잠시 뒤 다시 해 주세요.
+    error:
+      save_failed: 저장하지 못했어요.
+      load_failed: 표정을 불러오지 못했어요.
 common:
   action:
     cancel: 취소
@@ -35,77 +109,3 @@ common:
     decrease: 감소
     increase: 증가
     more_notices: "알림 {n}건 더 있음"
-edit:
-  title: 표정 에디터
-  tab:
-    faces: 감정 표정
-    mouths: 입 모양 단계
-  group:
-    eyes: 눈
-    brows: 눈썹
-    cheeks: 볼
-    mouth: 입
-    marks: 눈물·땀
-  stage: "{n}단계"
-  target:
-    face: 표정
-    group: 부위
-    stage: 단계
-  action:
-    save: 저장
-    logout: 로그아웃
-    add_part: 모양 추가
-    add_oval: 타원
-    add_line: 선
-    remove_part: 모양 삭제
-    add_stage: 단계 추가
-    remove_stage: 단계 삭제
-    add_node: 노드 추가
-    remove_node: 노드 삭제
-    add_teeth: 윗니
-    add_tongue: 혀
-    outline: 바깥 모양
-    fields: 모양
-    more: 더 보기
-    reload: 불러오기
-  status:
-    changed: 바뀜
-    saved: 저장했어요.
-  conflict: 다른 창에서 먼저 저장했어요. 여기서 고친 것을 버리고 저장된 표정을 불러올까요?
-  fields:
-    title: 모양
-    none: 모양을 눌러 선택하세요.
-    empty: 이 부위에는 모양이 없어요.
-    closed: 닫힌 선
-    fill: 채우기
-    line: 선
-    width: 선 굵기
-    node: 노드
-    node_n: "노드 {n}"
-    node_none: 노드를 눌러 선택하세요.
-    anchor: 위치
-    coming: 들어오는 손잡이
-    leaving: 나가는 손잡이
-    x: 가로
-    y: 세로
-    smooth: 부드럽게
-    inside: 안쪽 모양
-    inside_part: "{paint} {n}"
-  paint:
-    none: 없음
-    ink: 검정
-    light: 흰색
-    mouth: 입 속
-    tongue: 혀
-    cheek: 볼
-    tear: 눈물
-  preview:
-    title: 미리보기
-    talk: 입 움직이기
-  login:
-    title: 표정 에디터 로그인
-    wrong: 아이디 또는 비밀번호가 맞지 않아요.
-    failed: 로그인하지 못했어요. 잠시 뒤 다시 해 주세요.
-  error:
-    save_failed: 저장하지 못했어요.
-    load_failed: 표정을 불러오지 못했어요.

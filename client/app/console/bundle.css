@@ -1,0 +1,9 @@
+/* The console bundle's stylesheet (docs/face.md, 「The console screen」): the utility classes the
+   screen's pages and components write and nothing else. The theme's names are read for reference
+   alone, so neither Tailwind's theme and base nor the component library's classes are written here:
+   those are the console's. */
+@reference "tailwindcss";
+@reference "../../.nuxt/console-theme.css";
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+@source "../pages/edit.vue";
+@source "../components";

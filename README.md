@@ -11,7 +11,7 @@ listener stream, which carries every briefing with its emotion and BMO's presenc
 | Folder | Holds |
 |---|---|
 | `.graph/` | the code graph: one file per area of features, the boundary nodes for the APIs this repository exposes and calls, and `settings.toml` with its coverage; it is written only with `bmo graph` |
-| `client/` | the screen, a Bun project of its own: the Nuxt display and editor on `@nuxt/ui`, every word it shows as a key into `i18n/locales/ko.yaml`, and its domain tests under `tests/` |
+| `client/` | the screen, a Bun project of its own: the Nuxt display and editor on `@nuxt/ui`, every word it shows as a key into `i18n/locales/ko.yaml`, the console bundle's entry under `app/console/` and its build under `scripts/`, the vendored bmo-ui pack under `vendor/`, and its tests under `tests/` |
 | `deploy/` | the user unit `bmo-face.service`, which a deployment keeps, and the proxy's two `/bmo-face` locations |
 | `docs/` | the canonical statements: the face and its server (`face.md`), the design it is drawn from (`expressions.md`), the deployment (`deploy.md`) and the development bench (`development.md`) |
 | `scripts/` | the development bench's commands: the copy of the data root, the bench itself, and the fixtures' writer |
@@ -21,7 +21,8 @@ listener stream, which carries every briefing with its emotion and BMO's presenc
 
 At the root stand the Cargo workspace manifest and its lockfile, whose one member is `server/`; the
 root Bun project's manifest, lockfile and `tsconfig.json`, which hold `src/`, `scripts/` and `tests/`;
-`VERSION`; `testbed.toml`; `tool.toml` with its two schemas; `rustfmt.toml`; `korean-ledger.json`;
+`VERSION`; `testbed.toml`; `tool.toml` with its two schemas; `console-manifest.json`, the console
+manifest's fixed fields; `rustfmt.toml`; `korean-ledger.json`;
 `LICENSE`; and `CLAUDE.md`. `docs/PERSONAL-DATA.md` names the check `tests/personal-data.test.ts`,
 which the suite runs with the rest.
 
@@ -29,9 +30,9 @@ which the suite runs with the rest.
 
 | Document | States |
 |---|---|
-| `docs/face.md` | what the display shows and when, what BMO sends it and by which road, how a screen signs in, the expression document, the mouth stages, the editor and the server's routes |
+| `docs/face.md` | what the display shows and when, what BMO sends it and by which road, how a screen signs in, the expression document, the mouth stages, the editor, the server's routes and the console screen |
 | `docs/expressions.md` | BMO's face as its finished official design draws it: the reference pictures, what was measured on them, the colours, and what each default face and mouth stage takes from them |
-| `docs/deploy.md` | how a commit goes live: the release, the unit, the generated screen, the tool entry and the proxy |
+| `docs/deploy.md` | how a commit goes live: the release, the unit, the generated screen and console bundle, the tool entry and the proxy |
 | `docs/development.md` | the development bench: the copy of the data root, the server and the screen run against it, BMO's development console behind it, and how a login is made for it |
 | `docs/PERSONAL-DATA.md` | the personal data no file may hold, the values allowed, and the pattern check that keeps it out (`tests/personal-data.test.ts`) |
 

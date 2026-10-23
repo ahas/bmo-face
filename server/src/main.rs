@@ -1,6 +1,6 @@
 //! The face server the unit `bmo-face` runs (docs/face.md, 「The server」), configured by its
-//! environment: `BMO_FACE_DATA`, `BMO_FACE_PORT`, `BMO_FACE_STATIC`, BMO's archive and
-//! `BMO_CONSOLE_URL`.
+//! environment: `BMO_FACE_DATA`, `BMO_FACE_PORT`, `BMO_FACE_STATIC`, `BMO_FACE_CONSOLE`,
+//! `BMO_FACE_TOKEN`, BMO's archive and `BMO_CONSOLE_URL`.
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -9,6 +9,7 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use bmo_face::accounts::{Accounts, archive_place};
+use bmo_face::console::Console;
 use bmo_face::handler::{Face, PREFIX, router};
 use bmo_face::login::EditorLogin;
 use bmo_face::store::{FaceStore, Preparation};
@@ -22,13 +23,14 @@ fn now() -> u64 {
   SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |since| since.as_millis() as u64)
 }
 
-// The generated screen beside the binary's project: `<project>/bin/bmo-face` serves
-// `<project>/client/.output/public`.
-fn own_screen() -> PathBuf {
+// A folder the screen's build writes beside the binary's project: `<project>/bin/bmo-face` serves
+// `<project>/client/.output/public` and `<project>/client/.output/console`.
+fn own_output(folder: &str) -> PathBuf {
+  let output = PathBuf::from("client/.output").join(folder);
   std::env::current_exe()
     .ok()
-    .and_then(|exe| Some(exe.parent()?.parent()?.join("client/.output/public")))
-    .unwrap_or_else(|| PathBuf::from("client/.output/public"))
+    .and_then(|exe| Some(exe.parent()?.parent()?.join(&output)))
+    .unwrap_or(output)
 }
 
 fn main() -> ExitCode {
@@ -52,7 +54,11 @@ async fn serve() -> ExitCode {
     .map(PathBuf::from)
     .unwrap_or_else(|| home.join(".local/share/bmo-face"));
   let port: u16 = named("BMO_FACE_PORT").and_then(|port| port.parse().ok()).unwrap_or(3217);
-  let static_dir = named("BMO_FACE_STATIC").map(PathBuf::from).unwrap_or_else(own_screen);
+  let static_dir = named("BMO_FACE_STATIC").map(PathBuf::from).unwrap_or_else(|| own_output("public"));
+  let console = Console::new(
+    named("BMO_FACE_CONSOLE").map(PathBuf::from).unwrap_or_else(|| own_output("console")),
+    named("BMO_FACE_TOKEN"),
+  );
   let console_url = named("BMO_CONSOLE_URL").unwrap_or_else(|| "http://127.0.0.1:3210/bmo".to_owned());
   let keep = Duration::from_millis(
     named("BMO_FACE_KEEP_MS")
@@ -105,7 +111,7 @@ async fn serve() -> ExitCode {
       return ExitCode::FAILURE;
     }
   };
-  let face = Arc::new(Face::new(store, login, static_dir, console_url.clone(), keep));
+  let face = Arc::new(Face::new(store, login, static_dir, console_url.clone(), keep, console));
 
   let listener = match TcpListener::bind(("127.0.0.1", port)).await {
     Ok(listener) => listener,

@@ -1,22 +1,25 @@
 # Working in this repository
 
 This repository is BMO's face, `bmo-face`: the display, the editor, the server behind both and the
-`face/expression` tool entry. It knows no other unit's code. BMO's accounts are read from its archive
-at the address a setting names, and its listener routes are reached at the console's address; nothing
-of BMO's is imported.
+`face/expression` tool entry, and the editor again as a console bundle. It knows no other unit's code.
+BMO's accounts are read from its archive at the address a setting names, and its listener routes are
+reached at the console's address; nothing of BMO's is imported.
 
 ## Rules
 
 - **`docs/` is canonical.** Read the document covering a change before changing code. A change that
   would make it wrong or incomplete repairs it first, stating what is true now, and the code is then
   written to match. `docs/face.md` states the display, the expression document, the editor and every
-  route; `docs/deploy.md` states the release, the unit and the tool entry.
+  route, the console screen among them; `docs/deploy.md` states the release, the unit and the tool
+  entry.
 - **`.graph/` is written only with `bmo graph`.** It holds the repository's feature nodes and the
   boundary nodes for the APIs it exposes and calls; no other command and no hand edit changes it, and
   a change to code brings the node it touches up to date in the checkout. Its area files are generated
   and untracked, so a fresh checkout builds them again, while `settings.toml` is the repository's
   configuration and stays tracked. The format is `docs/graph.md` in the bmo-graph repository.
-- **No dependency from another repository.** The base libraries are none; BMO is reached over the
+- **One base library, bmo-ui, and for the console bundle alone.** Its pack is vendored under
+  `client/vendor/` and named in the screen's manifest; the bundle is built on it and its test reads
+  the manifest through it, while the standalone screens do not extend it. BMO is reached over the
   address a setting names. The testbed's dependency sweep fails on anything else.
 - **English in code, comments, tests, documents and commit messages.** Every word a person reads on
   the screen stands in `client/i18n/locales/ko.yaml`, named by key. The Korean the code still holds is

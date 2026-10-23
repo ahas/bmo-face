@@ -1,0 +1,13 @@
+{
+  "name": "face",
+  "title": "face.title",
+  "icon": "i-material-symbols-face-outline",
+  "screenPath": "/face",
+  "serviceName": "face",
+  "apiPrefix": "/console",
+  "role": "member",
+  "ownerKey": false,
+  "events": false,
+  "websocket": false,
+  "pushKinds": []
+}

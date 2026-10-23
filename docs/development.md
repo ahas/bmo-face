@@ -22,7 +22,9 @@ the real BMO.
     checks editor logins against the workbench copy of BMO's archive at
     `~/.local/share/bmo/data/workbench/worker/bmo.db` unless `BMO_DB_PATH` names another, and it
     passes the display's listener routes to BMO's development console at
-    `http://127.0.0.1:3211/bmo-dev` unless `BMO_CONSOLE_URL` names another.
+    `http://127.0.0.1:3211/bmo-dev` unless `BMO_CONSOLE_URL` names another. It serves the console
+    bundle last built by `bun run console` in `client/`, from `client/.output/console`, and answers
+    the console routes to the token `BMO_FACE_TOKEN` names when the bench is started with one.
   - **The screen**, Nuxt's dev server on 127.0.0.1:3219 under `/bmo-face/`, with hot reload. It
     passes `/bmo-face/api` and `/bmo-face/bmo` through to 3218 and keeps the request's Host header,
     since the server matches a write's Origin against it.

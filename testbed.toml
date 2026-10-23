@@ -13,10 +13,11 @@ setup = ["bun install --frozen-lockfile", "cd client && bun install --frozen-loc
 [check]
 # The sweeps that read the tree before anything runs: Korean in the code, the README's folder table and
 # the dependencies the manifests name. The ledger is the Korean left in a code file. The face reaches
-# BMO's archive and console as a configured address, never as another repository's code.
+# BMO's archive and console as a configured address, never as another repository's code; bmo-ui, the
+# one base library, is vendored for the console bundle alone.
 quick = ["korean", "layout", "dependencies"]
 korean_ledger = "korean-ledger.json"
-base_libraries = []
+base_libraries = ["bmo-ui"]
 
 [[check.step]]
 id = "check"
@@ -49,11 +50,12 @@ units = ["deploy/*.service"]
 # Answers 0 once the server answers its document and serves the generated screen.
 health = '''curl -sf http://127.0.0.1:3217/bmo-face/api/faces >/dev/null && curl -sf http://127.0.0.1:3217/bmo-face/ | grep -qi '<html' '''
 
-# The screen, generated into the release where the server serves it from beside the binary.
+# The screen and the console bundle, built into the release where the server serves them from beside
+# the binary; the bundle after the screen, whose generation empties the output folder first.
 [[deploy.step]]
 id = "screen"
 phase = "before-flip"
-command = "cd client && bun run generate"
+command = "cd client && bun run generate && bun run console"
 
 # The tool entry placed with the tool host once the service answers: the release's binary, manifest and
 # schemas as one folder, registered as this service's own.

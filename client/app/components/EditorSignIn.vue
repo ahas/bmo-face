@@ -2,14 +2,14 @@
   <div class="flex min-h-dvh items-center justify-center p-4">
     <UCard class="w-full max-w-md">
       <template #header>
-        <h1 class="text-xl font-semibold">{{ t("edit.login.title") }}</h1>
+        <h1 class="text-xl font-semibold">{{ t("face.edit.login.title") }}</h1>
       </template>
 
       <form id="editor-sign-in" class="flex flex-col gap-4" @submit.prevent="submit">
-        <UFormField :label="t('signin.name')" name="name">
+        <UFormField :label="t('face.signin.name')" name="name">
           <UInput v-model="name" class="w-full" autocomplete="username" required />
         </UFormField>
-        <UFormField :label="t('signin.password')" name="password">
+        <UFormField :label="t('face.signin.password')" name="password">
           <UInput v-model="password" class="w-full" type="password" autocomplete="current-password" required />
         </UFormField>
         <p v-if="refusal" class="text-sm text-error">{{ refusal }}</p>
@@ -17,7 +17,7 @@
 
       <template #footer>
         <div class="flex justify-end">
-          <UButton type="submit" form="editor-sign-in" :loading="busy" :label="t('signin.submit')" />
+          <UButton type="submit" form="editor-sign-in" :loading="busy" :label="t('face.signin.submit')" />
         </div>
       </template>
     </UCard>
@@ -44,7 +44,7 @@ async function submit(): Promise<void> {
   busy.value = false;
 
   if (result !== "ok") {
-    refusal.value = t(`edit.login.${result}`);
+    refusal.value = t(`face.edit.login.${result}`);
     password.value = "";
   }
 }

@@ -25,6 +25,8 @@ const env = {
   BMO_DB_PATH: process.env.BMO_DB_PATH ?? join(homedir(), ".local/share/bmo/data/workbench/worker/bmo.db"),
   BMO_CONSOLE_URL: process.env.BMO_CONSOLE_URL ?? "http://127.0.0.1:3211/bmo-dev",
   BMO_FACE_DEV_API: `http://127.0.0.1:${API_PORT}`,
+  // The console bundle last built in the checkout; Cargo's binary stands under target/, not beside it.
+  BMO_FACE_CONSOLE: process.env.BMO_FACE_CONSOLE ?? join(root, "client/.output/console"),
 };
 
 // The server built and started by Cargo; a change to it is taken up by starting the bench again.

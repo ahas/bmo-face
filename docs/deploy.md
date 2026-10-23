@@ -7,10 +7,12 @@ declaration, `testbed.toml`; nothing here deploys itself.
 
 - **The release:** the testbed builds the workspace's binary, `bmo-face`, into the release's `bin/`,
   installs the root and the screen's Bun packages (the declaration's setup), and, before the flip,
-  generates the screen with `bun run generate` in `client/`, into `client/.output/public`. The server
-  serves the screen from there: its own default is `client/.output/public` beside the release's
-  `bin/` (`docs/face.md`, 「The server」). The screen is generated in Korean, from the pack this
-  repository holds, `client/i18n/locales/ko.yaml`.
+  generates the screen with `bun run generate` in `client/`, into `client/.output/public`, and then
+  builds the console bundle with `bun run console`, into `client/.output/console`. The server serves
+  both from there: its own defaults are those two folders beside the release's `bin/`
+  (`docs/face.md`, 「The server」 and 「The console screen」). The screen is generated in Korean, from
+  the pack this repository holds, `client/i18n/locales/ko.yaml`, and the bundle's words are read from
+  the same pack.
 - **The unit:** `deploy/bmo-face.service`, kept by the testbed as a user unit. It runs
   `bin/bmo-face` in the release on 127.0.0.1:3217, with `BMO_FACE_DATA` naming the document and the
   session database under the shared data root, `face/`. Its health is read from the document route
@@ -19,8 +21,10 @@ declaration, `testbed.toml`; nothing here deploys itself.
   and registered with the tool host as this service's own, under the repository's name. A failed
   registration leaves the service live and is said.
 - **BMO:** the unit reads `env/face.env` under the data root where it exists, for the address of
-  BMO's archive (the editor's login) and of BMO's console (the passed-through listener routes).
-  Both are this machine's settings, never the repository's.
+  BMO's archive (the editor's login) and of BMO's console (the passed-through listener routes), and
+  for `BMO_FACE_TOKEN`, the credential a console calls the console routes with, which that console's
+  own settings hold beside the face's address. All are this machine's settings, never the
+  repository's.
 - **The proxy:** `deploy/nginx.conf` holds the two `/bmo-face` locations of the host's server block:
   the bare path redirected to the one with the slash, and everything under it passed to port 3217
   through the shared proxy snippet, which does not buffer, so a stream passes as it comes. No basic

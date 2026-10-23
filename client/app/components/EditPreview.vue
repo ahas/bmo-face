@@ -1,11 +1,11 @@
 <template>
   <section class="flex flex-col gap-2">
     <div class="flex items-center justify-between gap-2">
-      <h2 class="text-base font-semibold">{{ t("edit.preview.title") }}</h2>
-      <USwitch v-model="talking" :label="t('edit.preview.talk')" />
+      <h2 class="text-base font-semibold">{{ t("face.edit.preview.title") }}</h2>
+      <USwitch v-model="talking" :label="t('face.edit.preview.talk')" />
     </div>
     <div class="preview-body rounded-lg" :style="{ background: document.colors.body }">
-      <FaceView :colors="document.colors" :face="face" :mouth="mouth" :label="t('edit.preview.title')" />
+      <FaceView :colors="document.colors" :face="face" :mouth="mouth" :label="t('face.edit.preview.title')" />
     </div>
   </section>
 </template>
