@@ -9,5 +9,6 @@
   "ownerKey": false,
   "events": false,
   "websocket": false,
-  "pushKinds": []
+  "pushKinds": [],
+  "calls": []
 }

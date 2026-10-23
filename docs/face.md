@@ -401,6 +401,7 @@ expression document both the display and the editor read, and the server that se
     nothing here reads who the reader is;
   - `events` false and `websocket` false: the editor reads the document when it opens and after a
     conflict, and listens for nothing; `pushKinds` none;
+  - `calls` none: the screen calls the face alone, so the manifest names no other service;
   - `bundle`, `stylesheet` and `words`: the module's, the stylesheet's and the words' paths below.
   - What does not follow from the built bundle — every field but those three paths — stands once, in
     `console-manifest.json` at the repository's root. The server answers it with the three paths

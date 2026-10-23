@@ -129,6 +129,7 @@ describe("the manifest", () => {
       events: false,
       websocket: false,
       pushKinds: [],
+      calls: [],
       words: "/console/words",
     });
     expect(read.bundle).toMatch(/^\/console\/bundle\.[0-9a-f]{16}\.js$/);
