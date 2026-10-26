@@ -1,10 +1,12 @@
 <template>
   <EditorSignIn v-if="editor === null" :login="login" />
 
-  <UDashboardGroup v-else-if="editor !== undefined" storage="local" storage-key="bmo-face-edit" unit="%">
+  <!-- Under a console that offers its title bar, the editor's two panels stand in the console's own group and draw
+       no bar (docs/face.md, 「The console screen」); on its own page it is a group of its own with its bars. -->
+  <EditFrame v-else-if="editor !== undefined" :offered="barOffered">
     <UDashboardPanel id="canvas" resizable :default-size="68" :min-size="50" :max-size="80" :ui="{ body: 'p-0 sm:p-0 gap-0 sm:gap-0' }">
       <template #header>
-        <UDashboardNavbar :title="t('face.edit.title')" :toggle="false">
+        <UDashboardNavbar v-if="!barOffered" :title="t('face.edit.title')" :toggle="false">
           <template #right>
             <AppTooltip v-if="road.session" :text="t('face.edit.action.logout')">
               <UButton icon="i-material-symbols-logout" color="neutral" variant="ghost" :aria-label="t('face.edit.action.logout')" @click="logout" />
@@ -95,7 +97,10 @@
 
     <UDashboardPanel id="side" class="hidden lg:flex">
       <template #header>
-        <UDashboardNavbar :title="t('face.edit.fields.title')" :toggle="false" />
+        <UDashboardNavbar v-if="!barOffered" :title="t('face.edit.fields.title')" :toggle="false" />
+        <p v-else class="flex h-(--ui-header-height) shrink-0 items-center border-b border-default px-4 text-sm font-medium text-highlighted">
+          {{ t("face.edit.fields.title") }}
+        </p>
       </template>
       <template #body>
         <template v-if="edited">
@@ -116,7 +121,7 @@
         <p v-else class="text-base text-error">{{ t("face.edit.error.load_failed") }}</p>
       </template>
     </UDashboardPanel>
-  </UDashboardGroup>
+  </EditFrame>
 
   <UDrawer v-model:open="drawer" :title="t('face.edit.fields.title')">
     <template #close="{ ui }">
@@ -160,6 +165,9 @@ import type { EditorRoad } from "~/composables/useEditor";
 // login; the console screen hands it the console's road, which needs none (「The console screen」).
 
 const props = defineProps<{ road?: EditorRoad }>();
+
+// Whether the console this screen stands in offers its title bar, under bmo-web's key for it.
+const barOffered = inject("bmo-console-title-bar", null) !== null;
 const road = props.road ?? sessionRoad();
 const { t } = useI18n();
 const { editor, edited, loadFailed, saving, refusal, dirty, login, logout, save } = useEditor(road);

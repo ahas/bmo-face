@@ -388,7 +388,14 @@ expression document both the display and the editor read, and the server that se
   console lists by its address and credential and finds by its manifest; nothing in a console is
   written for the face, and nothing here names a console.
 - **What the screen is:** the editor (「The editor」) whole, under the screen path `/face`, without
-  its login and its log-out: the console's sign-in stands in their place. What it saves is the one
+  its login and its log-out: the console's sign-in stands in their place.
+- **It stands in the console's page area, under the console's title bar,** where the console offers
+  one (bmo-web's `docs/web.md`, 「The title bar」): the route asks for the console's bar in its meta,
+  and the screen then draws no dashboard group and no bar of its own. Its canvas and its side panel
+  stand side by side inside the console's own group, the canvas keeping its tabs and its toolbar
+  over it and the side panel naming what it holds in a line of its own. The console's bar carries
+  the sidebar button, so a phone opens the console's sidebar from it. Read where nothing offers the
+  bar, the screen stands as the editor's own page does, in a group of its own with its bars. What it saves is the one
   document every display draws, heard by them as any save is.
 - **The service's API is everything under `/bmo-face`,** so a console's setting names the face at
   its address with that path, and every path below is written from there.

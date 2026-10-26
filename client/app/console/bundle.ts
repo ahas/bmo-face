@@ -18,7 +18,8 @@ const road: EditorRoad = {
 };
 
 const bundle: ConsoleBundleModule = {
-  routes: [{ path: manifest.screenPath, component: EditPage, props: { road } }],
+  // The route asks for the console's title bar, so the screen stands under it (docs/face.md, 「The console screen」).
+  routes: [{ path: manifest.screenPath, component: EditPage, props: { road }, meta: { consoleTitleBar: true } }],
 };
 
 export default bundle;
