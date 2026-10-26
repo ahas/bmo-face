@@ -53,8 +53,8 @@ The screen is seen working on the bench (`docs/development.md`) before it is rep
 ## Version
 
 The version stands in `VERSION`, in the Cargo workspace's package and in the screen's manifest, which
-hold the same number. A change to a contract a consumer reads, a route, a code or the tool's entry,
-raises the major version.
+hold the same number. It moves only at a release the owner declares, as bmo-chat's `docs/conventions.md`
+「Versions」 states; a contract change moves none, and a deployment is told apart by its commit.
 
 ## License
 
