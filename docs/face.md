@@ -1,5 +1,7 @@
 # BMO's face
 
+**Fixed at 0.1.0-rev.1.**
+
 What the face display shows, what BMO sends it and by which road, how a screen signs in, the
 expression document both the display and the editor read, and the server that serves them.
 
