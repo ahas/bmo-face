@@ -76,11 +76,13 @@ expression document both the display and the editor read, and the server that se
 - **Its executable is the workspace's binary,** started as `bmo-face tool`. It reads the call on
   standard input and answers it on standard output, in the protocol's first version, and reads the
   default off `expression.json` in the folder it is started in.
+- **The entry is unbounded:** a call ends when the executable answers or its caller goes away, and the
+  host holds no timeout over it.
 - **What is placed:** the deployment places the binary with the manifest and its two schemas alone,
   as one folder; nothing else of the face is placed, and a call reads nothing of the face's data
   root.
-- **Tested:** the test beside the crate calls the entry with each emotion and with none, and holds
-  the schema to the briefing's set.
+- **Tested:** the test beside the crate calls the entry with each emotion and with none, holds the
+  schema to the briefing's set, and holds the entry unbounded.
 
 ## How a screen signs in
 

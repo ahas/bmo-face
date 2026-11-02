@@ -20,3 +20,5 @@ input = "expression.json"
 output = "expression-shown.json"
 hints = { read_only = true }
 system = true
+# A call ends when the executable answers or its caller goes away (docs/face.md, 「The expression entry」).
+unbounded = true

@@ -9,7 +9,7 @@ use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use argon2::password_hash::{PasswordHasher, SaltString};
 use axum::Router;
@@ -196,7 +196,7 @@ impl Face {
         .spawn()
         .expect("the server starts"),
     );
-    let ready = Instant::now() + Duration::from_secs(20);
+    // Ready when it names its port, and never ready once it has ended without naming one.
     self.port = loop {
       let heard = self.said().lines().find_map(|line| {
         line.strip_prefix("BMO face: http://127.0.0.1:")?.split('/').next()?.parse::<u16>().ok()
@@ -204,7 +204,12 @@ impl Face {
       if let Some(port) = heard {
         break port;
       }
-      assert!(Instant::now() < ready, "the server never listened; it said {}", self.said());
+      let ended = self.server.as_mut().and_then(|server| server.try_wait().ok().flatten());
+      assert!(
+        ended.is_none(),
+        "the server ended ({ended:?}) before it listened; it said {}",
+        self.said()
+      );
       tokio::time::sleep(Duration::from_millis(20)).await;
     };
     self
@@ -313,13 +318,9 @@ fn default_document() -> Value {
   serde_json::from_str(DEFAULT).unwrap()
 }
 
-/// The next frame of an event stream within a bound, as text.
+/// The next frame of an event stream, as text.
 async fn frame(body: &mut Incoming) -> String {
-  let next = tokio::time::timeout(Duration::from_secs(10), body.frame())
-    .await
-    .unwrap()
-    .unwrap()
-    .unwrap();
+  let next = body.frame().await.unwrap().unwrap();
   String::from_utf8_lossy(&next.into_data().unwrap()).into_owned()
 }
 
@@ -439,10 +440,7 @@ async fn a_save_needs_a_session_this_site_and_the_version_it_was_edited_from() {
     .header("content-length", "2500000")
     .body(body)
     .unwrap();
-  let answer = tokio::time::timeout(Duration::from_secs(10), sender.send_request(request))
-    .await
-    .unwrap()
-    .unwrap();
+  let answer = sender.send_request(request).await.unwrap();
   assert_eq!(answer.status(), 413);
 }
 

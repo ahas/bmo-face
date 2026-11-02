@@ -1,6 +1,6 @@
-//! The tool entry (docs/face.md, 「The expression entry」): the manifest's one entry, its schema holding
-//! the emotion to the briefing's set, and the placed executable answering the face of the emotion named
-//! and its schema's default where none is.
+//! The tool entry (docs/face.md, 「The expression entry」): the manifest's one entry, unbounded, its
+//! schema holding the emotion to the briefing's set, and the placed executable answering the face of the
+//! emotion named and its schema's default where none is.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -66,6 +66,8 @@ fn the_entry_is_the_systems_alone_and_its_schema_holds_the_emotion_to_the_briefi
   assert_eq!(entry["name"].as_str(), Some("expression"));
   assert_eq!(entry["system"].as_bool(), Some(true));
   assert!(entry.get("capabilities").is_none());
+  assert_eq!(entry["unbounded"].as_bool(), Some(true));
+  assert!(entry.get("timeout").is_none());
   assert_eq!(
     emotions,
     ["기본", "기쁨", "슬픔", "놀람", "화남", "졸림", "폭소", "걱정", "아픔", "안간힘"]

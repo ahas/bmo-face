@@ -15,7 +15,8 @@ Environment=BMO_FACE_PORT=3217
 EnvironmentFile=-%h/.local/share/bmo/data/env/face.env
 Restart=on-failure
 RestartSec=3
-TimeoutStopSec=30
+# The server ends on SIGTERM, so a stop waits for that end however long it takes.
+TimeoutStopSec=infinity
 
 [Install]
 WantedBy=default.target
