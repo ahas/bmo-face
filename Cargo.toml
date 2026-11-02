@@ -12,6 +12,16 @@ edition = "2024"
 license = "MIT"
 publish = false
 
+[profile.dev]
+debug = "line-tables-only"
+split-debuginfo = "unpacked"
+incremental = false
+
+[profile.test]
+debug = "line-tables-only"
+strip = "debuginfo"
+incremental = false
+
 # The editor's password check, unoptimised, takes most of a second a login, which the tests make
 # dozens of.
 [profile.dev.package.argon2]

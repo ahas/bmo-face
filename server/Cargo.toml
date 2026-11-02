@@ -8,6 +8,8 @@ description = "BMO's face: the server, the expression document check and the exp
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
+# One test target, the harness at tests/main.rs (bmo-chat's docs/conventions.md, 「Rust builds」).
+autotests = false
 
 [[bin]]
 name = "bmo-face"
@@ -39,3 +41,7 @@ url = "2.5.8"
 libc = "0.2.177"
 tempfile = "3.20.0"
 toml = "0.8.23"
+
+[[test]]
+name = "main"
+path = "tests/main.rs"

@@ -15,7 +15,7 @@ setup = ["bun install --frozen-lockfile", "cd client && bun install --frozen-loc
 # the dependencies the manifests name. The ledger is the Korean left in a code file. The face reaches
 # BMO's archive and console as a configured address, never as another repository's code; bmo-ui, the
 # one base library, is vendored for the console bundle alone.
-quick = ["korean", "layout", "dependencies"]
+quick = ["korean", "layout", "dependencies", "cargo-profile"]
 korean_ledger = "korean-ledger.json"
 base_libraries = ["bmo-ui"]
 
