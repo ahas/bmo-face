@@ -37,6 +37,8 @@ the real BMO.
   port is the bench's stand-in bot, so the stream the display hears carries only what a check hands
   that stand-in. A briefing handed that way is a real voice message of the copy, so the display
   plays a real voice of BMO's.
-- **A login** — for the editor, and for signing the display in — is an account in the workbench
-  archive copy, made with BMO's own command:
-  `BMO_DB_PATH=~/.local/share/bmo/data/workbench/worker/bmo.db bun ~/.local/share/bmo/deploy/client/scripts/user.ts set <name> <password>`.
+- **A login** — for the editor, and for signing the display in — is an account of BMO's archive,
+  which the bench reads as its copy. Accounts are made the platform's own way, through the
+  console's user script in the console's app (`client/apps/web`): `bun scripts/user.ts set <name>
+  <password>`, against the database `WEB_DATABASE_URL` names (bmo-web's `docs/web.md`, 「Making an
+  account and resetting a password」).
