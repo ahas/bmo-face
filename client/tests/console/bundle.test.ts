@@ -75,7 +75,7 @@ beforeAll(async () => {
       BMO_FACE_TOKEN: TOKEN,
       BMO_DB_PATH: join(scratch, "archive.db"),
       BMO_ARCHIVE_URL: "",
-      BMO_CONSOLE_URL: "http://127.0.0.1:9/bmo",
+      BMO_CONSOLE_URL: "http://[::1]:9/bmo",
     },
     stdin: "ignore",
     stdout: "pipe",
