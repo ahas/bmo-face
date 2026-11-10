@@ -17,6 +17,9 @@ debug = "line-tables-only"
 split-debuginfo = "unpacked"
 incremental = false
 
+[profile.dev.package."*"]
+debug = false
+
 [profile.test]
 debug = "line-tables-only"
 strip = "debuginfo"
@@ -24,6 +27,10 @@ incremental = false
 
 # The editor's password check, unoptimised, takes most of a second a login, which the tests make
 # dozens of.
+
+[profile.test.package."*"]
+debug = false
+
 [profile.dev.package.argon2]
 opt-level = 3
 
