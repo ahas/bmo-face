@@ -438,6 +438,9 @@ expression document both the display and the editor read, and the server that se
   the console face's guard holds one with it to the manifest's role.
 - **The console's credential** is the token `BMO_FACE_TOKEN` names. A server with none set refuses
   every console route, the manifest among them, and the display and the editor are untouched by it.
+  It is the one token the face itself checks: the display's sign-in is BMO's, carried through to it,
+  the editor signs in by its own session and the tool entry runs as a binary, so the face holds no
+  token of its own, and the console routes refuse every credential but the console's.
 - **Built as the server starts.** With the credential set, the server builds the console face from
   the bundle's folder once, as it starts. A folder holding no module is no bundle built: the
   manifest is a 404, so a console leaves the face out rather than load a screen that is not there.

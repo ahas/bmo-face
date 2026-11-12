@@ -9,10 +9,10 @@ declaration, `testbed.toml`; nothing here deploys itself.
   installs the root and the screen's Bun packages (the declaration's setup), and, before the flip,
   generates the screen with `bun run generate` in `client/`, into `client/.output/public`, and then
   builds the console bundle with `bun run console`, into `client/.output/console`. The server serves
-  both from there, reading the bundle once as it starts: its own defaults are those two folders beside the release's `bin/`
-  (`docs/face.md`, 「The server」 and 「The console screen」). The screen is generated in Korean, from
-  the pack this repository holds, `client/i18n/locales/ko.yaml`, and the bundle's words are read from
-  the same pack.
+  both from there, reading the bundle once as it starts: its own defaults are those two folders
+  beside the release's `bin/` (`docs/face.md`, 「The server」 and 「The console screen」). The screen
+  is generated in Korean, from the pack this repository holds, `client/i18n/locales/ko.yaml`, and the
+  bundle's words are read from the same pack.
 - **The unit:** `deploy/bmo-face.service`, kept by the testbed as a user unit. It runs
   `bin/bmo-face` in the release on 127.0.0.1:3217, with `BMO_FACE_DATA` naming the document and the
   session database under the shared data root, `face/`. Its health is read from the document route
@@ -20,6 +20,13 @@ declaration, `testbed.toml`; nothing here deploys itself.
   no new connection, ends its open streams and lets the calls in hand finish within its own deadline
   (`docs/face.md`, 「The server」). The unit waits for that end with no stop timeout, so the server's
   deadline is the one that bounds a stop.
+- **The console probe:** once the health answers, the testbed probes the console face against the
+  console plugin contract, as the testbed's `docs/deploy.md` states in 「The console probe」, and a
+  point that does not hold fails the deployment. The declaration's `[deploy.console]` reach answers
+  the server's loopback address under `/bmo-face`, the console's credential from `env/face.env` under
+  the data root, and, for the service's own token, a value made new for each run: the face holds no
+  token of its own (`docs/face.md`, 「The console screen」), so any credential but the console's
+  stands for one, and the console's routes must refuse it.
 - **After health:** the release's binary, `tool.toml` and the two schemas are placed as one folder
   and registered with the tool host as this service's own, under the repository's name. A failed
   registration leaves the service live and is said.
