@@ -5,6 +5,7 @@
 //! was asked. The command is the package's binary, or the one
 //! `FACE_CONTRACT_COMMAND` names.
 
+use std::io::BufRead;
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -135,6 +136,9 @@ struct Face {
   token: Option<&'static str>,
   /// The stop's deadline in milliseconds the server is started with; none for its own.
   drain_ms: Option<&'static str>,
+  /// Whether the server's output is a pipe read up to the port it names and then closed, as a caller
+  /// that stops reading leaves it; else its output goes to its log.
+  output_unread: bool,
   // The port of a console that is not there, held by a socket bound and never listening, so a
   // connection to it is refused and no other process takes it.
   _absent: Option<tokio::net::TcpSocket>,
@@ -194,6 +198,7 @@ impl Face {
       console_url,
       token: Some(TOKEN),
       drain_ms: None,
+      output_unread: false,
       _absent: absent,
     }
   }
@@ -217,12 +222,23 @@ impl Face {
 
   async fn start(mut self) -> Face {
     self.spawn();
+    if let Some(output) = self.server.as_mut().and_then(|server| server.stdout.take()) {
+      // Read until it names its port, or until its output ends with it, then closed.
+      let heard = tokio::task::spawn_blocking(move || {
+        std::io::BufReader::new(output)
+          .lines()
+          .map_while(Result::ok)
+          .find_map(|line| port_named(&line))
+      })
+      .await
+      .unwrap();
+      self.port =
+        heard.unwrap_or_else(|| panic!("the server never named its port; it said {}", self.said()));
+      return self;
+    }
     // Ready when it names its port, and never ready once it has ended without naming one.
     self.port = loop {
-      let heard = self.said().lines().find_map(|line| {
-        line.strip_prefix("BMO face: http://127.0.0.1:")?.split('/').next()?.parse::<u16>().ok()
-      });
-      if let Some(port) = heard {
+      if let Some(port) = self.said().lines().find_map(port_named) {
         break port;
       }
       let ended = self.server.as_mut().and_then(|server| server.try_wait().ok().flatten());
@@ -278,7 +294,7 @@ impl Face {
         .env("BMO_FACE_KEEP_MS", "200")
         .env_remove("BMO_ARCHIVE_URL")
         .stdin(Stdio::null())
-        .stdout(log.try_clone().unwrap())
+        .stdout(if self.output_unread { Stdio::piped() } else { Stdio::from(log.try_clone().unwrap()) })
         .stderr(log)
         .process_group(0)
         .spawn()
@@ -420,6 +436,11 @@ fn vendored_layer() -> String {
   let layer = client().join("node_modules/bmo-ui/shared/layer.json");
   let stated: Value = serde_json::from_str(&std::fs::read_to_string(&layer).unwrap()).unwrap();
   stated["layer"].as_str().unwrap().to_owned()
+}
+
+/// The port the server names as it starts answering, where `line` is that line.
+fn port_named(line: &str) -> Option<u16> {
+  line.strip_prefix("BMO face: http://127.0.0.1:")?.split('/').next()?.parse().ok()
 }
 
 impl Drop for Face {
@@ -944,6 +965,17 @@ async fn a_call_still_in_hand_past_the_stops_deadline_ends_with_the_server() {
 
   assert!(face.ended().await.success());
   assert!(face.said().contains("end with the server"), "{}", face.said());
+}
+
+#[tokio::test]
+async fn a_server_whose_output_nobody_reads_any_more_still_drains_on_a_stop() {
+  let mut face = Face::new(None, false).await;
+  face.output_unread = true;
+  let mut face = face.start().await;
+
+  face.terminate();
+  assert!(face.ended().await.success(), "{}", face.said());
+  assert!(!face.said().contains("panicked"), "{}", face.said());
 }
 
 #[tokio::test]

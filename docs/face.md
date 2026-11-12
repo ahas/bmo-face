@@ -390,8 +390,9 @@ expression document both the display and the editor read, and the server that se
   that its display opens again, which finds the server that comes up after the restart and reloads
   if its build has moved (「Showing on any screen」). Every other call in hand, a save, a login, a
   passed-through sound or stop, is let finish and answered whole within ten seconds; a call still in
-  hand past that ends with the server. `BMO_FACE_DRAIN_MS` shortens that deadline, for a test that
-  cannot spend seconds on it. A drained server ends with success.
+  hand past that ends with the server. An output nobody reads any more, a pipe its reader has closed,
+  loses those lines and never stops the drain. `BMO_FACE_DRAIN_MS` shortens that deadline, for a test
+  that cannot spend seconds on it. A drained server ends with success.
 - **A request body is at most 2,000,000 bytes;** a larger one is answered `413` before it is read.
 - **The editor's password** is checked against the Argon2 hash BMO keeps in `web_users`, the one form
   BMO writes there.

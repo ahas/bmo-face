@@ -2,6 +2,7 @@
 //! connection, ends every open stream, and lets the calls in hand finish within a deadline.
 
 use std::future::IntoFuture;
+use std::io::Write;
 use std::net::SocketAddr;
 use std::time::Duration;
 
@@ -60,8 +61,9 @@ impl Stop {
         () = arrival(terminate) => {}
         () = arrival(interrupt) => {}
       }
-      println!("bmo-face: stopping; the calls in hand are let finish");
       self.stop();
+      // Said once asked, so an output nobody reads any more costs the line and never the stop.
+      let _ = writeln!(std::io::stdout(), "bmo-face: stopping; the calls in hand are let finish");
     }
   }
 }
@@ -97,7 +99,12 @@ pub async fn drain(
   tokio::select! {
     served = serving => served,
     () = cut => {
-      eprintln!("bmo-face: the calls still in hand after {}ms end with the server", deadline.as_millis());
+      // An output nobody reads any more costs the line and never the drained server's success.
+      let _ = writeln!(
+        std::io::stderr(),
+        "bmo-face: the calls still in hand after {}ms end with the server",
+        deadline.as_millis()
+      );
       Ok(())
     }
   }
