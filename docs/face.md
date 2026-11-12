@@ -436,6 +436,12 @@ expression document both the display and the editor read, and the server that se
   the same check, the same version it must name and the same conflict.
 - **The screens' calls take the console's credential.** The face refuses one without it, 401, and
   the console face's guard holds one with it to the manifest's role.
+- **The credential check is the console face's own,** its `ConsoleCredential` (bmo-chat's
+  `docs/console-face.md`, 「The credential check」): the server reads whether a call carries the
+  console's credential through it, as `Authorization: Bearer` with the scheme in any letter case, and
+  keeps no reading or comparison of its own. The screens' calls, and a console route the console face
+  does not stand for, a bundle built or not, refuse by that one check, so every console route reads
+  the credential by the same rule.
 - **The console's credential** is the token `BMO_FACE_TOKEN` names. A server with none set refuses
   every console route, the manifest among them, and the display and the editor are untouched by it.
   It is the one token the face itself checks: the display's sign-in is BMO's, carried through to it,

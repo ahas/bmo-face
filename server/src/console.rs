@@ -1,14 +1,15 @@
 //! The console screen's side of the server (docs/face.md, 「The console screen」): the console face
 //! bmo-chat's `bmo-console-face` serves from this repository's declaration and built bundle, and the
-//! console's credential the screens' calls take.
+//! console's credential the screens' calls take, checked by that crate.
 
 use std::path::Path;
 
 use axum::Router;
-use axum::http::{HeaderMap, header};
-use bmo_console_face::{BundleFolder, CONSOLE_MANIFEST_ROUTE, ConsoleFace, ConsoleFaceError};
+use axum::http::HeaderMap;
+use bmo_console_face::{
+  BundleFolder, CONSOLE_MANIFEST_ROUTE, ConsoleCredential, ConsoleFace, ConsoleFaceError,
+};
 use serde_json::Value;
-use sha2::{Digest, Sha256};
 
 /// The manifest's fields the face decides, stated once for the server and the bundle.
 const DECLARATION: &str = include_str!("../../console-manifest.json");
@@ -22,7 +23,7 @@ pub struct Console {
   /// The console face, where a credential is set and a bundle is built.
   face: Option<ConsoleFace>,
   /// The credential a console calls with; with none, every console route is refused.
-  token: Option<String>,
+  credential: Option<ConsoleCredential>,
   /// The path of the service's API every call the screens make stands under.
   api_prefix: String,
 }
@@ -47,7 +48,7 @@ impl Console {
     };
     Ok(Console {
       face,
-      token,
+      credential: token.as_deref().map(ConsoleCredential::new),
       api_prefix,
     })
   }
@@ -63,19 +64,10 @@ impl Console {
     route == CONSOLE_MANIFEST_ROUTE || route == prefix || route.starts_with(&format!("{prefix}/"))
   }
 
-  /// Whether a call carries the console's credential.
+  /// Whether a call carries the console's credential, as the console face reads it; with none set, no
+  /// call does.
   pub fn credited(&self, headers: &HeaderMap) -> bool {
-    let sent = headers
-      .get(header::AUTHORIZATION)
-      .and_then(|value| value.to_str().ok())
-      .and_then(|value| value.split_once(' '))
-      .filter(|(scheme, _)| scheme.eq_ignore_ascii_case("bearer"))
-      .map(|(_, token)| token.trim());
-    match (&self.token, sent) {
-      // Compared as digests, so the comparison takes no longer for a closer guess.
-      (Some(token), Some(sent)) => Sha256::digest(token.as_bytes()) == Sha256::digest(sent.as_bytes()),
-      _ => false,
-    }
+    self.credential.as_ref().is_some_and(|credential| credential.carried_by(headers))
   }
 
   /// The console face's routes beside the screens' calls, the face's guard laid over the calls. Where
