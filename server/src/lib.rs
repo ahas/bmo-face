@@ -10,6 +10,7 @@ pub mod handler;
 pub mod login;
 pub mod numbers;
 pub mod pass;
+pub mod stop;
 pub mod store;
 pub mod tool;
 pub mod upgrade;

@@ -1,6 +1,7 @@
 //! The face server the unit `bmo-face` runs (docs/face.md, 「The server」), configured by its
 //! environment: `BMO_FACE_DATA`, `BMO_FACE_PORT`, `BMO_FACE_STATIC`, `BMO_FACE_CONSOLE`,
-//! `BMO_FACE_TOKEN`, BMO's archive and `BMO_CONSOLE_URL`.
+//! `BMO_FACE_TOKEN`, BMO's archive, `BMO_CONSOLE_URL` and `BMO_FACE_DRAIN_MS`, and drained when asked
+//! to stop.
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -12,6 +13,7 @@ use bmo_face::accounts::{Accounts, archive_place};
 use bmo_face::console::Console;
 use bmo_face::handler::{Face, PREFIX, router};
 use bmo_face::login::EditorLogin;
+use bmo_face::stop::{DRAIN, drain};
 use bmo_face::store::{FaceStore, Preparation};
 use tokio::net::TcpListener;
 
@@ -66,6 +68,9 @@ async fn serve() -> ExitCode {
       .filter(|ms| *ms > 0)
       .unwrap_or(5_000),
   );
+  let deadline = named("BMO_FACE_DRAIN_MS")
+    .and_then(|ms| ms.parse().ok())
+    .map_or(DRAIN, Duration::from_millis);
 
   if let Err(fault) = std::fs::create_dir_all(&root) {
     eprintln!("bmo-face: {} could not be made: {fault}", root.display());
@@ -120,11 +125,14 @@ async fn serve() -> ExitCode {
       return ExitCode::FAILURE;
     }
   };
+  // The stopping signals are heard before the port is named, so a stop sent from then on drains.
+  let stop = face.stop.clone();
+  tokio::spawn(stop.clone().on_signal());
   // A port of 0 is one the system chooses, named here as the server starts answering.
   let port = listener.local_addr().map_or(port, |at| at.port());
   println!("BMO face: http://127.0.0.1:{port}{PREFIX}/ (BMO at {console_url})");
   let app = router(face).into_make_service_with_connect_info::<SocketAddr>();
-  match axum::serve(listener, app).await {
+  match drain(listener, app, stop, deadline).await {
     Ok(()) => ExitCode::SUCCESS,
     Err(fault) => {
       eprintln!("bmo-face: {fault}");

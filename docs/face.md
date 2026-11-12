@@ -377,6 +377,14 @@ expression document both the display and the editor read, and the server that se
   its `bmo.db`. `BMO_FACE_KEEP_MS` shortens the keep frame's beat, for a test that cannot spend
   seconds on it. A port of 0 is one the system chooses, named in the line the service prints as it
   starts listening; its contract test starts it so, and reads the port from that line.
+- **A stop drains it.** On SIGTERM or an interrupt the server says on its output that it is stopping
+  and takes no new connection; a connection with no call in hand is closed. Every open stream ends
+  at once: the saves stream and a passed-through listener stream alike, each a stream without end
+  that its display opens again, which finds the server that comes up after the restart and reloads
+  if its build has moved (「Showing on any screen」). Every other call in hand, a save, a login, a
+  passed-through sound or stop, is let finish and answered whole within ten seconds; a call still in
+  hand past that ends with the server. `BMO_FACE_DRAIN_MS` shortens that deadline, for a test that
+  cannot spend seconds on it. A drained server ends with success.
 - **A request body is at most 2,000,000 bytes;** a larger one is answered `413` before it is read.
 - **The editor's password** is checked against the Argon2 hash BMO keeps in `web_users`, the one form
   BMO writes there.

@@ -16,8 +16,10 @@ declaration, `testbed.toml`; nothing here deploys itself.
 - **The unit:** `deploy/bmo-face.service`, kept by the testbed as a user unit. It runs
   `bin/bmo-face` in the release on 127.0.0.1:3217, with `BMO_FACE_DATA` naming the document and the
   session database under the shared data root, `face/`. Its health is read from the document route
-  and from the generated screen's HTML. A stop sends the server SIGTERM, on which it ends at once, and
-  the unit waits for that end with no stop timeout.
+  and from the generated screen's HTML. A stop sends the server SIGTERM, on which it drains: it takes
+  no new connection, ends its open streams and lets the calls in hand finish within its own deadline
+  (`docs/face.md`, 「The server」). The unit waits for that end with no stop timeout, so the server's
+  deadline is the one that bounds a stop.
 - **After health:** the release's binary, `tool.toml` and the two schemas are placed as one folder
   and registered with the tool host as this service's own, under the repository's name. A failed
   registration leaves the service live and is said.

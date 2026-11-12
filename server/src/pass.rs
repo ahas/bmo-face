@@ -11,6 +11,7 @@ use hyper_util::rt::TokioExecutor;
 use serde_json::json;
 
 use crate::handler::json_answer;
+use crate::stop::Stop;
 
 const SENT_HEADERS: [&str; 4] = ["authorization", "content-type", "range", "accept"];
 const RETURNED_HEADERS: [&str; 5] =
@@ -40,10 +41,12 @@ fn refusal(status: StatusCode, error: &str) -> Response {
   json_answer(status, &json!({ "error": error }), &[])
 }
 
-/// BMO's answer to a passed-through request, streamed as it comes. `console_url` is BMO's console with
-/// its base path; `path` is what follows `/bmo-face/bmo`, with its query.
+/// BMO's answer to a passed-through request, streamed as it comes, and an event stream ended once
+/// `stop` is asked. `console_url` is BMO's console with its base path; `path` is what follows
+/// `/bmo-face/bmo`, with its query.
 pub async fn pass_through(
   client: &Upstream,
+  stop: &Stop,
   method: Method,
   headers: &HeaderMap,
   body: Bytes,
@@ -80,7 +83,14 @@ pub async fn pass_through(
       returned.insert(name, value.clone());
     }
   }
-  let mut response = Response::new(Body::new(body));
+  // An event stream has no end of its own, so it ends with the server; any other answer is let finish.
+  let endless = returned
+    .get("content-type")
+    .and_then(|value| value.to_str().ok())
+    .is_some_and(|kind| kind.trim_start().starts_with("text/event-stream"));
+  let body = Body::new(body);
+  let body = if endless { Body::from_stream(stop.ends(body.into_data_stream())) } else { body };
+  let mut response = Response::new(body);
   *response.status_mut() = parts.status;
   *response.headers_mut() = returned;
   response

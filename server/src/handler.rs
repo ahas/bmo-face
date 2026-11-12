@@ -18,6 +18,7 @@ use tokio::sync::broadcast;
 use crate::console::{Console, MANIFEST_ROUTE, Need};
 use crate::login::{EditorLogin, LoginResult, cleared_cookie, session_cookie};
 use crate::pass::{Upstream, pass_through, passes_through, upstream};
+use crate::stop::Stop;
 use crate::store::{FaceStore, Saved};
 
 pub const PREFIX: &str = "/bmo-face";
@@ -37,6 +38,8 @@ pub struct Face {
   pub upstream: Upstream,
   /// The console screen's manifest, bundle and guard.
   pub console: Console,
+  /// Asked once the server is to stop, which ends every open stream.
+  pub stop: Stop,
 }
 
 impl Face {
@@ -56,6 +59,7 @@ impl Face {
       keep,
       upstream: upstream(),
       console,
+      stop: Stop::default(),
     }
   }
 }
@@ -145,7 +149,8 @@ async fn screen(face: &Face, route: &str, head: bool) -> Response {
   response
 }
 
-// Every save as it happens, and a keep frame between, for as long as the display holds it open.
+// Every save as it happens, and a keep frame between, for as long as the display holds it open and
+// the server is not stopping.
 fn saves(face: &Arc<Face>) -> Response {
   let heard = face.store.subscribe();
   let first = face
@@ -175,7 +180,7 @@ fn saves(face: &Arc<Face>) -> Response {
     Some((Ok(Bytes::from(frame)), (None, heard, keep)))
   });
 
-  let mut response = Response::new(Body::from_stream(frames));
+  let mut response = Response::new(Body::from_stream(face.stop.ends(frames)));
   let headers = response.headers_mut();
   headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("text/event-stream"));
   headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
@@ -364,7 +369,8 @@ async fn answer(
 
   if let Some(passed) = route.strip_prefix("/bmo").filter(|rest| rest.starts_with('/')) {
     return if passes_through(&method, passed) {
-      pass_through(&face.upstream, method, &headers, body, &format!("{passed}{query}"), &face.console_url)
+      let path_and_query = format!("{passed}{query}");
+      pass_through(&face.upstream, &face.stop, method, &headers, body, &path_and_query, &face.console_url)
         .await
     } else {
       error(StatusCode::NOT_FOUND, "지나갈 수 없는 길이에요.")

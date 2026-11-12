@@ -26,6 +26,7 @@ use serde_json::{Value, json};
 use sqlx::sqlite::{SqliteConnectOptions, SqliteConnection};
 use sqlx::{Connection, Executor};
 use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::Notify;
 
 const HOST: &str = "face.test";
 const ORIGIN: &str = "http://face.test";
@@ -78,6 +79,40 @@ async fn console(State(log): State<Log>, request: Request) -> Response {
     .into_response()
 }
 
+/// When BMO's stand-in for a drain has been asked for a sound, and when it may answer.
+#[derive(Clone, Default)]
+struct Held {
+  asked: Arc<Notify>,
+  release: Arc<Notify>,
+}
+
+// BMO's console, standing in for a drain: a listener stream with no end, and a sound answered only once
+// the test releases it.
+async fn held_console(State(held): State<Held>, request: Request) -> Response {
+  if request.uri().path().contains("/media/audio/") {
+    held.asked.notify_one();
+    held.release.notified().await;
+    return (StatusCode::OK, [("content-type", "audio/ogg")], "OggS").into_response();
+  }
+  let endless =
+    futures_util::stream::once(async { Ok::<_, std::convert::Infallible>("event: keep\ndata: {}\n\n") })
+      .chain(futures_util::stream::pending());
+  (
+    StatusCode::OK,
+    [("content-type", "text/event-stream")],
+    axum::body::Body::from_stream(endless),
+  )
+    .into_response()
+}
+
+// `app` answering on a free port, as BMO's console with its base path.
+async fn served(app: Router) -> String {
+  let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+  let at = listener.local_addr().unwrap();
+  tokio::spawn(async move { axum::serve(listener, app).await });
+  format!("http://{at}/bmo")
+}
+
 fn command() -> Command {
   match std::env::var("FACE_CONTRACT_COMMAND") {
     Ok(named) if !named.trim().is_empty() => {
@@ -98,6 +133,8 @@ struct Face {
   console_url: String,
   /// The console's credential the server is started with; none for a server given no token.
   token: Option<&'static str>,
+  /// The stop's deadline in milliseconds the server is started with; none for its own.
+  drain_ms: Option<&'static str>,
   // The port of a console that is not there, held by a socket bound and never listening, so a
   // connection to it is refused and no other process takes it.
   _absent: Option<tokio::net::TcpSocket>,
@@ -141,11 +178,7 @@ impl Face {
 
     let log: Log = Arc::default();
     let (console_url, absent) = if console_stands {
-      let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-      let at = listener.local_addr().unwrap();
-      let app = Router::new().fallback(console).with_state(Arc::clone(&log));
-      tokio::spawn(async move { axum::serve(listener, app).await });
-      (format!("http://{at}/bmo"), None)
+      (served(Router::new().fallback(console).with_state(Arc::clone(&log))).await, None)
     } else {
       let held = tokio::net::TcpSocket::new_v4().unwrap();
       held.bind("127.0.0.1:0".parse().unwrap()).unwrap();
@@ -158,8 +191,18 @@ impl Face {
       console: log,
       console_url,
       token: Some(TOKEN),
+      drain_ms: None,
       _absent: absent,
     }
+  }
+
+  /// A scratch world beside the stand-in for a drain, which the returned `Held` steers.
+  async fn beside_held() -> (Face, Held) {
+    let held = Held::default();
+    let mut face = Face::new(None, false).await;
+    face.console_url = served(Router::new().fallback(held_console).with_state(held.clone())).await;
+    face._absent = None;
+    (face, held)
   }
 
   fn root(&self) -> &Path {
@@ -177,12 +220,16 @@ impl Face {
       Some(token) => command.env("BMO_FACE_TOKEN", token),
       None => command.env_remove("BMO_FACE_TOKEN"),
     };
+    match self.drain_ms {
+      Some(ms) => command.env("BMO_FACE_DRAIN_MS", ms),
+      None => command.env_remove("BMO_FACE_DRAIN_MS"),
+    };
     self.server = Some(
       command
         .env("BMO_FACE_DATA", self.root().join("data"))
         // A port of its own choosing, which it names as it starts answering, so no other process
-        // can take the port between its choosing and its binding.
-        .env("BMO_FACE_PORT", "0")
+        // can take the port between its choosing and its binding; started again, the port it had.
+        .env("BMO_FACE_PORT", self.port.to_string())
         .env("BMO_FACE_STATIC", self.root().join("public"))
         .env("BMO_FACE_CONSOLE", self.root().join("console"))
         .env("BMO_DB_PATH", self.root().join("archive.db"))
@@ -219,6 +266,31 @@ impl Face {
     std::fs::read_to_string(self.root().join("server.log")).unwrap_or_default()
   }
 
+  /// SIGTERM to the server's process group, as the unit's stop sends it.
+  fn terminate(&self) {
+    let server = self.server.as_ref().expect("a started server");
+    unsafe {
+      libc::kill(-(server.id() as i32), libc::SIGTERM);
+    }
+  }
+
+  /// The server's end, waited on for as long as a drain at its own deadline can take.
+  async fn ended(&mut self) -> std::process::ExitStatus {
+    let server = self.server.as_mut().expect("a started server");
+    for _ in 0..1_000 {
+      if let Some(status) = server.try_wait().unwrap() {
+        return status;
+      }
+      tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    panic!("the server had not ended 20 seconds after its stop; it said {}", self.said());
+  }
+
+  /// Whether a new connection to the server is still taken.
+  async fn takes_connections(&self) -> bool {
+    TcpStream::connect(("127.0.0.1", self.port)).await.is_ok()
+  }
+
   fn asked(&self) -> Vec<Asked> {
     self.console.lock().unwrap().clone()
   }
@@ -230,6 +302,17 @@ impl Face {
     headers: &[(&str, &str)],
     body: Bytes,
   ) -> hyper::Response<Incoming> {
+    self.try_open(method, path, headers, body).await.unwrap()
+  }
+
+  /// A request sent on a connection of its own, and its answer or the failure that ended it.
+  async fn try_open(
+    &self,
+    method: &str,
+    path: &str,
+    headers: &[(&str, &str)],
+    body: Bytes,
+  ) -> hyper::Result<hyper::Response<Incoming>> {
     let stream = TcpStream::connect(("127.0.0.1", self.port)).await.unwrap();
     let (mut sender, connection) =
       hyper::client::conn::http1::handshake(TokioIo::new(stream)).await.unwrap();
@@ -238,7 +321,7 @@ impl Face {
     for (name, value) in headers {
       request = request.header(*name, *value);
     }
-    sender.send_request(request.body(Full::new(body)).unwrap()).await.unwrap()
+    sender.send_request(request.body(Full::new(body)).unwrap()).await
   }
 
   async fn call(
@@ -322,6 +405,13 @@ fn default_document() -> Value {
 async fn frame(body: &mut Incoming) -> String {
   let next = body.frame().await.unwrap().unwrap();
   String::from_utf8_lossy(&next.into_data().unwrap()).into_owned()
+}
+
+/// An event stream read to its end, which must be a clean one rather than a cut connection.
+async fn read_to_end(body: &mut Incoming) {
+  while let Some(next) = body.frame().await {
+    next.expect("a stream ended cleanly, not cut");
+  }
 }
 
 #[tokio::test]
@@ -787,4 +877,96 @@ async fn a_server_given_no_token_refuses_every_console_route_and_serves_the_rest
     401
   );
   assert_eq!(face.get("/bmo-face/api/faces").await.0, 200);
+}
+
+#[tokio::test]
+async fn a_stop_ends_the_streams_takes_no_new_connection_and_answers_the_call_in_hand_whole() {
+  let (face, held) = Face::beside_held().await;
+  let mut face = face.start().await;
+  let bearer = [("authorization", "Bearer tok")];
+
+  let mut saves = face.open("GET", "/bmo-face/api/faces/events", &[], Bytes::new()).await.into_body();
+  assert!(frame(&mut saves).await.starts_with("event: faces"));
+  let mut listener = face
+    .open("GET", "/bmo-face/bmo/api/briefing/events", &bearer, Bytes::new())
+    .await
+    .into_body();
+  assert_eq!(frame(&mut listener).await, "event: keep\ndata: {}\n\n");
+
+  let sound = face.call("GET", "/bmo-face/bmo/api/media/audio/1/2", &bearer, "");
+  let stopping = async {
+    held.asked.notified().await;
+    face.terminate();
+    read_to_end(&mut saves).await;
+    read_to_end(&mut listener).await;
+    // The sound is still held, so a refused connection is the drain's and not the server's end.
+    for _ in 0..500 {
+      if !face.takes_connections().await {
+        break;
+      }
+      tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    assert!(!face.takes_connections().await, "a stopping server still takes connections");
+    held.release.notify_one();
+  };
+  let ((status, _, body), ()) = tokio::join!(sound, stopping);
+  assert_eq!((status, body.as_str()), (200, "OggS"));
+
+  assert!(face.ended().await.success());
+  assert!(face.said().contains("bmo-face: stopping"), "{}", face.said());
+}
+
+#[tokio::test]
+async fn a_call_still_in_hand_past_the_stops_deadline_ends_with_the_server() {
+  let (mut face, held) = Face::beside_held().await;
+  face.drain_ms = Some("100");
+  let mut face = face.start().await;
+
+  let sound = face.try_open(
+    "GET",
+    "/bmo-face/bmo/api/media/audio/1/2",
+    &[("authorization", "Bearer tok")],
+    Bytes::new(),
+  );
+  let stopping = async {
+    held.asked.notified().await;
+    face.terminate();
+  };
+  let (answered, ()) = tokio::join!(sound, stopping);
+  assert!(answered.is_err(), "a held call was answered: {answered:?}");
+
+  assert!(face.ended().await.success());
+  assert!(face.said().contains("end with the server"), "{}", face.said());
+}
+
+#[tokio::test]
+async fn a_display_whose_stream_a_stop_ended_finds_the_restarted_server_and_the_editor_saves_on() {
+  let mut face = Face::new(None, true).await.start().await;
+  let cookie = face.login().await;
+  let mut saves = face.open("GET", "/bmo-face/api/faces/events", &[], Bytes::new()).await.into_body();
+  assert_eq!(frame(&mut saves).await, "event: faces\ndata: {\"savedAt\":0}\n\n");
+
+  face.terminate();
+  read_to_end(&mut saves).await;
+  assert!(face.ended().await.success());
+  let port = face.port;
+  let face = face.start().await;
+  assert_eq!(face.port, port, "the restarted server took another port");
+
+  // The display opens its stream again where it was, and the editor saves with the session it signed
+  // in with before the restart.
+  let mut saves = face.open("GET", "/bmo-face/api/faces/events", &[], Bytes::new()).await.into_body();
+  assert_eq!(frame(&mut saves).await, "event: faces\ndata: {\"savedAt\":0}\n\n");
+  let (status, _, body) = face
+    .write(
+      "PUT",
+      "/bmo-face/api/faces",
+      &json!({ "document": default_document(), "basedOn": 0 }),
+      &[("cookie", &cookie)],
+    )
+    .await;
+  assert_eq!(status, 200, "{body}");
+  let saved: Value = serde_json::from_str(&body).unwrap();
+  let announced = format!("event: faces\ndata: {}\n\n", json!({ "savedAt": saved["savedAt"] }));
+  while frame(&mut saves).await != announced {}
 }
