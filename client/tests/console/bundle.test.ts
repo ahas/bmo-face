@@ -1,16 +1,17 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { Database } from "bun:sqlite";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
-import { consoleManifest } from "bmo-ui/shared/console-manifest";
+import { LAYER_VERSION } from "bmo-ui/shared/console-manifest";
 
 import type { Subprocess } from "bun";
 
-// The console screen as a console meets it (docs/face.md, 「The console screen」): the bundle built
-// as a deployment builds it, served by the face's own binary, its manifest read through bmo-ui's
-// reading and its module through the guard.
+// The console bundle as a deployment builds it (docs/face.md, 「The console screen」), served by the
+// face's own binary: the console face the server builds as it starts takes it, and it names the layer
+// and the words its manifest needs. The manifest's reading, the files' paths and the guard are held by
+// the console face's own tests and the server's; the shared libraries left out, by bmo-ui's bundle build.
 
 const client = resolve(import.meta.dir, "../..");
 const repository = resolve(client, "..");
@@ -18,10 +19,6 @@ const scratch = mkdtempSync(join(tmpdir(), "bmo-face-console-"));
 const consoleDir = join(scratch, "console");
 const TOKEN = "console-token";
 const credential = { authorization: `Bearer ${TOKEN}` };
-const reader = { ...credential, "owner-role": "member" };
-
-// What a console shares with every bundle, which the module may leave unbundled.
-const SHARED = /^(?:vue|vue-router|vue-i18n|nuxt\/app|@nuxt\/ui|bmo-ui)(?:\/|$)/;
 
 let server: Subprocess<"ignore", "pipe", "inherit"> | null = null;
 let base = "";
@@ -114,78 +111,18 @@ async function manifest(): Promise<Record<string, unknown>> {
   return (await answer.json()) as Record<string, unknown>;
 }
 
-describe("the manifest", () => {
-  test("keeps the contract, read through bmo-ui's own reading", async () => {
-    const read = consoleManifest(await manifest());
-
-    expect(read).toMatchObject({
-      name: "face",
-      title: "face.title",
-      screenPath: "/face",
-      serviceName: "face",
-      apiPrefix: "/console",
-      role: "member",
-      ownerKey: false,
-      events: false,
-      websocket: false,
-      pushKinds: [],
-      calls: [],
-      words: "/console/words",
-    });
-    expect(read.bundle).toMatch(/^\/console\/bundle\.[0-9a-f]{16}\.js$/);
-    expect(read.stylesheet).toMatch(/^\/console\/bundle\.[0-9a-f]{16}\.css$/);
-  });
-
-  test("is answered to the console's credential alone", async () => {
-    expect((await fetch(`${base}/console-manifest`)).status).toBe(401);
-    expect((await fetch(`${base}/console-manifest`, { headers: { authorization: "Bearer other" } })).status).toBe(401);
+describe("the bundle as built", () => {
+  test("is taken by the console face, which names the layer of the release it was built on", async () => {
+    expect((await manifest()).layer).toBe(LAYER_VERSION);
   });
 
   test("names its menu by a word the bundle's words hold", async () => {
-    const read = consoleManifest(await manifest());
-    const answer = await fetch(`${base}${read.words}`, { headers: credential });
+    const read = await manifest();
+    const answer = await fetch(`${base}${read.words as string}`, { headers: credential });
     const words = (await answer.json()) as { ko: Record<string, Record<string, unknown>> };
 
     expect(Object.keys(words)).toEqual(["ko"]);
-    expect(Object.keys(words.ko)).toEqual([read.name]);
-    expect(words.ko[read.name]?.title).toBeString();
-  });
-});
-
-describe("the module", () => {
-  test("is answered to a reader the manifest's role allows, and refused otherwise", async () => {
-    const path = `${base}${consoleManifest(await manifest()).bundle}`;
-
-    expect((await fetch(path)).status).toBe(401);
-    expect((await fetch(path, { headers: credential })).status).toBe(403);
-    expect((await fetch(path, { headers: { ...credential, "owner-role": "guest" } })).status).toBe(403);
-    expect((await fetch(path, { headers: { ...credential, "owner-role": "administrator" } })).status).toBe(200);
-
-    const answer = await fetch(path, { headers: reader });
-
-    expect(answer.status).toBe(200);
-    expect(answer.headers.get("content-type")).toStartWith("text/javascript");
-  });
-
-  test("leaves only what a console shares unbundled, and exports the routes", async () => {
-    const source = await (await fetch(`${base}${consoleManifest(await manifest()).bundle}`, { headers: reader })).text();
-    const scanned = new Bun.Transpiler({ loader: "js" }).scan(source);
-
-    expect(scanned.imports.length).toBeGreaterThan(0);
-    expect(scanned.imports.filter((each) => !SHARED.test(each.path))).toEqual([]);
-    expect(scanned.exports).toEqual(["default"]);
-  });
-
-  test("is answered at a path that changes with its bytes", async () => {
-    const first = consoleManifest(await manifest()).bundle;
-    const module = join(consoleDir, "bundle.js");
-
-    writeFileSync(module, `${readFileSync(module, "utf8")}\n`);
-
-    const second = consoleManifest(await manifest()).bundle;
-
-    expect(second).not.toBe(first);
-    expect((await fetch(`${base}${first}`, { headers: reader })).status).toBe(404);
-    expect((await fetch(`${base}${second}`, { headers: reader })).status).toBe(200);
+    expect(Object.keys(words.ko)).toEqual([read.name as string]);
+    expect(words.ko[read.name as string]?.title).toBeString();
   });
 });

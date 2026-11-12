@@ -11,11 +11,12 @@ use axum::body::{Body, Bytes};
 use axum::extract::{ConnectInfo, Request, State};
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode, header};
 use axum::response::{IntoResponse, Response};
+use axum::routing::get;
 use futures_util::stream;
 use serde_json::{Value, json};
 use tokio::sync::broadcast;
 
-use crate::console::{Console, MANIFEST_ROUTE, Need};
+use crate::console::Console;
 use crate::login::{EditorLogin, LoginResult, cleared_cookie, session_cookie};
 use crate::pass::{Upstream, pass_through, passes_through, upstream};
 use crate::stop::Stop;
@@ -36,7 +37,7 @@ pub struct Face {
   /// How often an open display's stream of saves says it is still there.
   pub keep: Duration,
   pub upstream: Upstream,
-  /// The console screen's manifest, bundle and guard.
+  /// The console face and the credential the screens' calls take.
   pub console: Console,
   /// Asked once the server is to stop, which ends every open stream.
   pub stop: Stop,
@@ -215,78 +216,37 @@ fn save_answer(face: &Face, body: &Bytes) -> Response {
   }
 }
 
-// A console's call (docs/face.md, 「The console screen」): the console's credential before anything,
-// the reader's role before anything the screen reads, and no origin to match, since a console's
-// server makes the call.
-async fn console_answer(
-  face: &Face,
-  route: &str,
-  method: &Method,
-  headers: &HeaderMap,
-  body: Body,
-) -> Response {
-  let refused = |status: StatusCode| {
-    let said = if status == StatusCode::UNAUTHORIZED {
-      "The console's credential is missing or not this service's."
-    } else {
-      "The reader's role does not open this screen."
-    };
-    error(status, said)
-  };
-  let open = *method == Method::GET;
-  let words = face.console.words_route();
-
-  if route == MANIFEST_ROUTE || route == words {
-    if let Err(status) = face.console.guard(headers, Need::Credential) {
-      return refused(status);
-    }
-    if !open {
-      return error(StatusCode::METHOD_NOT_ALLOWED, "Only read here.");
-    }
-    if route == MANIFEST_ROUTE {
-      return match face.console.manifest().await {
-        Some(manifest) => json_answer(StatusCode::OK, &manifest, &[]),
-        None => error(StatusCode::NOT_FOUND, "No console bundle is built."),
-      };
-    }
-    return match face.console.words().await {
-      Some(bytes) => {
-        let mut response = Response::new(Body::from(bytes));
-        let kept = response.headers_mut();
-        kept.insert(header::CONTENT_TYPE, HeaderValue::from_static("application/json;charset=utf-8"));
-        kept.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
-        response
-      }
-      None => error(StatusCode::NOT_FOUND, "No console bundle is built."),
-    };
+// The screens' calls (docs/face.md, 「The console screen」): the console's credential before anything,
+// the console face's guard having held the reader's role already, and no origin to match, since a
+// console's server makes the call.
+async fn console_document(State(face): State<Arc<Face>>, headers: HeaderMap) -> Response {
+  if !face.console.credited(&headers) {
+    return uncredited();
   }
+  document_answer(&face)
+}
 
-  if let Err(status) = face.console.guard(headers, Need::Reader) {
-    return refused(status);
+async fn console_save(State(face): State<Arc<Face>>, headers: HeaderMap, body: Body) -> Response {
+  if !face.console.credited(&headers) {
+    return uncredited();
   }
-
-  if route == format!("{}/faces", face.console.api_prefix()) {
-    if open {
-      return document_answer(face);
-    }
-    if *method == Method::PUT {
-      return match axum::body::to_bytes(body, BODY_LIMIT).await {
-        Ok(body) => save_answer(face, &body),
-        Err(_) => StatusCode::PAYLOAD_TOO_LARGE.into_response(),
-      };
-    }
-    return error(StatusCode::METHOD_NOT_ALLOWED, "Only read and save here.");
+  match axum::body::to_bytes(body, BODY_LIMIT).await {
+    Ok(body) => save_answer(&face, &body),
+    Err(_) => StatusCode::PAYLOAD_TOO_LARGE.into_response(),
   }
+}
 
-  if open && let Some(built) = face.console.built(route).await {
-    let mut response = Response::new(Body::from(built.bytes));
-    let kept = response.headers_mut();
-    kept.insert(header::CONTENT_TYPE, HeaderValue::from_static(built.content_type));
-    kept.insert(header::CACHE_CONTROL, HeaderValue::from_static("public, max-age=31536000, immutable"));
-    return response;
+fn uncredited() -> Response {
+  error(StatusCode::UNAUTHORIZED, "The console's credential is missing or not this service's.")
+}
+
+// A console route the console face does not stand for: refused without the credential, and with it
+// nothing stands there, since no bundle is built.
+fn console_unbuilt(face: &Face, headers: &HeaderMap) -> Response {
+  if !face.console.credited(headers) {
+    return uncredited();
   }
-
-  error(StatusCode::NOT_FOUND, "Nothing of the console's stands here.")
+  error(StatusCode::NOT_FOUND, "No console bundle is built.")
 }
 
 // Whether a write comes from this site: its `Origin` names this host.
@@ -351,7 +311,7 @@ async fn answer(
 
   // A console's routes stand behind its credential rather than this site's origin.
   if face.console.owns(route) {
-    return console_answer(&face, route, &method, &headers, body).await;
+    return console_unbuilt(&face, &headers);
   }
 
   // A write must come from this site; the check stands before anything is read.
@@ -422,7 +382,10 @@ async fn answer(
 }
 
 pub fn router(face: Arc<Face>) -> Router {
-  Router::new().fallback(answer).with_state(face)
+  let screens =
+    Router::new().route(&face.console.document_route(), get(console_document).put(console_save));
+  let console = face.console.routes(screens);
+  Router::new().nest(PREFIX, console).fallback(answer).with_state(face)
 }
 
 #[cfg(test)]

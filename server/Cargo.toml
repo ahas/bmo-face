@@ -16,6 +16,9 @@ name = "bmo-face"
 path = "src/main.rs"
 
 [dependencies]
+# The console face the console plugin contract asks of a service: its manifest, its bundle's files, its
+# words and their guard, served by bmo-chat's shared crate.
+bmo-console-face = { path = "../../../base/chat/console-face" }
 # The editor's password, checked against the Argon2 hash BMO writes into `web_users`.
 argon2 = { version = "0.5.3", features = ["std"] }
 # The `Cookie` header read as browsers write it.

@@ -57,10 +57,14 @@ async fn serve() -> ExitCode {
     .unwrap_or_else(|| home.join(".local/share/bmo-face"));
   let port: u16 = named("BMO_FACE_PORT").and_then(|port| port.parse().ok()).unwrap_or(3217);
   let static_dir = named("BMO_FACE_STATIC").map(PathBuf::from).unwrap_or_else(|| own_output("public"));
-  let console = Console::new(
-    named("BMO_FACE_CONSOLE").map(PathBuf::from).unwrap_or_else(|| own_output("console")),
-    named("BMO_FACE_TOKEN"),
-  );
+  let console_dir = named("BMO_FACE_CONSOLE").map(PathBuf::from).unwrap_or_else(|| own_output("console"));
+  let console = match Console::new(&console_dir, named("BMO_FACE_TOKEN")) {
+    Ok(console) => console,
+    Err(fault) => {
+      eprintln!("bmo-face: the console face could not be built from {}: {fault}", console_dir.display());
+      return ExitCode::FAILURE;
+    }
+  };
   let console_url = named("BMO_CONSOLE_URL").unwrap_or_else(|| "http://127.0.0.1:3210/bmo".to_owned());
   let keep = Duration::from_millis(
     named("BMO_FACE_KEEP_MS")

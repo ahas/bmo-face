@@ -158,6 +158,8 @@ impl Face {
     std::fs::write(root.join("console/bundle.js"), "export default { routes: [] };\n").unwrap();
     std::fs::write(root.join("console/bundle.css"), ".face-test { color: red }\n").unwrap();
     std::fs::write(root.join("console/words.json"), r#"{"ko":{"face":{"title":"face"}}}"#).unwrap();
+    std::fs::write(root.join("console/layer.json"), json!({ "layer": vendored_layer() }).to_string())
+      .unwrap();
 
     let hash = argon2::Argon2::default()
       .hash_password(b"secret", &SaltString::from_b64("c2NyYXRjaHNhbHQxMjM0").unwrap())
@@ -214,6 +216,45 @@ impl Face {
   }
 
   async fn start(mut self) -> Face {
+    self.spawn();
+    // Ready when it names its port, and never ready once it has ended without naming one.
+    self.port = loop {
+      let heard = self.said().lines().find_map(|line| {
+        line.strip_prefix("BMO face: http://127.0.0.1:")?.split('/').next()?.parse::<u16>().ok()
+      });
+      if let Some(port) = heard {
+        break port;
+      }
+      let ended = self.server.as_mut().and_then(|server| server.try_wait().ok().flatten());
+      assert!(
+        ended.is_none(),
+        "the server ended ({ended:?}) before it listened; it said {}",
+        self.said()
+      );
+      tokio::time::sleep(Duration::from_millis(20)).await;
+    };
+    self
+  }
+
+  /// Started where it must refuse to start: what it said once it ended, failing.
+  async fn refused(mut self) -> String {
+    self.spawn();
+    let status = loop {
+      if let Some(status) = self.server.as_mut().and_then(|server| server.try_wait().ok().flatten()) {
+        break status;
+      }
+      assert!(
+        !self.said().contains("BMO face: http://"),
+        "the server started; it said {}",
+        self.said()
+      );
+      tokio::time::sleep(Duration::from_millis(20)).await;
+    };
+    assert!(!status.success(), "the server ended {status}; it said {}", self.said());
+    self.said()
+  }
+
+  fn spawn(&mut self) {
     let log = std::fs::File::create(self.root().join("server.log")).unwrap();
     let mut command = command();
     match self.token {
@@ -243,23 +284,6 @@ impl Face {
         .spawn()
         .expect("the server starts"),
     );
-    // Ready when it names its port, and never ready once it has ended without naming one.
-    self.port = loop {
-      let heard = self.said().lines().find_map(|line| {
-        line.strip_prefix("BMO face: http://127.0.0.1:")?.split('/').next()?.parse::<u16>().ok()
-      });
-      if let Some(port) = heard {
-        break port;
-      }
-      let ended = self.server.as_mut().and_then(|server| server.try_wait().ok().flatten());
-      assert!(
-        ended.is_none(),
-        "the server ended ({ended:?}) before it listened; it said {}",
-        self.said()
-      );
-      tokio::time::sleep(Duration::from_millis(20)).await;
-    };
-    self
   }
 
   fn said(&self) -> String {
@@ -378,12 +402,24 @@ impl Face {
   }
 }
 
-/// The path a console bundle's file is answered at, by its bytes.
-fn hashed(file: &str, bytes: &[u8]) -> String {
-  use sha2::Digest;
-  let hex: String = sha2::Sha256::digest(bytes).iter().map(|byte| format!("{byte:02x}")).collect();
-  let (stem, extension) = file.rsplit_once('.').unwrap();
-  format!("/console/{stem}.{}.{extension}", &hex[..16])
+/// The screen's project, where the vendored bmo-ui stands.
+fn client() -> PathBuf {
+  Path::new(env!("CARGO_MANIFEST_DIR")).join("../client")
+}
+
+/// The bmo-ui release file the screen vendors, as its package manifest names it.
+fn vendored_release() -> PathBuf {
+  let manifest: Value =
+    serde_json::from_str(&std::fs::read_to_string(client().join("package.json")).unwrap()).unwrap();
+  let entry = manifest["devDependencies"]["bmo-ui"].as_str().expect("the screen vendors bmo-ui");
+  client().join(entry.strip_prefix("file:").expect("bmo-ui is vendored as a file"))
+}
+
+/// The layer the vendored release's bundle build names, as the installed release states it.
+fn vendored_layer() -> String {
+  let layer = client().join("node_modules/bmo-ui/shared/layer.json");
+  let stated: Value = serde_json::from_str(&std::fs::read_to_string(&layer).unwrap()).unwrap();
+  stated["layer"].as_str().unwrap().to_owned()
 }
 
 impl Drop for Face {
@@ -739,73 +775,45 @@ async fn a_stored_document_is_made_right_before_the_server_answers() {
 }
 
 #[tokio::test]
-async fn a_console_reads_the_manifest_and_the_words_with_its_credential_alone() {
+async fn the_manifest_reads_through_the_vendored_release_with_the_faces_own_fields_and_layer() {
   let face = Face::new(None, true).await.start().await;
-
-  for refused in [vec![], vec![("authorization", "Bearer other")], vec![("authorization", TOKEN)]] {
-    assert_eq!(face.call("GET", "/bmo-face/console-manifest", &refused, "").await.0, 401);
-    assert_eq!(face.call("GET", "/bmo-face/console/words", &refused, "").await.0, 401);
-  }
-
-  let (status, headers, body) =
-    face.call("GET", "/bmo-face/console-manifest", &[("authorization", BEARER)], "").await;
+  let (status, manifest) = face.manifest().await;
   assert_eq!(status, 200);
-  assert!(headers["content-type"].to_str().unwrap().starts_with("application/json"));
-  let mut expected: Value = serde_json::from_str(FIXED).unwrap();
-  expected["bundle"] = json!(hashed("bundle.js", b"export default { routes: [] };\n"));
-  expected["stylesheet"] = json!(hashed("bundle.css", b".face-test { color: red }\n"));
-  expected["words"] = json!("/console/words");
-  assert_eq!(serde_json::from_str::<Value>(&body).unwrap(), expected);
-  assert_eq!(expected["role"], "member");
-  assert_eq!(expected["ownerKey"], false);
 
-  let (status, _, body) =
-    face.call("GET", "/bmo-face/console/words", &[("authorization", BEARER)], "").await;
-  assert_eq!((status, body.as_str()), (200, r#"{"ko":{"face":{"title":"face"}}}"#));
+  let read = bmo_console_face::read_manifest(&manifest, &vendored_release())
+    .unwrap_or_else(|why| panic!("the manifest does not read: {why}"));
+  let declared: Value = serde_json::from_str(FIXED).unwrap();
+  for (field, value) in declared.as_object().unwrap() {
+    assert_eq!(&read[field], value, "{field}");
+  }
+  assert_eq!(read["layer"], vendored_layer());
 }
 
 #[tokio::test]
-async fn the_screens_routes_need_the_credential_and_a_role_the_manifest_allows() {
+async fn the_screens_call_needs_the_credential_and_a_role_the_manifest_allows() {
   let face = Face::new(None, true).await.start().await;
-  let manifest = face.manifest().await.1;
-  let module = format!("/bmo-face{}", manifest["bundle"].as_str().unwrap());
-  let stylesheet = format!("/bmo-face{}", manifest["stylesheet"].as_str().unwrap());
+  let path = "/bmo-face/console/faces";
 
-  for path in [
-    module.as_str(),
-    stylesheet.as_str(),
-    "/bmo-face/console/faces",
-    "/bmo-face/console/elsewhere",
-  ] {
-    assert_eq!(face.call("GET", path, &[], "").await.0, 401, "{path}");
-    assert_eq!(
-      face
-        .call("GET", path, &[("authorization", "Bearer other"), ("owner-role", "member")], "")
-        .await
-        .0,
-      401
-    );
-    assert_eq!(face.call("GET", path, &[("authorization", BEARER)], "").await.0, 403, "{path}");
-    assert_eq!(
-      face
-        .call("GET", path, &[("authorization", BEARER), ("owner-role", "guest")], "")
-        .await
-        .0,
-      403
-    );
-  }
+  assert_eq!(face.call("GET", path, &[("owner-role", "member")], "").await.0, 401);
+  assert_eq!(
+    face
+      .call("GET", path, &[("authorization", "Bearer other"), ("owner-role", "member")], "")
+      .await
+      .0,
+    401
+  );
+  assert_eq!(face.call("GET", path, &[("authorization", BEARER)], "").await.0, 403);
+  assert_eq!(
+    face
+      .call("GET", path, &[("authorization", BEARER), ("owner-role", "guest")], "")
+      .await
+      .0,
+    403
+  );
   for role in ["member", "administrator"] {
-    let reader = [("authorization", BEARER), ("owner-role", role)];
-    let (status, headers, body) = face.call("GET", &module, &reader, "").await;
-    assert_eq!((status, body.as_str()), (200, "export default { routes: [] };\n"));
-    assert!(headers["content-type"].to_str().unwrap().starts_with("text/javascript"));
-    assert!(headers["cache-control"].to_str().unwrap().contains("immutable"));
-    let (status, headers, _) = face.call("GET", &stylesheet, &reader, "").await;
-    assert_eq!(status, 200);
-    assert!(headers["content-type"].to_str().unwrap().starts_with("text/css"));
-    let (status, _, body) = face.call("GET", "/bmo-face/console/faces", &reader, "").await;
+    let (status, _, body) =
+      face.call("GET", path, &[("authorization", BEARER), ("owner-role", role)], "").await;
     assert_eq!((status, serde_json::from_str::<Value>(&body).unwrap()), (200, default_document()));
-    assert_eq!(face.call("GET", "/bmo-face/console/elsewhere", &reader, "").await.0, 404);
   }
 }
 
@@ -838,23 +846,22 @@ async fn the_console_screen_saves_as_the_editor_does_without_a_session_or_this_s
 }
 
 #[tokio::test]
-async fn the_module_path_follows_its_bytes_and_no_bundle_is_no_manifest() {
-  let face = Face::new(None, true).await.start().await;
-  let reader = [("authorization", BEARER), ("owner-role", "member")];
-  let first = face.manifest().await.1["bundle"].as_str().unwrap().to_owned();
-  assert_eq!(face.call("GET", &format!("/bmo-face{first}"), &reader, "").await.0, 200);
+async fn no_bundle_built_is_no_manifest_and_a_bundle_the_console_face_refuses_stops_the_start() {
+  let unbuilt = Face::new(None, true).await;
+  std::fs::remove_file(unbuilt.root().join("console/bundle.js")).unwrap();
+  let unbuilt = unbuilt.start().await;
+  assert_eq!(unbuilt.manifest().await.0, 404);
+  assert_eq!(unbuilt.call("GET", "/bmo-face/console-manifest", &[], "").await.0, 401);
+  assert_eq!(
+    unbuilt.call("GET", "/bmo-face/console/faces", &[("authorization", BEARER)], "").await.0,
+    404
+  );
+  assert_eq!(unbuilt.get("/bmo-face/api/faces").await.0, 200);
 
-  std::fs::write(face.root().join("console/bundle.js"), "export default { routes: [{}] };\n").unwrap();
-  let second = face.manifest().await.1["bundle"].as_str().unwrap().to_owned();
-  assert_ne!(first, second);
-  assert_eq!(second, hashed("bundle.js", b"export default { routes: [{}] };\n"));
-  assert_eq!(face.call("GET", &format!("/bmo-face{first}"), &reader, "").await.0, 404);
-  assert_eq!(face.call("GET", &format!("/bmo-face{second}"), &reader, "").await.0, 200);
-
-  std::fs::remove_file(face.root().join("console/bundle.css")).unwrap();
-  assert!(face.manifest().await.1.get("stylesheet").is_none());
-  std::fs::remove_file(face.root().join("console/bundle.js")).unwrap();
-  assert_eq!(face.manifest().await.0, 404);
+  let unlayered = Face::new(None, true).await;
+  std::fs::remove_file(unlayered.root().join("console/layer.json")).unwrap();
+  let said = unlayered.refused().await;
+  assert!(said.contains("the console face could not be built"), "{said}");
 }
 
 #[tokio::test]

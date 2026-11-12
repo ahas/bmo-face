@@ -13,11 +13,12 @@ setup = ["bun install --frozen-lockfile", "cd client && bun install --frozen-loc
 [check]
 # The sweeps that read the tree before anything runs: Korean in the code, the README's folder table and
 # the dependencies the manifests name. The ledger is the Korean left in a code file. The face reaches
-# BMO's archive and console as a configured address, never as another repository's code; bmo-ui, the
-# one base library, is vendored for the console bundle alone.
+# BMO's archive and console as a configured address, never as another repository's code. Its two base
+# libraries serve the console screen alone: bmo-ui, vendored for the bundle, and bmo-chat's
+# bmo-console-face crate in the server.
 quick = ["korean", "layout", "dependencies", "cargo-profile", "shared-versions"]
 korean_ledger = "korean-ledger.json"
-base_libraries = ["bmo-ui"]
+base_libraries = ["bmo-ui", "bmo-console-face"]
 
 # The repository whose root holds the shared versions the manifests and the lock hold to.
 [check.shared_versions]

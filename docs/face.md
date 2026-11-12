@@ -418,9 +418,13 @@ expression document both the display and the editor read, and the server that se
   document every display draws, heard by them as any save is.
 - **The service's API is everything under `/bmo-face`,** so a console's setting names the face at
   its address with that path, and every path below is written from there.
+- **The console face is bmo-chat's `bmo-console-face`** (bmo-chat's `docs/console-face.md`): the
+  manifest, the bundle's files, the words and their guard are answered by it as the contract states,
+  and nothing of them is written here. The face hands it its declaration, the folder the bundle
+  build wrote and the console's credential, and lays its screens' guard over the screens' calls.
 - **What the face chooses in its manifest** stands once, in `console-manifest.json` at the
-  repository's root, which the server answers and the bundle reads its screen path, service name
-  and API prefix from:
+  repository's root, the declaration the console face is built from and the file the bundle reads its
+  screen path, service name and API prefix from:
   - the screens' calls stand under `/console`;
   - a member opens the screen, and an administrator with it;
   - no owner key: the expression document is the machine's one document, no reader's own;
@@ -430,13 +434,20 @@ expression document both the display and the editor read, and the server that se
 - **What the screens call:** `GET /console/faces`, the expression document as `GET /api/faces`
   answers it, and `PUT /console/faces`, a save taking and answering what `PUT /api/faces` does, with
   the same check, the same version it must name and the same conflict.
+- **The screens' calls take the console's credential.** The face refuses one without it, 401, and
+  the console face's guard holds one with it to the manifest's role.
 - **The console's credential** is the token `BMO_FACE_TOKEN` names. A server with none set refuses
   every console route, the manifest among them, and the display and the editor are untouched by it.
-- **No bundle built, no manifest.** Where the built folder holds no module, the manifest is a 404,
-  so a console leaves the face out rather than load a screen that is not there.
+- **Built as the server starts.** With the credential set, the server builds the console face from
+  the bundle's folder once, as it starts. A folder holding no module is no bundle built: the
+  manifest is a 404, so a console leaves the face out rather than load a screen that is not there.
+  A folder holding one that the console face refuses (a file it cannot read, a manifest that breaks
+  the contract) stops the server from starting, saying why. A bundle built again is answered once
+  the server starts again.
 - **The bundle** is built by `bun run console` in `client/`, into `client/.output/console`, on the
-  bmo-ui this repository vendors under `client/vendor/`. The server reads that folder on every
-  request, so a bundle built again is answered at once.
+  bmo-ui release this repository vendors under `client/vendor/`, with that release's bundle build,
+  which writes the layer the manifest names. The module is `bundle.js`, the stylesheet `bundle.css`
+  and the words `words.json`.
   - **Its one route** is the editor's page at the screen path, handed the road to the screens' calls
     through bmo-ui's `relayAddress`.
   - **The island and the back gesture are the console's.** The bundle takes bmo-ui's `island` and
@@ -448,7 +459,8 @@ expression document both the display and the editor read, and the server that se
   - **The words** are the `face` tree of the pack, under `ko`. Every word the screens show stands
     under `face` in `client/i18n/locales/ko.yaml`, beside the `common.*` words a console answers
     itself, so the standalone screens and the bundle read one pack by the same keys.
-- **Tested:** the crate's contract test asks every console route without the credential, without a
-  role and with one, and writes the module twice to see its path follow its bytes; the screen's
-  test reads the manifest the binary answers through bmo-ui's `consoleManifest`, and the module's
-  imports against the libraries it may leave unbundled.
+- **Tested:** the crate's test reads the manifest the server answers through the console face's
+  reading, run on the release this repository vendors, and its contract tests ask the screens' calls
+  without the credential, without a role and with one, and a server with no credential and one with
+  no bundle built. What the console face answers and how the bundle build leaves the shared libraries
+  out are held by their own tests in bmo-chat and bmo-ui.

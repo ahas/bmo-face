@@ -17,10 +17,12 @@ reached at the console's address; nothing of BMO's is imported.
   a change to code brings the node it touches up to date in the checkout. Its area files are generated
   and untracked, so a fresh checkout builds them again, while `settings.toml` is the repository's
   configuration and stays tracked. The format is `docs/graph.md` in the bmo-graph repository.
-- **One base library, bmo-ui, and for the console bundle alone.** Its pack is vendored under
-  `client/vendor/` and named in the screen's manifest; the bundle is built on it and its test reads
-  the manifest through it, while the standalone screens do not extend it. BMO is reached over the
-  address a setting names. The testbed's dependency sweep fails on anything else.
+- **Two base libraries, each for the console screen alone.** bmo-ui's release, the one bmo-chat's
+  `shared-versions.toml` pins, is vendored under `client/vendor/` and named in the screen's manifest;
+  the bundle is built on it, while the standalone screens do not extend it. bmo-chat's
+  `bmo-console-face` crate serves the console face from the server, and the server's test reads the
+  manifest it serves through that crate's reading. BMO is reached over the address a setting names.
+  The testbed's dependency sweep fails on anything else.
 - **English in code, comments, tests, documents and commit messages.** Every word a person reads on
   the screen stands in `client/i18n/locales/ko.yaml`, named by key. The Korean the code still holds is
   the debt `korean-ledger.json` records file by file; a file it does not name is allowed none, and the

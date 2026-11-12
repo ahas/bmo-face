@@ -11,7 +11,7 @@ listener stream, which carries every briefing with its emotion and BMO's presenc
 | Folder | Holds |
 |---|---|
 | `.graph/` | the code graph: one file per area of features, the boundary nodes for the APIs this repository exposes and calls, and `settings.toml` with its coverage; it is written only with `bmo graph` |
-| `client/` | the screen, a Bun project of its own: the Nuxt display and editor on `@nuxt/ui`, every word it shows as a key into `i18n/locales/ko.yaml`, the console bundle's entry under `app/console/` and its build under `scripts/`, the vendored bmo-ui pack under `vendor/`, and its tests under `tests/` |
+| `client/` | the screen, a Bun project of its own: the Nuxt display and editor on `@nuxt/ui`, every word it shows as a key into `i18n/locales/ko.yaml`, the console bundle's entry under `app/console/` and its build under `scripts/`, the vendored bmo-ui release under `vendor/`, and its tests under `tests/` |
 | `deploy/` | the user unit `bmo-face.service`, which a deployment keeps, and the proxy's two `/bmo-face` locations |
 | `docs/` | the canonical statements: the face and its server (`face.md`), the design it is drawn from (`expressions.md`), the deployment (`deploy.md`) and the development bench (`development.md`) |
 | `scripts/` | the development bench's commands: the copy of the data root, the bench itself, and the fixtures' writer |
@@ -22,7 +22,7 @@ listener stream, which carries every briefing with its emotion and BMO's presenc
 At the root stand the Cargo workspace manifest and its lockfile, whose one member is `server/`; the
 root Bun project's manifest, lockfile and `tsconfig.json`, which hold `src/`, `scripts/` and `tests/`;
 `VERSION`; `testbed.toml`; `tool.toml` with its two schemas; `console-manifest.json`, the console
-manifest's fixed fields; `rustfmt.toml`; `korean-ledger.json`;
+face's declaration, the manifest's fields the face decides; `rustfmt.toml`; `korean-ledger.json`;
 `LICENSE`; and `CLAUDE.md`. `docs/PERSONAL-DATA.md` names the check `tests/personal-data.test.ts`,
 which the suite runs with the rest.
 

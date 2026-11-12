@@ -9,7 +9,7 @@ declaration, `testbed.toml`; nothing here deploys itself.
   installs the root and the screen's Bun packages (the declaration's setup), and, before the flip,
   generates the screen with `bun run generate` in `client/`, into `client/.output/public`, and then
   builds the console bundle with `bun run console`, into `client/.output/console`. The server serves
-  both from there: its own defaults are those two folders beside the release's `bin/`
+  both from there, reading the bundle once as it starts: its own defaults are those two folders beside the release's `bin/`
   (`docs/face.md`, 「The server」 and 「The console screen」). The screen is generated in Korean, from
   the pack this repository holds, `client/i18n/locales/ko.yaml`, and the bundle's words are read from
   the same pack.
