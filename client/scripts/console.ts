@@ -10,6 +10,7 @@ import vue from "@vitejs/plugin-vue";
 import AutoImport from "unplugin-auto-import/vite";
 import Components from "unplugin-vue-components/vite";
 import { consoleBundle } from "bmo-ui/bundle/console-bundle.js";
+import postcss from "postcss";
 import { build } from "vite";
 
 const client = resolve(import.meta.dir, "..");
@@ -29,7 +30,11 @@ function writeConsoleTheme(): void {
     }
   }
 
-  const blocks = readFileSync(generatedTheme, "utf8").match(/@theme[^{]*\{[^}]*\}/g) ?? [];
+  const blocks: string[] = [];
+
+  postcss.parse(readFileSync(generatedTheme, "utf8")).walkAtRules("theme", (rule) => {
+    blocks.push(rule.toString());
+  });
 
   writeFileSync(consoleTheme, `${blocks.join("\n\n")}\n`);
 }
