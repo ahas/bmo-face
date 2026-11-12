@@ -402,10 +402,10 @@ expression document both the display and the editor read, and the server that se
 
 ## The console screen
 
-- **The contract is bmo-ui's console plugin contract** (bmo-ui's `docs/console-bundles.md`), at the
-  layer version this repository vendors under `client/vendor/`. The face is one more service a
-  console lists by its address and credential and finds by its manifest; nothing in a console is
-  written for the face, and nothing here names a console.
+- **The contract is bmo-ui's console plugin contract,** bmo-ui's `docs/console-bundles.md`, its one
+  statement. This section names the parts of it the face uses and what the face chooses within it,
+  and repeats none of its rules: the manifest's fields and their reading, the files' paths, the
+  libraries a bundle leaves to the console, and the credential, roles and refusals all stand there.
 - **What the screen is:** the editor (「The editor」) whole, under the screen path `/face`, without
   its login and its log-out: the console's sign-in stands in their place.
 - **It stands in the console's page area, under the console's title bar,** where the console offers
@@ -418,50 +418,27 @@ expression document both the display and the editor read, and the server that se
   document every display draws, heard by them as any save is.
 - **The service's API is everything under `/bmo-face`,** so a console's setting names the face at
   its address with that path, and every path below is written from there.
-- **The manifest**, `GET /console-manifest`:
-  - `name` `face`, its words' namespace; `title` `face.title`; `icon` `i-material-symbols-face-outline`;
-    `screenPath` `/face`; `serviceName` `face`;
-  - `apiPrefix` `/console`: everything the screen calls stands under it;
-  - `role` `member`: an administrator or a member opens it;
-  - `ownerKey` false: the expression document is the machine's one document, no owner's own, so
-    nothing here reads who the reader is;
-  - `events` false and `websocket` false: the editor reads the document when it opens and after a
-    conflict, and listens for nothing; `pushKinds` none;
-  - `calls` none: the screen calls the face alone, so the manifest names no other service;
-  - `bundle`, `stylesheet` and `words`: the module's, the stylesheet's and the words' paths below.
-  - What does not follow from the built bundle — every field but those three paths — stands once, in
-    `console-manifest.json` at the repository's root. The server answers it with the three paths
-    added, and the bundle reads its screen path, service name and API prefix from the same file.
-- **The routes under `/console`:**
-  - `GET /console/bundle.<hash>.js` — the module; `GET /console/bundle.<hash>.css` — the
-    stylesheet. The hash is the first sixteen hexadecimal digits of the SHA-256 of the file's bytes,
-    so a path changes whenever its bytes do. A path naming bytes that are not the ones built is a
-    404, and the ones built are answered as kept for good.
-  - `GET /console/words` — the words.
-  - `GET /console/faces` — the expression document, as `GET /api/faces` answers it.
-  - `PUT /console/faces` — a save, taking and answering what `PUT /api/faces` does: the same check,
-    the same version it must name, the same conflict.
-- **The guard:**
-  - Every console route — the manifest among them — needs `Authorization: Bearer` with the token
-    `BMO_FACE_TOKEN` names. Without it, or with any other, the answer is a 401; a server with no
-    token set refuses every one of them so, and the display and the editor are untouched by it.
-  - The manifest and the words need nothing more, as the contract has it.
-  - The module, the stylesheet and the document also need `Owner-Role` naming a role that allows
-    the manifest's: `administrator` or `member`. A role missing or any other is a 403. Where the
-    manifest asks for the owner key, a call without `Owner-Key` is a 403 too; this manifest does not
-    ask for it.
+- **What the face chooses in its manifest** stands once, in `console-manifest.json` at the
+  repository's root, which the server answers and the bundle reads its screen path, service name
+  and API prefix from:
+  - the screens' calls stand under `/console`;
+  - a member opens the screen, and an administrator with it;
+  - no owner key: the expression document is the machine's one document, no reader's own;
+  - no events, no websocket and no pushes: the editor reads the document when it opens and after a
+    conflict, and listens for nothing;
+  - no other service called: the screen calls the face alone.
+- **What the screens call:** `GET /console/faces`, the expression document as `GET /api/faces`
+  answers it, and `PUT /console/faces`, a save taking and answering what `PUT /api/faces` does, with
+  the same check, the same version it must name and the same conflict.
+- **The console's credential** is the token `BMO_FACE_TOKEN` names. A server with none set refuses
+  every console route, the manifest among them, and the display and the editor are untouched by it.
 - **No bundle built, no manifest.** Where the built folder holds no module, the manifest is a 404,
   so a console leaves the face out rather than load a screen that is not there.
-- **The bundle** is built by `bun run console` in `client/`, into `client/.output/console`: the
-  module `bundle.js`, the stylesheet `bundle.css` and the words `words.json`. The server reads that
-  folder on every request, so a bundle built again is answered under its new paths at once.
-  - **The module** is an ECMAScript module whose default export is `{ routes }`: one route at the
-    screen path, the editor's page, handed the road to the console routes through bmo-ui's
-    `relayAddress` for the service's name.
-  - **It leaves unbundled** every import of `vue`, `vue-router`, `vue-i18n`, `nuxt/app`, `@nuxt/ui`
-    and `bmo-ui`, written as the package's own path: a Nuxt UI component as
-    `@nuxt/ui/components/<Name>.vue`, a composable Nuxt makes available on its own as `nuxt/app`.
-    Everything else of the screen it carries.
+- **The bundle** is built by `bun run console` in `client/`, into `client/.output/console`, on the
+  bmo-ui this repository vendors under `client/vendor/`. The server reads that folder on every
+  request, so a bundle built again is answered at once.
+  - **Its one route** is the editor's page at the screen path, handed the road to the screens' calls
+    through bmo-ui's `relayAddress`.
   - **The island and the back gesture are the console's.** The bundle takes bmo-ui's `island` and
     `layers` modules where the screen has its own copies, so the editor's notices and questions stand
     on the console's island and inside a part is left by the console's one history of layers.
