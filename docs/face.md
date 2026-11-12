@@ -327,8 +327,15 @@ expression document both the display and the editor read, and the server that se
 - **A region with a fixed surface states the ring's step.** The display paints the face on a
   surface of its own whatever the theme, and the message island is fixed dark in both themes, so
   each names the accent step that reads at 3:1 on that surface.
-- **A toolbar is one row of equal cells.** An icon-only button in a toolbar is a square as tall as
-  the toolbar's row, so the row reads as one band and a finger has the whole height to aim at.
+- **A toolbar's controls are the library's small ones.** Every button in a toolbar is the component
+  library's small button at its own size, centred in the row with room above and below it, never a
+  cell stretched to the row's height or width; an icon-only one is the library's small square icon
+  button, and the toolbar's selects are small as well. A button's hover and press colours fill its
+  own rounded shape and nothing round it. Outside a toolbar an icon-only button is the library's
+  square at the size it is given.
+- **Nothing but the screen's name stands beside its title.** A top bar holds the screen's name and
+  what spans the whole app, such as logging out. The editor's own actions stand in the toolbar over
+  the canvas, saving at its right end and leaving a part's inside at its left end.
 - **Every tooltip is one component.** A screen gives it the words and whether a press on what it
   stands on does something else; how it opens, how wide it grows and how a finger reaches it are the
   component's. On a touch screen a held finger opens it and the lift presses nothing, and the next

@@ -68,22 +68,14 @@ export default defineAppConfig({
     skeleton: {
       base: "animate-pulse rounded-md bg-elevated motion-reduce:animate-none"
     },
-    // An icon-only button is the square the theme names, so every mark of its kind is the same
-    // cell wherever it stands. A toolbar raises that token to its own row's height (main.css).
-    button: {
-      variants: {
-        square: {
-          true: "size-(--bmo-control-square) shrink-0 p-0"
-        }
-      }
-    },
-    // A toolbar is one row of equal cells: the square above is as tall as the row, and the row is
-    // not clipped, so the shared focus ring stands outside its cells as it does everywhere else.
+    // A toolbar's controls keep the library's own small size, centred in the row (docs/face.md, 「The
+    // screens' shared style」). The row is not clipped, so the shared focus ring stands outside its
+    // controls as it does everywhere else.
     dashboardToolbar: {
       slots: {
-        root: "overflow-visible [--bmo-control-square:var(--bmo-toolbar-height)]",
+        root: "overflow-visible",
         // A target field on the left shrinks with the row rather than pushing the actions off it;
-        // the actions themselves keep their cells.
+        // the actions themselves keep their own width.
         left: "min-w-0",
         right: "shrink-0"
       }

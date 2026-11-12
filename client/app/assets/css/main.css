@@ -42,13 +42,6 @@
   --bmo-focus-color: var(--ui-color-primary-400);
 }
 
-/* The square an icon-only button is drawn in, and the row height a toolbar raises it to. The
-   toolbar's own box carries one more pixel, its bottom border. */
-:root {
-  --bmo-control-square: 2rem;
-  --bmo-toolbar-height: 3rem;
-}
-
 /* A button, a link or a switch reached by the keyboard draws the one ring above. The library
    writes its own colour and width into the utilities layer; this rule stands outside every layer,
    so what it draws is what is seen. The colour stands on the element at rest too, so the ring
