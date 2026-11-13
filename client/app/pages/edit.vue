@@ -32,20 +32,12 @@
             <!-- Wide, the actions stand as icon buttons in groups of three or fewer. -->
             <div class="hidden items-center gap-1 lg:flex">
               <USeparator orientation="vertical" class="h-6" />
-              <UDropdownMenu :items="addItems">
-                <AppTooltip :text="t('face.edit.action.add_part')">
-                  <UButton size="sm" icon="i-material-symbols-add" color="neutral" variant="ghost" :aria-label="t('face.edit.action.add_part')" :disabled="!edited" />
-                </AppTooltip>
-              </UDropdownMenu>
               <AppTooltip :text="t('face.edit.action.remove_part')">
                 <UButton size="sm" icon="i-material-symbols-delete-outline" color="neutral" variant="ghost" :aria-label="t('face.edit.action.remove_part')" :disabled="chosen === null" @click="removePart" />
               </AppTooltip>
 
               <template v-if="tab === 'mouths'">
                 <USeparator orientation="vertical" class="h-6" />
-                <AppTooltip :text="t('face.edit.action.add_stage')">
-                  <UButton size="sm" icon="i-material-symbols-library-add-outline" color="neutral" variant="ghost" :aria-label="t('face.edit.action.add_stage')" :disabled="!canAddStage" @click="moreStage" />
-                </AppTooltip>
                 <AppTooltip :text="t('face.edit.action.remove_stage')">
                   <UButton size="sm" icon="i-material-symbols-layers-clear-outline" color="neutral" variant="ghost" :aria-label="t('face.edit.action.remove_stage')" :disabled="!canRemoveStage" @click="dropStage" />
                 </AppTooltip>
@@ -69,6 +61,11 @@
                 <UButton size="sm" icon="i-material-symbols-save-outline" :aria-label="t('face.edit.action.save')" :loading="saving" :disabled="!dirty" class="lg:hidden" @click="save" />
               </AppTooltip>
             </UChip>
+
+            <!-- What the editor makes, made from its one create button at the toolbar's right end. -->
+            <UDropdownMenu :items="createItems" :content="createMenu">
+              <CreateButton ref="createButton" size="sm" :label="createLabel" :disabled="!edited" />
+            </UDropdownMenu>
           </template>
         </UDashboardToolbar>
 
@@ -151,12 +148,13 @@
 <script setup lang="ts">
 import { faceFor, FACE_NAMES, LIMITS, PART_GROUPS } from "#faces";
 
-import { addStage, newPart, partsOf, removeStage, withParts } from "~/domain/edit";
+import CreateButton from "~/components/CreateButton.vue";
+import { addInside, addStage, newPart, partsOf, removeStage, withParts } from "~/domain/edit";
 import { useBackClose } from "~/domain/layers";
 
 import type { DropdownMenuItem } from "@nuxt/ui";
 import type { FaceName, Part, PartGroup } from "#faces";
-import type { EditTarget, NewPart } from "~/domain/edit";
+import type { EditTarget, NewInside, NewPart } from "~/domain/edit";
 import type { EditorRoad } from "~/composables/useEditor";
 
 // The expression editor (docs/face.md, 「The editor」): one face's group or one mouth stage at a time
@@ -182,6 +180,7 @@ const outline = ref<number | null>(null);
 const chosen = ref<number | null>(null);
 const chosenNode = ref<number | null>(null);
 const drawer = ref(false);
+const createButton = useTemplateRef<{ element: () => HTMLElement | null }>("createButton");
 
 const tabs = computed(() => [
   { label: t("face.edit.tab.faces"), value: "faces" },
@@ -190,28 +189,65 @@ const tabs = computed(() => [
 const faceItems = computed(() => FACE_NAMES.map((name) => ({ label: t(`face.name.${name}`), value: name })));
 const groupItems = computed(() => PART_GROUPS.map((name) => ({ label: t(`face.edit.group.${name}`), value: name })));
 const stageItems = computed(() => (edited.value?.mouths ?? []).map((_, index) => ({ label: t("face.edit.stage", { n: index + 1 }), value: index })));
-const newItems = (): DropdownMenuItem[] => [
-  { label: t("face.edit.action.add_oval"), icon: "i-material-symbols-circle-outline", disabled: layerFull.value, onSelect: () => addPart("oval") },
-  { label: t("face.edit.action.add_line"), icon: "i-material-symbols-gesture", disabled: layerFull.value, onSelect: () => addPart("line") },
-];
-const addItems = computed(() => [newItems()]);
-
 const canAddStage = computed(() => edited.value !== null && edited.value.mouths.length < LIMITS.maxStages);
 const canRemoveStage = computed(() => edited.value !== null && edited.value.mouths.length > LIMITS.minStages);
 
-// On a narrow screen every action of the toolbar stands in one menu, in the order they are reached for.
+// What the create button makes (docs/face.md, 「The editor」): a part of what is being edited; inside a
+// chosen closed part of the target's own, a teeth band or a tongue; and, in the mouth stage tab, a stage.
+const createLabel = computed(() => (tab.value === "faces" ? t("face.edit.action.add_part") : t("face.edit.action.add_part_stage")));
+const createItems = computed((): DropdownMenuItem[][] => {
+  const own = chosenPart.value;
+  const groups: DropdownMenuItem[][] = [
+    [
+      { label: t("face.edit.action.add_oval"), icon: "i-material-symbols-circle-outline", disabled: layerFull.value, onSelect: () => addPart("oval") },
+      { label: t("face.edit.action.add_line"), icon: "i-material-symbols-gesture", disabled: layerFull.value, onSelect: () => addPart("line") },
+    ],
+  ];
+
+  if (outline.value === null && own !== null && own.closed) {
+    const full = (own.inside ?? []).length >= LIMITS.partsInside;
+
+    groups.push([
+      { type: "label", label: t("face.edit.fields.inside") },
+      { label: t("face.edit.action.add_teeth"), icon: "i-material-symbols-dentistry-outline", disabled: full, onSelect: () => addPartInside("teeth") },
+      { label: t("face.edit.action.add_tongue"), icon: "i-material-symbols-sentiment-very-satisfied-outline", disabled: full, onSelect: () => addPartInside("tongue") },
+    ]);
+  }
+
+  if (tab.value === "mouths") {
+    groups.push([{ label: t("face.edit.action.add_stage"), icon: "i-material-symbols-library-add-outline", disabled: !canAddStage.value, onSelect: moreStage }]);
+  }
+
+  return groups;
+});
+
+// The menu stands on the create button itself and gives the focus back to it as it closes: what the menu
+// takes for its trigger is the button's cell on a wide screen, which takes no focus, and on a phone,
+// where the button floats in the page's body, nothing of the button at all. The menu is handed one
+// anchor for good, as the library reads which settings it passes on only as the menu is first set up,
+// and the anchor reads the button wherever it stands at the moment the menu places itself, since the
+// button changes its shape with the screen's width.
+const createAnchor = {
+  getBoundingClientRect: (): DOMRect => createButton.value?.element()?.getBoundingClientRect() ?? new DOMRect(),
+  get contextElement(): HTMLElement | undefined {
+    return createButton.value?.element() ?? undefined;
+  },
+};
+const createMenu = {
+  align: "end" as const,
+  reference: createAnchor,
+  onCloseAutoFocus: (event: Event) => {
+    event.preventDefault();
+    createButton.value?.element()?.focus();
+  },
+};
+
+// On a narrow screen every other action of the toolbar stands in one menu, in the order they are reached for.
 const narrowItems = computed((): DropdownMenuItem[][] => [
-  [
-    { label: t("face.edit.action.fields"), icon: "i-material-symbols-tune", onSelect: () => (drawer.value = true) },
-  ],
-  [...newItems(), { label: t("face.edit.action.remove_part"), icon: "i-material-symbols-delete-outline", disabled: chosen.value === null, onSelect: removePart }],
+  [{ label: t("face.edit.action.fields"), icon: "i-material-symbols-tune", onSelect: () => (drawer.value = true) }],
+  [{ label: t("face.edit.action.remove_part"), icon: "i-material-symbols-delete-outline", disabled: chosen.value === null, onSelect: removePart }],
   ...(tab.value === "mouths"
-    ? [
-        [
-          { label: t("face.edit.action.add_stage"), icon: "i-material-symbols-library-add-outline", disabled: !canAddStage.value, onSelect: moreStage },
-          { label: t("face.edit.action.remove_stage"), icon: "i-material-symbols-layers-clear-outline", disabled: !canRemoveStage.value, onSelect: dropStage },
-        ],
-      ]
+    ? [[{ label: t("face.edit.action.remove_stage"), icon: "i-material-symbols-layers-clear-outline", disabled: !canRemoveStage.value, onSelect: dropStage }]]
     : []),
 ]);
 
@@ -326,6 +362,12 @@ function addPart(kind: NewPart): void {
   }
 }
 
+function addPartInside(kind: NewInside): void {
+  if (chosenPart.value !== null) {
+    changePart(addInside(chosenPart.value, kind));
+  }
+}
+
 function removePart(): void {
   if (chosen.value !== null) {
     changeLayer(layer.value.filter((_, index) => index !== chosen.value));
@@ -363,7 +405,7 @@ useHead({ title: () => t("face.edit.title") });
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: 16px 16px calc(16px + var(--bmo-create-room));
 }
 
 .edit-preview-skeleton {

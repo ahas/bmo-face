@@ -60,9 +60,9 @@ await build({
   resolve: {
     alias: [
       { find: "#faces", replacement: resolve(client, "../src/faces.ts") },
-      // The island and the back gesture's layers are the console's own, so the bundle takes the
-      // layer's modules where the standalone screens have their copies.
-      { find: /^~\/domain\/(island|layers)$/, replacement: "bmo-ui/app/domain/$1" },
+      // The island, the back gesture's layers and the create button are the console's own, so the
+      // bundle takes the layer's where the standalone screens have their copies.
+      { find: /^~\/(domain\/(?:island|layers)|components\/CreateButton\.vue)$/, replacement: "bmo-ui/app/$1" },
       { find: /^~\//, replacement: `${join(client, "app")}/` },
     ],
   },

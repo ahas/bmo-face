@@ -18,6 +18,19 @@
   --bmo-safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* The room the floating create button takes from the foot of what scrolls under it on a phone: the
+   button, its gap from the edge and the device's bottom inset. A wide screen stands the button in
+   its row, so the room is nought there; the width is the narrow one the screens change at. */
+:root {
+  --bmo-create-room: 0px;
+}
+
+@media (max-width: 639px) {
+  :root {
+    --bmo-create-room: calc(3.5rem + var(--bmo-safe-bottom));
+  }
+}
+
 /* The one set of movements these screens move by, and the easings with them. No screen writes a
    length or a curve of its own. */
 :root {

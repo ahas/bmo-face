@@ -61,18 +61,13 @@
         </template>
       </section>
 
-      <template v-if="!inside && part.closed">
+      <!-- What stands inside is made from the editor's create button, and listed here once there is any. -->
+      <template v-if="!inside && holdsInside">
         <USeparator />
 
         <section class="flex flex-col gap-2">
-          <div class="flex items-center justify-between gap-2">
-            <h3 class="text-base font-semibold">{{ t("face.edit.fields.inside") }}</h3>
-            <div class="flex items-center gap-2">
-              <UButton icon="i-material-symbols-add" color="neutral" variant="outline" :label="t('face.edit.action.add_teeth')" :disabled="insideFull" @click="emitPart(addInside(part!, 'teeth'))" />
-              <UButton icon="i-material-symbols-add" color="neutral" variant="outline" :label="t('face.edit.action.add_tongue')" :disabled="insideFull" @click="emitPart(addInside(part!, 'tongue'))" />
-            </div>
-          </div>
-          <ul v-if="holdsInside" class="flex flex-col gap-1">
+          <h3 class="text-base font-semibold">{{ t("face.edit.fields.inside") }}</h3>
+          <ul class="flex flex-col gap-1">
             <li v-for="(inner, index) in part.inside" :key="index">
               <UButton
                 color="neutral"
@@ -94,12 +89,12 @@
 <script setup lang="ts">
 import { LIMITS, PAINTS } from "#faces";
 
-import { addInside, addNode, moveHandle, removeNode, setClosed, setSmooth } from "~/domain/edit";
+import { addNode, moveHandle, removeNode, setClosed, setSmooth } from "~/domain/edit";
 
 import type { Paint, Part, Point } from "#faces";
 
 // The chosen part's numbers (docs/face.md, 「The editor」): the part's openness, paints and width,
-// the chosen node's anchor and handles, and what stands inside a closed part. A number is moved
+// the chosen node's anchor and handles, and the list of what stands inside a closed part. A number is moved
 // through the same step a drag takes, so either way the part stays whole on the screen.
 
 const props = defineProps<{
@@ -117,7 +112,6 @@ const AXES = [0, 1] as const;
 
 const node = computed(() => (props.chosenNode === null ? null : (props.part?.nodes[props.chosenNode] ?? null)));
 const holdsInside = computed(() => (props.part?.inside ?? []).length > 0);
-const insideFull = computed(() => (props.part?.inside ?? []).length >= LIMITS.partsInside);
 
 // A part keeps a fill or a line: "none" is not offered for one while the other is none already.
 const paintItems = (otherIsNone: boolean) => [

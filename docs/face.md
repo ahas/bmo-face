@@ -283,6 +283,12 @@ expression document both the display and the editor read, and the server that se
 - **Parts are added and removed** in the group being edited: an oval (a closed path of four smooth
   nodes) or a line (an open path of three). Inside a chosen closed part: an upper teeth band along
   the top of the opening, or a tongue rising from its bottom.
+  - Everything the editor makes is made from its one create button (「The screens' shared style」),
+    named 모양 추가 in the face tab and 모양·단계 추가 in the mouth stage tab. It opens one menu: the
+    oval and the line; the teeth band and the tongue under 안쪽 모양 while a closed part of the
+    target's own is chosen, offered as long as it holds fewer than it may; and, in the mouth stage
+    tab, a new stage after the one being edited. An entry that cannot be made now stands disabled.
+  - What stands inside a chosen part is listed beside the canvas only once it holds something.
   - A new part comes with its own paints, whatever group it is added to: an oval filled `ink` with
     no line, a line in `ink` 2.2 wide, a teeth band filled `light`, a tongue filled `tongue`.
   - A node is added after the chosen one by splitting the segment it leaves by at its middle, which
@@ -335,7 +341,23 @@ expression document both the display and the editor read, and the server that se
   square at the size it is given.
 - **Nothing but the screen's name stands beside its title.** A top bar holds the screen's name and
   what spans the whole app, such as logging out. The editor's own actions stand in the toolbar over
-  the canvas, saving at its right end and leaving a part's inside at its left end.
+  the canvas, creating at its right end with saving just before it, and leaving a part's inside at
+  its left end.
+- **Creating is one button**, bmo-ui's `CreateButton` (bmo-ui's `docs/components.md`, 「Creating」),
+  and no screen draws a create button of its own. The console screen takes the layer's component;
+  the standalone screens, which do not extend the layer, take a copy of it that keeps the same
+  shapes, key and room:
+  - on a wide screen, a grey ghost icon with the add mark, a cell of its own at the right end of the
+    toolbar, the library's small square like the toolbar's other buttons, its tooltip naming what it
+    creates and then its key;
+  - on a phone, under 640px wide, a primary solid icon button at the library's largest size, fixed
+    16px from the screen's right edge and 16px above the device's bottom inset, its fill at the
+    darker step in light mode so the white mark reads, and nothing for it in the toolbar;
+  - `n` presses it, as long as it is enabled, no field holds the typing and nothing floats over the
+    screen;
+  - the canvas's area keeps the room the floating button takes at its foot, the `--bmo-create-room`
+    token, so on a phone the face is drawn clear of it. The token is nought on a wide screen; the
+    console answers it on the console screen, and the standalone screens' stylesheet states it.
 - **Every tooltip is one component.** A screen gives it the words and whether a press on what it
   stands on does something else; how it opens, how wide it grows and how a finger reaches it are the
   component's. On a touch screen a held finger opens it and the lift presses nothing, and the next
@@ -460,9 +482,10 @@ expression document both the display and the editor read, and the server that se
   and the words `words.json`.
   - **Its one route** is the editor's page at the screen path, handed the road to the screens' calls
     through bmo-ui's `relayAddress`.
-  - **The island and the back gesture are the console's.** The bundle takes bmo-ui's `island` and
-    `layers` modules where the screen has its own copies, so the editor's notices and questions stand
-    on the console's island and inside a part is left by the console's one history of layers.
+  - **The island, the back gesture and the create button are the console's.** The bundle takes
+    bmo-ui's `island` and `layers` modules and its `CreateButton` where the screen has its own
+    copies, so the editor's notices and questions stand on the console's island, inside a part is
+    left by the console's one history of layers, and the editor creates from the layer's one button.
   - **The stylesheet** is the utility classes the screen's pages and components write, built against
     the theme's names without the theme, the base or the library's own classes, and the components'
     own styles. The theme, the focus ring and the fonts are the console's.

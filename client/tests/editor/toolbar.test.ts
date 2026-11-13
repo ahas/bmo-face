@@ -4,8 +4,9 @@ import { parse } from "vue/compiler-sfc";
 
 // Where the editor's controls stand and at what size (docs/face.md, 「The screens' shared style」): the
 // top bar holds the screen's name and logging out alone, the actions stand in the toolbar over the
-// canvas with leaving a part's inside at its left end, and every control in that toolbar is the
-// library's small one at its own size, the theme setting no size of its own on an icon button.
+// canvas with leaving a part's inside at its left end and the one create button at its right end,
+// nothing else on the editor creates, and every control in that toolbar is the library's small one
+// at its own size, the theme setting no size of its own on an icon button.
 
 (globalThis as { defineAppConfig?: unknown }).defineAppConfig = (config: unknown) => config;
 
@@ -30,8 +31,15 @@ type ElementNode = TemplateNode & { tag: string; children: TemplateNode[]; props
 const ELEMENT = 1;
 const ATTRIBUTE = 6;
 
-const source = await Bun.file(new URL("../../app/pages/edit.vue", import.meta.url)).text();
-const template = parse(source).descriptor.template!.ast! as unknown as { children: TemplateNode[] };
+// A screen file's template, as the compiler reads it.
+async function templateOf(path: string): Promise<{ children: TemplateNode[] }> {
+  const source = await Bun.file(new URL(path, import.meta.url)).text();
+
+  return parse(source).descriptor.template!.ast! as unknown as { children: TemplateNode[] };
+}
+
+const template = await templateOf("../../app/pages/edit.vue");
+const fields = await templateOf("../../app/components/PartFields.vue");
 const config = (await import("../../app/app.config")).default as { ui: Record<string, { slots?: Record<string, string>; variants?: Record<string, unknown> }> };
 
 function isElement(node: TemplateNode): node is ElementNode {
@@ -48,6 +56,11 @@ function elements(nodes: TemplateNode[]): ElementNode[] {
 
 function attribute(element: ElementNode, name: string): string | undefined {
   return element.props.find((prop) => prop.type === ATTRIBUTE && prop.name === name)?.value?.content;
+}
+
+// Whether a prop is set, plainly or bound.
+function names(element: ElementNode, name: string): boolean {
+  return element.props.some((prop) => (prop.type === ATTRIBUTE ? prop.name === name : prop.arg?.content === name));
 }
 
 function slotOf(element: ElementNode, name: string): ElementNode | undefined {
@@ -73,8 +86,25 @@ describe("the editor's bars", () => {
     expect(attribute(first, "icon")).toBe("i-material-symbols-arrow-back");
   });
 
+  test("the one create button stands at the toolbar's right end", () => {
+    const right = slotOf(toolbar, "right")!.children.filter(isElement);
+    const creating = all.filter((element) => element.tag === "CreateButton");
+
+    expect(creating).toHaveLength(1);
+    expect(right.at(-1)!.tag).toBe("UDropdownMenu");
+    expect(right.at(-1)!.children.filter(isElement).map((child) => child.tag)).toEqual(["CreateButton"]);
+  });
+
+  test("nothing else on the editor creates, and no button carries the add mark with a word", () => {
+    const buttons = [...all, ...elements(fields.children)].filter((element) => element.tag === "UButton");
+    const adding = buttons.filter((button) => /(^|-)add(-|$)/.test(attribute(button, "icon") ?? ""));
+
+    expect(adding.filter((button) => all.includes(button))).toEqual([]);
+    expect(adding.filter((button) => names(button, "label"))).toEqual([]);
+  });
+
   test("every control in the toolbar is the library's small one", () => {
-    const controls = elements(toolbar.children).filter((element) => element.tag === "UButton" || element.tag === "USelect");
+    const controls = elements(toolbar.children).filter((element) => ["UButton", "USelect", "CreateButton"].includes(element.tag));
 
     expect(controls.length).toBeGreaterThan(0);
     expect(controls.filter((control) => attribute(control, "size") !== "sm")).toEqual([]);

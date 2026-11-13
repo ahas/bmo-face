@@ -50,7 +50,8 @@ face:
       add_oval: 타원
       add_line: 선
       remove_part: 모양 삭제
-      add_stage: 단계 추가
+      add_stage: 단계
+      add_part_stage: 모양·단계 추가
       remove_stage: 단계 삭제
       add_node: 노드 추가
       remove_node: 노드 삭제
