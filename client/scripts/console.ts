@@ -46,6 +46,11 @@ function nuxtUi(name: string): { name: string; from: string } | undefined {
   return file !== null && existsSync(join(nuxtUiComponents, file)) ? { name: "default", from: `@nuxt/ui/components/${file}` } : undefined;
 }
 
+// The words: the bundle's namespace of the pack, under its locale.
+const pack = Bun.YAML.parse(readFileSync(join(client, "i18n/locales/ko.yaml"), "utf8")) as Record<string, unknown>;
+const manifest = JSON.parse(readFileSync(resolve(client, "../console-manifest.json"), "utf8")) as { name: string };
+const words = { ko: { [manifest.name]: pack[manifest.name] } };
+
 writeConsoleTheme();
 
 await build({
@@ -67,7 +72,7 @@ await build({
     "import.meta.dev": "false",
   },
   plugins: [
-    consoleBundle(),
+    consoleBundle({ name: manifest.name, words }),
     AutoImport({
       imports: ["vue", { "vue-i18n": ["useI18n"] }, { "nuxt/app": ["useAppConfig", "useHead", "useRuntimeConfig", "useState"] }],
       dirs: [join(client, "app/composables")],
@@ -96,10 +101,6 @@ await build({
   },
 });
 
-// The words: the bundle's namespace of the pack, under its locale.
-const pack = Bun.YAML.parse(readFileSync(join(client, "i18n/locales/ko.yaml"), "utf8")) as Record<string, unknown>;
-const manifest = JSON.parse(readFileSync(resolve(client, "../console-manifest.json"), "utf8")) as { name: string };
-
-writeFileSync(join(out, "words.json"), `${JSON.stringify({ ko: { [manifest.name]: pack[manifest.name] } })}\n`);
+writeFileSync(join(out, "words.json"), `${JSON.stringify(words)}\n`);
 
 console.log(`console: built the bundle into ${out}`);
