@@ -5,7 +5,8 @@ declaration, `testbed.toml`; nothing here deploys itself.
 
 ## What a deployment does
 
-- **The release:** the testbed builds the workspace's binary, `bmo-face`, into the release's `bin/`,
+- **The release:** the testbed builds the workspace's two binaries, `bmo-face` and
+  `bmo-face-displayer`, into the release's `bin/`,
   installs the root and the screen's Bun packages (the declaration's setup), and, before the flip,
   generates the screen with `bun run generate` in `client/`, into `client/.output/public`, and then
   builds the console bundle with `bun run console`, into `client/.output/console`. The server serves
@@ -42,6 +43,47 @@ declaration, `testbed.toml`; nothing here deploys itself.
   through the shared proxy snippet, which does not buffer, so a stream passes as it comes. No basic
   auth stands in front: the display signs in with a BMO account and the editor with its own
   session. A deployment never touches the proxy; the path and the port are fixed.
+
+## The native displayer
+
+- **Not a unit the testbed keeps.** The displayer (`docs/face.md`, 「The native displayer」) needs a
+  logind session on a virtual terminal of its own, which only the system's service manager opens, so
+  its unit is a system unit, `deploy/system/bmo-face-displayer@.service`, laid down once by a person
+  with the PAM service it names. The instance is the user it runs as, the user the testbed deploys as.
+- **It runs the current release.** The unit starts the binary through the deploy link,
+  `~/.local/share/bmo-face/deploy/bin/bmo-face-displayer` under that user's home. A deployment
+  restarts the server, the displayer's saves stream opens again, it sees that the deploy link has
+  moved and ends with success, and the unit starts it again from the new release. No deployment step
+  and no privilege is needed for that.
+- **It starts at boot and comes back from any end:** `Restart=always`, wanted by `graphical.target`.
+- **Its settings** are set as `Environment=` lines in the unit's drop-in (`systemctl edit`), never in
+  the repository. Its token stands under the shared data root, `face-displayer/`.
+
+### Setting it up once
+
+Run by a person with root, in this order; `<user>` is the user the testbed deploys as, and `tty8`
+stands for a VT no getty or display manager uses.
+
+1. The user may use the panel and the sound devices when its session is not in the foreground of the
+   seat as well: `sudo usermod -aG video,render,audio <user>` — `video` is enough for the card where
+   logind hands it over; `audio` lets a briefing that arrives while the VT is in the background open
+   the sound device.
+2. The PAM service the unit names, an account check and a logind session with no password asked:
+   `sudo install -m 0644 deploy/system/pam.d/bmo-face-displayer /etc/pam.d/bmo-face-displayer`.
+3. The unit: `sudo install -m 0644 deploy/system/bmo-face-displayer@.service /etc/systemd/system/` and
+   `sudo systemctl daemon-reload`.
+4. Its settings, where the defaults do not hold, in a drop-in:
+   `sudo systemctl edit bmo-face-displayer@<user>.service` with `Environment=` lines
+   (`docs/face.md`, 「Its settings」), for example `BMO_FACE_DISPLAYER_SOUND=off` where nothing
+   should be heard.
+5. Signing in, as `<user>`, once a release holds the binary:
+   `~/.local/share/bmo-face/deploy/bin/bmo-face-displayer sign-in --name <account> --device <label>`,
+   typing the account's password when asked.
+6. Starting it now and at every boot: `sudo systemctl enable --now bmo-face-displayer@<user>.service`.
+
+It brings its VT to the foreground as it starts; the greeter stays running behind it. `Ctrl+Alt+F1`
+— or whichever VT the greeter stands on — brings the greeter back, and the face's VT key brings the
+face back.
 
 ## Where things stand
 

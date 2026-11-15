@@ -1,0 +1,35 @@
+# The native displayer (docs/face.md, 「The native displayer」): BMO's face on the machine's own panel,
+# run as the user the instance names, on a virtual terminal of its own in a logind session, so logind
+# lends it the panel's card while its VT is in front. A system unit, laid down once by a person
+# (docs/deploy.md, 「Setting it up once」); the testbed keeps the user units beside it, not this one.
+
+[Unit]
+Description=bmo-face displayer: BMO's face on the panel, as %i
+After=systemd-user-sessions.service systemd-logind.service dbus.socket
+Wants=systemd-logind.service dbus.socket
+# The VT is its own: no getty is started on it.
+Conflicts=getty@tty8.service
+After=getty@tty8.service
+
+[Service]
+Type=simple
+User=%i
+# A logind session on the VT, opened by the PAM service of the same name, with no password asked.
+PAMName=bmo-face-displayer
+TTYPath=/dev/tty8
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+StandardInput=tty-fail
+StandardOutput=journal
+StandardError=journal
+UtmpIdentifier=tty8
+UtmpMode=user
+# The current release, through the testbed's deploy link under the user's home; a new release is
+# noticed by the displayer, which ends with success to be started again from it.
+ExecStart=/bin/sh -c 'exec "$$HOME/.local/share/bmo-face/deploy/bin/bmo-face-displayer" run'
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=graphical.target

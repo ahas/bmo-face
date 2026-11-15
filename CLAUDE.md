@@ -10,9 +10,9 @@ reached at the console's address; nothing of BMO's is imported.
 - **`docs/` is canonical.** Read the document covering a change before changing code. A change that
   would make it wrong or incomplete repairs it first, stating what is true now, and the code is then
   written to match. `docs/face.md` states the display, the held clock and its drivers, the expression
-  document, the face's core and its interface, the editor and every route, the console screen among
-  them; `docs/expressions.md` the design the face is drawn from; `docs/deploy.md` states the release, the unit and the tool
-  entry.
+  document, the face's core and its interface, the native displayer, the editor and every route, the console screen among
+  them; `docs/expressions.md` the design the face is drawn from; `docs/deploy.md` states the release, the unit, the tool
+  entry and the native displayer's system unit.
 - **`.graph/` is written only with `bmo graph`.** It holds the repository's feature nodes and the
   boundary nodes for the APIs it exposes and calls; no other command and no hand edit changes it, and
   a change to code brings the node it touches up to date in the checkout. Its area files are generated
@@ -32,11 +32,11 @@ reached at the console's address; nothing of BMO's is imported.
   `docs/PERSONAL-DATA.md` states what that forbids, the values it allows and where a value belongs; a
   test's data is a neutral name and value, and `tests/personal-data.test.ts` is the pattern check.
 - **Tests live in `tests/`:** the core's in `core/tests/`, the server's integration tests in
-  `server/tests/`, the screen's in `client/tests/`, and the expression document's statement's, the
+  `server/tests/`, the native displayer's in `displayer/tests/`, the screen's in `client/tests/`, and the expression document's statement's, the
   core's WebAssembly build's and the development copy's in the root `tests/`, with their support under
   `tests/support/`. A unit test of a private helper stands beside it
   in the crate.
-- **One Cargo workspace at the root**, whose members are `core/` and `server/`. The root Bun project
+- **One Cargo workspace at the root**, whose members are `core/`, `displayer/` and `server/`. The root Bun project
   holds `src/`, `scripts/` and `tests/`; `client/` is a Bun project of its own, with its own manifest and
   lockfile.
 - **The face is drawn once, in the core.** The geometry, the blend, the drivers and the document's

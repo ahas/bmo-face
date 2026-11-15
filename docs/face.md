@@ -4,13 +4,16 @@
 
 What the face display shows, what BMO sends it and by which road, how a screen signs in, the
 expression document both the display and the editor read, the core that draws the face for every
-caller, and the server that serves them.
+caller, the native displayer that draws it on a machine's own panel, and the server that serves them.
 
 ## What stands here
 
 - **The display** — one full-screen web page, `/bmo-face/`, that draws BMO's face in SVG on a teal
   body and moves it on the animation's own held clock: the mouth with the sound BMO speaks, the face
   with the emotion it speaks with and with what BMO is doing, and the eyes with every blink.
+- **The native displayer** — `bmo-face-displayer`, a program of its own that does what the display
+  does on a machine's own panel, straight through the kernel's display interface, with no browser, no
+  window system and no desktop session (「The native displayer」).
 - **The editor** — `/bmo-face/edit`, where a person draws and corrects the faces and the talking
   mouths and saves them. What it saves is what every display shows, with no rebuild and no reload.
 - **The core** — the one implementation of the face, a Rust crate with no I/O and no clock of its
@@ -100,6 +103,8 @@ caller, and the server that serves them.
   the screen stands listed by the name it signed in with — forgets it and asks to sign in again.
 - **This server keeps no token and no password** of any screen's. It never sees a token except as a
   header it passes on.
+- **The native displayer signs in the same way, once, by a command** rather than a form, and keeps
+  its token in a file of its own (「The native displayer」).
 - **The editor signs in with a BMO web account too,** checked here against BMO's `web_users`, which
   is opened read-only for that and nothing else. What follows the check is this server's own: a
   session in its own database, the `bmo_face` cookie on `/bmo-face` for seven days, and at most
@@ -168,9 +173,10 @@ caller, and the server that serves them.
 
 ### The gaze
 
-- **Where the eyes look** is a direction from −1 to 1 each way, the middle by default. The display
-  holds it at the middle; the editor's preview sets it with two sliders. A camera that will one day
-  set it is no part of this unit yet.
+- **Where the eyes look** is a direction from −1 to 1 each way, the middle by default: across, toward
+  the screen's right as one faces it; up and down, downward. The display holds it at the middle; the
+  editor's preview sets it with two sliders; the native displayer takes it from its gaze socket (「The
+  native displayer」). A camera that will one day set it is no part of this unit yet.
 - **It moves each open eye within the reach the face's eyes declare** (`reach`, how far each way in
   screen units), and what stands inside an eye — a pupil, a shine — half as far again, cut off at the
   eye's outline as ever.
@@ -521,6 +527,206 @@ drawings it stands between — which is where a hook would grow.
   the manifest names the running development build, so a restart there reloads nothing. A display is never
   left drawing a document whose shape its own drawing does not know, and a document its own check
   refuses is not drawn: the last one it drew stays.
+
+## The native displayer
+
+`bmo-face-displayer`, the workspace's second binary: BMO's face on the panel wired to a machine,
+drawn by the core as a crate, with as little beside it as a face needs.
+
+### What it is
+
+- **A display of its own, beside the web page.** It hears what the page hears, by the same roads
+  through this server, keeps the same rules, and draws the same drawings: the core answers both.
+- **Straight to the panel.** It writes pixels into the kernel's display interface (DRM/KMS) itself:
+  no window system, no compositor, no browser and no graphics toolkit run for it.
+- **One process, mostly asleep.** It draws only when the core says the drawing may change or when it
+  hears something, and sleeps in between; it holds a sound only while it speaks.
+
+```mermaid
+flowchart TD
+  S[this server: document, saves, BMO's listener routes] --> D[bmo-face-displayer]
+  G[gaze socket] --> D
+  L[logind: the panel's card, its own VT] --> D
+  D --> C[core: the drawing of each frame]
+  C --> R[CPU rasteriser]
+  R --> P[panel, double-buffered page flips]
+  D --> A[sound device]
+```
+
+### How it takes the panel
+
+- **A logind session on a virtual terminal of its own.** It runs as a system service on a free VT, as
+  an ordinary user, in a session logind opens for it on the seat (「Setting it up once」 in
+  `docs/deploy.md`). It takes control of that session and asks logind for the panel's card; logind
+  hands it the card with display mastery while its VT is in the foreground, and takes it back when
+  it is not. The card is never opened past logind while a session is there.
+- **It brings its own VT to the foreground as it starts,** remembering which VT stood there.
+- **Coexisting with the display manager.** A greeter that holds the seat is only moved to the
+  background: logind pauses its card, as for any switch of VT, and resumes it when its VT comes back.
+  Nothing of the display manager is stopped, reconfigured or touched, and no session is ended.
+- **Who keeps the foreground afterwards:**
+  - someone switching to another VT keeps it there; the displayer stops drawing and waits for its VT
+    to come back;
+  - a greeter session that did not exist when the displayer last held the foreground — a greeter
+    started after it, as at boot or when the display manager starts one again — has taken the VT by
+    starting rather than by a person's choice, so the displayer brings its own VT back;
+  - a greeter session that already existed was chosen by someone, and is left in front.
+- **Its VT back.** On a stop asked of it (SIGTERM or an interrupt) while it holds the foreground, it
+  brings back the VT that stood there when it first took it.
+- **Outside a logind session on a seat** — run by hand from a shell or over ssh — it opens the card
+  itself and takes display mastery if nothing holds it, trying again with growing waits while
+  something does. That road watches no VT and is for a machine with no display manager.
+- **Why not the alternatives:**
+  - *Opening the card while the greeter's VT is in the background, without a session:* nothing tells
+    it when the greeter's VT returns, so it would still hold mastery then and the greeter would come
+    back to a dark panel.
+  - *A display lease from the greeter's X server:* it needs the greeter's X authority, ends whenever
+    the greeter starts again, and leaves the greeter running on an output it no longer has.
+  - *A kiosk browser or a compositor in a desktop session:* the hundreds of megabytes and the session
+    this program exists to replace.
+  - *seatd with libseat:* a further system daemon to run beside logind, which already arbitrates the
+    seat on this kind of machine.
+  - *Changing the display manager's configuration* (no greeter on the seat, automatic login): it
+    touches the remote desktop's display manager, which must stay as it is.
+
+### Drawing
+
+- **Fitted, centred, on the body.** The screen's 100 by 75 units are scaled to the largest whole fit
+  of the panel's mode and centred, the body's colour either side; on a 1024 by 600 panel that is 800
+  by 600, eight pixels a unit. The screen is the rounded rectangle the web display draws, six units
+  round at its corners.
+- **Each paint in order,** filled with the non-zero rule or stroked with its width, round caps and
+  round joins, anti-aliased, cut off at its clip's outline as a mask — as the web display lays the
+  same drawing down in SVG.
+- **On the CPU,** with tiny-skia, a maintained Rust port of Skia's software rasteriser that
+  draws cubic Bézier fills, strokes and masks with no GPU, no system library and no font machinery.
+- **Double-buffered.** Two dumb buffers on the card take turns: the next drawing is written into the
+  one not shown and swapped in with a page flip at the panel's vertical blank, so a drawing is never
+  seen half made.
+- **Only when it changes.** It asks the core the next frame the drawing may change and sleeps until
+  that frame's moment or until it hears something; a drawing equal to the one shown is not drawn
+  again, and nothing runs at the panel's refresh.
+- **The mode** is the one its setting names, else the panel's preferred mode, else the first it
+  offers. **The connector** is the one its setting names, else the card's first connected one. **The
+  card** is the one its setting names, else the first card with a connected connector.
+- **Before the document has come** it draws the core's default document, so a panel whose server is
+  not answering still shows BMO.
+
+### What it hears
+
+- **The expression document** from `GET /api/faces`, kept only when the core's check passes it, and
+  read again whenever the saves stream names a version other than the one drawn (「The expression
+  document」).
+- **BMO's listener stream** through the pass-through, with its token, resumed from its cursor, taken
+  as gone after twenty seconds without a frame, keep frames included (「What BMO sends, and by which
+  road」).
+- **The same rules as the page:** a briefing's face is the expression it carries, else its emotion,
+  else `기본`; a briefing heard more than two minutes after it was sent is not played; a briefing
+  already heard is not played twice; `briefing-stopped` for the briefing speaking stops it; a newer
+  briefing takes over from one still speaking; `presence` is told to the core from the moment it
+  began, a moment ahead of this machine's clock read as now.
+- **Every road is opened again on every failure,** the first wait a second and each one after twice
+  the last, up to a minute, for as long as the program runs: it never gives up and never ends on a
+  failure it can wait out.
+- **A token BMO refuses** (401 or 403 on the listener stream) is forgotten — its file removed — and
+  the program waits for a new one, as the page asks to be signed in again.
+- **A new release.** Whenever the saves stream opens again — as it does after the server restarts on
+  a deploy — the displayer compares the executable it was started from, followed through the deploy
+  link, with the one it runs; when the deploy link has moved it ends with success, and its service
+  starts it again from the new release.
+
+### Speaking
+
+- **The sound is fetched and decoded whole before it plays,** as the page does: the Ogg Opus voice
+  message demuxed by Symphonia's Ogg reader and decoded by the system's libopus, at 48 kHz, with the
+  stream's pre-skip and end trimming applied.
+- **Its loudness is read once a frame of the held clock,** the root mean square of the first channel
+  over each frame's samples, in dBFS, silence held at −120 — the reading the page makes — and the core
+  plans every drawing over it at once.
+- **Heard two frames after the first drawing.** The sound device is opened first and asked how far
+  behind it plays; the frame the sound is first heard at is two frames after the next frame, moved
+  later where the device's delay needs more. The playback writes silence until the device's own
+  reported delay puts the first sample on that frame's moment, and drops samples from the start where
+  it is already late.
+- **The playback clock leads while it speaks.** After every write the playback reads the device's
+  delay, which says which sample is being heard; the frame clock is moved to match it, never back past
+  a frame already drawn, so the mouth and the sound cannot drift apart over a long briefing.
+- **The device** is an ALSA PCM by name, `default` unless its setting names another; the libasound the
+  system carries is loaded as the program runs, as libopus is, so a build needs no audio development
+  files. A device that cannot be opened leaves the briefing spoken in silence, the mouth moving on the
+  frame clock, and is said on its output.
+- **Silent.** With its sound setting `off` it opens no device and moves the mouth from the same decoded
+  sound, as the page's `?sound=off` does.
+- **Stopped** when the sound runs out, when the stream says `briefing-stopped` for it, or when a newer
+  briefing takes over; the core is told the frame it stopped at.
+
+### Signing in
+
+- **Once, by a command:** `bmo-face-displayer sign-in --name <account> --device <label>` reads the BMO
+  web account's password from its standard input — without echo where that is a terminal — and posts
+  them to BMO's app login through this server's pass-through, naming this server's own site as its
+  `Origin`, as a page served from here does, since a write must come from this site (「The server」).
+  Neither the password nor the token is ever written to its output or its log.
+- **The token** is written to `token` in the displayer's data root, the folder made `0700` and the file
+  `0600` before anything is written into it, replaced whole, never in part. The running displayer
+  reads it when it next opens the listener stream, and waits, paced by the same growing waits, while
+  there is none.
+- **Revoked on BMO's account screen,** where it stands by its label, it is forgotten as above.
+
+### The gaze socket
+
+- **A local Unix socket** (stream), made `0600` so only the displayer's own user reaches it, where a
+  later camera program sends where the eyes look. Nothing in this unit reads a camera.
+- **One JSON object a line:** `{"x": …, "y": …}`, each from −1 to 1 (「The gaze」); a value outside is
+  held to the edge. It takes hold at the frame it arrives in, in the core's held steps.
+- **Any number of senders,** the last line heard wins; a line that is not such an object is said on the
+  displayer's output and left. A sender gone leaves the gaze where it last set it.
+
+### Its settings
+
+Read from its environment, every one optional:
+
+| Variable | Holds | Default |
+|---|---|---|
+| `BMO_FACE_URL` | this server's address with its base path | `http://127.0.0.1:3217/bmo-face` |
+| `BMO_FACE_DISPLAYER_DATA` | its data root, where the token stands | `~/.local/share/bmo/data/face-displayer` |
+| `BMO_FACE_DISPLAYER_CARD` | the card, a path such as `/dev/dri/card1` | the first card with a connected connector |
+| `BMO_FACE_DISPLAYER_CONNECTOR` | the connector, by its kernel name such as `HDMI-A-1` | the card's first connected connector |
+| `BMO_FACE_DISPLAYER_MODE` | the mode, `<width>x<height>` or `<width>x<height>@<hz>` | the connector's preferred mode |
+| `BMO_FACE_DISPLAYER_SOUND` | the ALSA PCM name, or `off` | `default` |
+| `BMO_FACE_DISPLAYER_GAZE` | the gaze socket's path | `bmo-face-gaze.sock` in `XDG_RUNTIME_DIR`, else in the data root |
+| `BMO_FACE_DISPLAYER_RETRY_MS` | the first of the growing waits, for a test that cannot spend seconds | `1000` |
+
+### Frames and shots
+
+- **`run --frames <folder>`** runs the whole displayer with every drawing it would show written as a
+  PNG at the panel's size, 1024 by 600, into the folder, instead of taking a panel.
+- **`shots <folder>`** writes, from the core's default document and with no server, every default face,
+  a blink frame by frame, and a talking sequence over a sampled voice, at 1024 by 600.
+
+### What it does not do
+
+- **No 그만듣기 and no touch.** It reads no input device, so it offers no stop of its own; a stop from
+  any other listener stops it.
+- **No sign-in on the panel.** It signs in by its command alone.
+- **No less-motion setting.** Every change of face is drawn with its in-betweens.
+- **No hotplug watch.** A panel connected after the displayer started is found the next time taking
+  the panel is tried again, which a failed flip or a resumed seat brings about.
+- **No Opus output gain.** The Ogg stream's output gain is not applied, as the voice's encoder writes
+  none.
+- **Plain HTTP only** to this server, which listens on the loopback.
+
+### Tested
+
+By the crate's own tests: the rasterising of a drawing to pixels against its geometry — where the
+screen and the body stand, a stroke's round ends, a clip's cut, the order paint is laid down in —
+the loudness framing, the playback clock's mapping onto frames, the listener's frames read into what
+they tell, the cursor, the freshness and the growing waits, the token file's permissions, the Ogg Opus
+decoding of a fixture, the face told what is heard — a briefing played once, a late one left, a stop
+for it, presence from the moment it began, a document the check refuses — and the whole program against
+a stand-in server: the document and a save heard drawn, a briefing's sound fetched and spoken and a late
+one left, a refused token forgotten, the stream opened again from its cursor after it drops, signing
+in from the server's own site, and the gaze socket's lines.
 
 ## The screens' shared style
 

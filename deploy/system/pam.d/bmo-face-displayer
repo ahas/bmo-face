@@ -1,0 +1,6 @@
+# The native displayer's PAM service (docs/deploy.md, 「Setting it up once」): the account checked and a
+# logind session opened on the displayer's VT, with no password asked, since the service manager starts
+# it as its own user.
+account  required pam_unix.so
+session  required pam_unix.so
+session  required pam_systemd.so

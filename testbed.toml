@@ -42,9 +42,9 @@ command = "cargo fmt --all --check"
 id = "types"
 command = "bun run check:types"
 
-# The server's binary goes into a release's bin/.
+# The server's binary and the native displayer's go into a release's bin/.
 [build]
-binaries = ["bmo-face"]
+binaries = ["bmo-face", "bmo-face-displayer"]
 
 # The face's own deploy tree and the shared data root its document and session database stand under.
 [deploy]
