@@ -7,9 +7,8 @@
 Description=bmo-face displayer: BMO's face on the panel, as %i
 After=systemd-user-sessions.service systemd-logind.service dbus.socket
 Wants=systemd-logind.service dbus.socket
-# The VT is its own: no getty is started on it.
-Conflicts=getty@tty8.service
-After=getty@tty8.service
+# The VT is its own: it stands past the terminals logind starts a login prompt on by itself, so no
+# prompt is ever started on it.
 
 [Service]
 Type=simple
