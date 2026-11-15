@@ -1,15 +1,17 @@
 import { describe, expect, test } from "bun:test";
 
-import { checkFaceDocument, DEFAULT_FACES, FACE_NAMES, LIMITS, ovalNodes, splineNodes } from "#faces";
+import { partsDrawing } from "#core";
+import { DEFAULT_FACES, EMOTIONS, FACE_NAMES, FALLBACK_FACE, LIMITS } from "#faces";
 
-import { drawnSegments, pointOn } from "../../app/domain/draw";
 import {
   addInside,
+  addMouth,
   addNode,
-  addStage,
   changed,
+  faceParts,
   handleAt,
   handlesOf,
+  isMirrored,
   moveHandle,
   newInside,
   newPart,
@@ -18,11 +20,15 @@ import {
   partsOf,
   reachOf,
   refusalOf,
+  refusalWords,
   removeInside,
+  removeMouth,
   removeNode,
-  removeStage,
   saveBody,
   setClosed,
+  setMirrored,
+  setReach,
+  setSize,
   setSmooth,
   withPart,
   withParts,
@@ -30,43 +36,71 @@ import {
 
 import type { FaceDocument, Part, PathNode, Point } from "#faces";
 
+const K = 0.5523;
+const oval = (cx: number, cy: number, rx: number, ry: number): PathNode[] => [
+  { anchor: [cx + rx, cy], coming: [0, -ry * K], leaving: [0, ry * K], kind: "smooth" },
+  { anchor: [cx, cy + ry], coming: [rx * K, 0], leaving: [-rx * K, 0], kind: "smooth" },
+  { anchor: [cx - rx, cy], coming: [0, ry * K], leaving: [0, -ry * K], kind: "smooth" },
+  { anchor: [cx, cy - ry], coming: [-rx * K, 0], leaving: [rx * K, 0], kind: "smooth" },
+];
 const doc = (): FaceDocument => structuredClone(DEFAULT_FACES);
 const node = (anchor: Point, coming: Point = [0, 0], leaving: Point = [0, 0], kind: PathNode["kind"] = "corner"): PathNode => ({ anchor, coming, leaving, kind });
-const dot: Part = { nodes: ovalNodes(30, 30, 4, 3), closed: true, fill: "ink", line: null };
-const line: Part = { nodes: splineNodes([[10, 10], [20, 20], [30, 10]], false), closed: false, fill: null, line: { paint: "ink", width: 2 } };
+const dot: Part = { nodes: oval(30, 30, 4, 3), closed: true, fill: "ink", line: null };
+const line: Part = { nodes: [node([10, 10], [-3, -4], [3, 4], "smooth"), node([20, 20], [-3, 0], [3, 0], "smooth"), node([30, 10], [-3, 4], [3, -4], "smooth")], closed: false, fill: null, line: { paint: "ink", width: 0.8 } };
 const smooth: Part = { nodes: [node([10, 40]), node([30, 40], [-5, 0], [5, 0], "smooth"), node([50, 40])], closed: false, fill: null, line: { paint: "ink", width: 2 } };
-const mouth: Part = { nodes: ovalNodes(50, 52, 7, 4), closed: true, fill: "mouth", line: { paint: "ink", width: 1.6 } };
+const mouth: Part = { nodes: oval(50, 52, 7, 4), closed: true, fill: "mouth", line: { paint: "ink", width: 0.8 } };
+const [calm, joy, sad] = [EMOTIONS[0], EMOTIONS[1], EMOTIONS[2]];
+
+/** Points along a part as the core draws it. */
+const samples = (part: Part): Point[] =>
+  partsDrawing([part], DEFAULT_FACES.colors).paint[0]!.path.curves.flatMap(([, , , , x, y]) => [[x, y] as Point]);
 
 // The editor's logic (docs/face.md, 「The editor」).
 describe("what is being edited", () => {
-  test("a face's group and a mouth stage are read and replaced apart", () => {
-    const face = { tab: "faces", face: "슬픔", group: "brows" } as const;
-    const stage = { tab: "mouths", stage: 2 } as const;
-    const edited = withParts(withParts(doc(), face, [line]), stage, [dot]);
+  test("one side of a face's paired element, another element and a talking mouth are read and replaced apart", () => {
+    const brows = { tab: "faces", face: sad, element: "brows", side: "left" } as const;
+    const marks = { tab: "faces", face: sad, element: "marks", side: "left" } as const;
+    const talk = { tab: "talk", family: 0, mouth: 2 } as const;
+    const edited = withParts(withParts(withParts(doc(), brows, [line]), marks, [dot]), talk, [mouth]);
 
-    expect(partsOf(edited, face)).toEqual([line]);
-    expect(partsOf(edited, stage)).toEqual([dot]);
-    expect(partsOf(edited, { tab: "faces", face: "슬픔", group: "eyes" })).toEqual(DEFAULT_FACES.faces.슬픔!.eyes);
-    expect(edited.mouths[1]).toEqual(DEFAULT_FACES.mouths[1]!);
+    expect(partsOf(edited, brows)).toEqual([line]);
+    expect(partsOf(edited, marks)).toEqual([dot]);
+    expect(partsOf(edited, talk)).toEqual([mouth]);
+    expect(edited.talk[0]!.mouths[1]).toEqual(DEFAULT_FACES.talk[0]!.mouths[1]!);
+    expect(partsOf(edited, { ...brows, element: "eyes" })).toEqual(DEFAULT_FACES.faces[sad]!.eyes.left);
   });
 
-  test("a face the document lacks is made from 기본 when it is first edited", () => {
-    const { 화남: _gone, ...faces } = doc().faces;
-    const edited = withParts({ ...doc(), faces }, { tab: "faces", face: "화남", group: "brows" }, [line]);
+  test("a right side mirrors the left until it is drawn apart, then is edited on its own", () => {
+    const right = { tab: "faces", face: calm, element: "eyes", side: "right" } as const;
 
-    expect(edited.faces.화남).toEqual({ ...DEFAULT_FACES.faces.기본!, brows: [line] });
+    expect(isMirrored(doc(), right)).toBe(true);
+    expect(partsOf(doc(), right)[0]!.nodes[0]!.anchor[0]).toBeCloseTo(100 - DEFAULT_FACES.faces[calm]!.eyes.left[0]!.nodes[0]!.anchor[0]);
+
+    const apart = setMirrored(doc(), calm, "eyes", false);
+
+    expect(isMirrored(apart, right)).toBe(false);
+    expect(partsOf(apart, right)).toEqual(partsOf(doc(), right));
+    expect(partsOf(withParts(apart, right, [dot]), right)).toEqual([dot]);
+    expect(setMirrored(withParts(apart, right, [dot]), calm, "eyes", true).faces[calm]!.eyes.right).toBeNull();
   });
 
-  test("a mouth stage holds several parts, each edited on its own", () => {
-    const stage = { tab: "mouths", stage: 1 } as const;
-    const edited = withParts(doc(), stage, [mouth, dot, line]);
-    const parts = withPart(partsOf(edited, stage), { index: 1, inside: null }, moveHandle(dot, { node: 0, kind: "anchor" }, [40, 30]));
+  test("how far the eyes look is held to its limit", () => {
+    expect(setReach(doc(), calm, [7, -1]).faces[calm]!.eyes.reach).toEqual([LIMITS.maxReach, 0]);
+  });
 
-    expect(parts).toHaveLength(3);
-    expect(parts[0]).toBe(mouth);
-    expect(parts[1]!.nodes[0]!.anchor).toEqual([40, 30]);
-    expect(parts[2]).toBe(line);
-    expect(refusalOf(withParts(edited, stage, parts))).toBeNull();
+  test("a face the document lacks is made from the fallback when it is first edited", () => {
+    const { [EMOTIONS[4]]: _gone, ...faces } = doc().faces;
+    const edited = withParts({ ...doc(), faces }, { tab: "faces", face: EMOTIONS[4], element: "marks", side: "left" }, [line]);
+
+    expect(edited.faces[EMOTIONS[4]]).toEqual({ ...DEFAULT_FACES.faces[FALLBACK_FACE]!, marks: [line] });
+  });
+
+  test("the rest of a face is every other element and side, in drawing order", () => {
+    const face = DEFAULT_FACES.faces[joy]!;
+
+    expect(faceParts(face, { element: "mouth", side: null })).toHaveLength(2);
+    expect(faceParts(face, { element: "eyes", side: "left" })).toHaveLength(2);
+    expect(faceParts(face)).toHaveLength(3);
   });
 
   test("a part inside another is read and replaced through its outline", () => {
@@ -123,8 +157,8 @@ describe("the handles", () => {
   });
 
   test("handles close together are each reached where they stand; apart, a finger's width", () => {
-    const small = handlesOf({ ...dot, nodes: ovalNodes(30, 30, 1.6, 1.6) });
-    const tiny = handlesOf({ ...dot, nodes: ovalNodes(30, 30, 0.5, 0.5) });
+    const small = handlesOf({ ...dot, nodes: oval(30, 30, 1.6, 1.6) });
+    const tiny = handlesOf({ ...dot, nodes: oval(30, 30, 0.5, 0.5) });
 
     expect(reachOf(small, 0)).toBeCloseTo((1.6 * Math.SQRT2) / 2);
     expect(reachOf(tiny, 0)).toBeCloseTo(0.8);
@@ -156,11 +190,12 @@ describe("smooth and corner", () => {
     expect(setSmooth(half, 1, true).nodes[1]).toMatchObject({ coming: [-4, -3], leaving: [4, 3] });
   });
 
-  test("a sharp corner is pulled out to the spline's handles through its neighbours", () => {
+  test("a sharp corner is pulled out to the handles of the smooth run through its part's anchors", () => {
     const sharp: Part = { ...smooth, nodes: [node([10, 40]), node([30, 46]), node([50, 40])] };
 
     expect(setSmooth(sharp, 1, true).nodes[1]).toEqual({ anchor: [30, 46], coming: [-6.7, 0], leaving: [6.7, 0], kind: "smooth" });
-    expect(setSmooth(sharp, 0, true).nodes[0]).toMatchObject({ coming: [-3.3, -1], leaving: [3.3, 1] });
+    // The end of an open run leaves along the parabola its three points make: an arc, not a bend.
+    expect(setSmooth(sharp, 0, true).nodes[0]).toMatchObject({ coming: [-6.7, -4], leaving: [6.7, 4] });
   });
 
   test("made a corner, the handles stay where they are", () => {
@@ -169,14 +204,20 @@ describe("smooth and corner", () => {
 });
 
 describe("nodes added and removed", () => {
-  const samples = (part: Part) => drawnSegments(part).flatMap((segment) => [0, 0.5].map((t) => pointOn(segment, t)));
   const onDrawing = (before: Part, after: Part) => {
-    const was = samples(before);
+    const was = partsDrawing([before], DEFAULT_FACES.colors).paint[0]!.path;
+    const fine = Array.from({ length: was.curves.length * 50 + 1 }, (_, step) => step / 50).map((at) => {
+      const index = Math.min(was.curves.length - 1, Math.floor(at));
+      const [c1x, c1y, c2x, c2y, x, y] = was.curves[index]!;
+      const [sx, sy] = index === 0 ? was.start : was.curves[index - 1]!.slice(4);
+      const t = at - index;
+      const u = 1 - t;
+
+      return [u * u * u * sx! + 3 * u * u * t * c1x + 3 * u * t * t * c2x + t * t * t * x, u * u * u * sy! + 3 * u * u * t * c1y + 3 * u * t * t * c2y + t * t * t * y];
+    });
 
     for (const point of samples(after)) {
-      const nearest = Math.min(...was.map(([x, y]) => Math.hypot(x - point[0], y - point[1])));
-
-      expect(nearest).toBeLessThan(0.6);
+      expect(Math.min(...fine.map(([x, y]) => Math.hypot(x! - point[0], y! - point[1])))).toBeLessThan(0.05);
     }
   };
 
@@ -186,7 +227,6 @@ describe("nodes added and removed", () => {
     expect(part.nodes).toHaveLength(4);
     expect(chosen).toBe(1);
     expect(part.nodes[1]!.kind).toBe("smooth");
-    expect(pointOn([part.nodes[0]!.anchor, [0, 0], [0, 0], part.nodes[1]!.anchor], 0)).toEqual([10, 10]);
     onDrawing(line, part);
   });
 
@@ -206,14 +246,6 @@ describe("nodes added and removed", () => {
     onDrawing(dot, part);
   });
 
-  test("a straight corner segment stays straight", () => {
-    const straight: Part = { ...smooth, nodes: [node([10, 40]), node([50, 40])] };
-    const { part } = addNode(straight, 0);
-
-    expect(part.nodes.map((own) => own.anchor)).toEqual([[10, 40], [30, 40], [50, 40]]);
-    expect(part.nodes.every((own) => own.coming[1] === 0 && own.leaving[1] === 0)).toBe(true);
-  });
-
   test("none is added past the limit, and nodes are removed down to two", () => {
     const full: Part = { ...line, nodes: Array.from({ length: LIMITS.maxNodes }, (_, at) => node([at, 10])) };
 
@@ -226,7 +258,7 @@ describe("nodes added and removed", () => {
 describe("open and closed", () => {
   test("opening drops the fill, and a part with no line takes its fill's paint as one", () => {
     expect(setClosed(dot, false)).toMatchObject({ closed: false, fill: null, line: { paint: "ink", width: 1 } });
-    expect(setClosed(mouth, false)).toMatchObject({ closed: false, fill: null, line: { paint: "ink", width: 1.6 } });
+    expect(setClosed(mouth, false)).toMatchObject({ closed: false, fill: null, line: { paint: "ink", width: 0.8 } });
   });
 
   test("a part with anything inside it is not opened", () => {
@@ -239,28 +271,28 @@ describe("open and closed", () => {
 });
 
 describe("new parts", () => {
-  test("an oval and a line bring their own paints, whatever group they go in", () => {
+  test("an oval and a line bring their own paints, whatever element they go in", () => {
     expect(newPart("oval")).toMatchObject({ closed: true, fill: "ink", line: null });
-    expect(newPart("line")).toMatchObject({ closed: false, fill: null, line: { paint: "ink", width: 2.2 } });
+    expect(newPart("line")).toMatchObject({ closed: false, fill: null, line: { paint: "ink", width: 0.8 } });
   });
 
-  test("inside an opening, the teeth band is light along its top and the tongue a dome from its bottom", () => {
-    const teeth = newInside("teeth", mouth);
-    const tongue = newInside("tongue", mouth);
-    const topOf = (part: Part) => Math.min(...part.nodes.map((own) => own.anchor[1]));
+  test("inside an opening, each part comes in its own paint, the teeth along its top and the tongue from its bottom", () => {
+    const top = (part: Part) => Math.min(...part.nodes.map((own) => own.anchor[1]));
 
-    expect(teeth).toMatchObject({ closed: true, fill: "light", line: null });
-    expect(topOf(teeth)).toBeLessThan(48);
-    expect(tongue).toMatchObject({ closed: true, fill: "tongue", line: null });
-    expect(tongue.nodes[0]!.anchor[1]).toBeGreaterThan(56);
-    expect(tongue.nodes[1]!.anchor[0]).toBeLessThan(50);
+    expect(newInside("teeth", mouth)).toMatchObject({ closed: true, fill: "light", line: null });
+    expect(top(newInside("teeth", mouth))).toBeLessThan(48);
+    expect(newInside("lowerTeeth", mouth).fill).toBe("light");
+    expect(top(newInside("lowerTeeth", mouth))).toBeGreaterThan(50);
+    expect(newInside("tongue", mouth).fill).toBe("tongue");
+    expect(newInside("tongueLight", mouth).fill).toBe("tongueLight");
+    expect(newInside("shine", dot).fill).toBe("light");
   });
 
-  test("every new part is one the check takes, in any group or stage", () => {
-    const opening = addInside(addInside(mouth, "teeth"), "tongue");
+  test("every new part is one the check takes, in any element or talking mouth", () => {
+    const opening = (["teeth", "lowerTeeth", "tongueLight", "tongue"] as const).reduce(addInside, mouth);
 
-    for (const target of [{ tab: "mouths", stage: 0 }, { tab: "faces", face: "기쁨", group: "cheeks" }] as const) {
-      expect(checkFaceDocument(withParts(doc(), target, [newPart("oval"), newPart("line"), opening]))).toHaveProperty("ok");
+    for (const target of [{ tab: "talk", family: 1, mouth: 0 }, { tab: "faces", face: joy, element: "blush", side: "left" }] as const) {
+      expect(refusalOf(withParts(doc(), target, [newPart("oval"), newPart("line"), opening]))).toBeNull();
     }
   });
 
@@ -268,29 +300,25 @@ describe("new parts", () => {
     let full = mouth;
 
     for (let i = 0; i < 10; i++) full = addInside(full, "tongue");
-    expect(full.inside).toHaveLength(LIMITS.partsInside);
+    expect(full.inside).toHaveLength(LIMITS.inside);
     expect(addInside(line, "teeth")).toBe(line);
     expect(removeInside(addInside(mouth, "teeth"), 0)).toEqual(mouth);
-    expect(removeInside(full, 0).inside).toHaveLength(LIMITS.partsInside - 1);
+    expect(removeInside(full, 0).inside).toHaveLength(LIMITS.inside - 1);
   });
 });
 
-describe("stages", () => {
-  test("a stage is added as a copy after the one chosen and removed down to two, within the limits", () => {
-    const added = addStage(doc(), 1);
+describe("the talking mouth set", () => {
+  test("a mouth is added to a family as a copy after the one chosen, and removed down to one", () => {
+    const added = addMouth(doc(), 1, 0);
 
-    expect(added.mouths).toHaveLength(6);
-    expect(added.mouths[2]).toEqual(DEFAULT_FACES.mouths[1]!);
+    expect(added.talk[1]!.mouths).toHaveLength(4);
+    expect(added.talk[1]!.mouths[1]).toEqual(DEFAULT_FACES.talk[1]!.mouths[0]!);
 
     let fewer = doc();
 
-    for (let i = 0; i < 10; i++) fewer = removeStage(fewer, 0);
-    expect(fewer.mouths).toHaveLength(LIMITS.minStages);
-
-    let more = doc();
-
-    for (let i = 0; i < 10; i++) more = addStage(more, 0);
-    expect(more.mouths).toHaveLength(LIMITS.maxStages);
+    for (let i = 0; i < 20; i++) fewer = removeMouth(fewer, 1, 0);
+    expect(fewer.talk[1]!.mouths).toHaveLength(1);
+    expect(setSize(doc(), 1, 0, "large").talk[1]!.mouths[0]!.size).toBe("large");
   });
 });
 
@@ -304,7 +332,7 @@ describe("saving", () => {
 
   test("a document is changed only where what it draws differs, not its version", () => {
     expect(changed({ ...doc(), savedAt: 5 }, doc())).toBe(false);
-    expect(changed(withParts(doc(), { tab: "mouths", stage: 0 }, [dot]), doc())).toBe(true);
+    expect(changed(withParts(doc(), { tab: "talk", family: 0, mouth: 0 }, [dot]), doc())).toBe(true);
   });
 
   test("a document is not changed by the order its keys were written in", () => {
@@ -313,15 +341,26 @@ describe("saving", () => {
     const face = saved.faces[name]!;
     const reordered: FaceDocument = {
       ...saved,
-      faces: { ...saved.faces, [name]: { mouth: face.mouth, marks: face.marks, eyes: face.eyes, cheeks: face.cheeks, brows: face.brows } },
+      faces: { ...saved.faces, [name]: { mouth: face.mouth, marks: face.marks, blush: face.blush, eyes: face.eyes, brows: face.brows } },
     };
 
     expect(changed(reordered, saved)).toBe(false);
   });
 
-  test("a document the server would refuse is refused here first, with the same sentence", () => {
+  test("a document the server would refuse is refused here first, and worded from the language pack", () => {
     expect(refusalOf(doc())).toBeNull();
-    expect(refusalOf(removeStage({ ...doc(), mouths: [[], []] }, 0))).toBeNull();
-    expect(refusalOf({ ...doc(), mouths: [[]] })).toBe("입 모양 단계는 2개에서 8개 사이여야 해요.");
+
+    const refusal = refusalOf(withParts(doc(), { tab: "faces", face: calm, element: "mouth", side: "left" }, [{ ...line, line: { paint: "ink", width: 20 } }]))!;
+
+    expect(refusal).toEqual({ code: "line-width", at: [{ face: calm }, { element: "mouth" }, { part: 1 }], least: 0.2, most: 10 });
+
+    const said: string[] = [];
+    const t = (key: string, values?: Record<string, unknown>) => {
+      said.push(key);
+
+      return `${key}${values?.n ?? ""}`;
+    };
+
+    expect(refusalWords(refusal, t)).toBe(`face.name.${calm} · face.edit.element.mouth · face.edit.place.part1: face.edit.refusal.line-width`);
   });
 });

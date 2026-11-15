@@ -1,7 +1,7 @@
 import { useIsland } from "~/domain/island";
-import { changed, refusalOf, saveBody } from "~/domain/edit";
+import { changed, refusalOf, refusalWords, saveBody } from "~/domain/edit";
 
-import type { FaceDocument } from "#faces";
+import type { FaceDocument, Refusal } from "#faces";
 
 // The editor's session and its document (docs/face.md, 「The editor」): who is signed in, the document
 // as saved and as being edited, and the save that sends one to become the other.
@@ -91,16 +91,20 @@ export function useEditor(road: EditorRoad) {
       return;
     }
 
-    // Refused here first with the sentence the server would give, without sending anything.
-    refusal.value = refusalOf(edited.value);
+    // Refused here first by the same check the server holds, without sending anything.
+    const refused = refusalOf(edited.value);
 
-    if (refusal.value !== null) {
+    if (refused !== null) {
+      refusal.value = refusalWords(refused, t);
+
       return;
     }
 
+    refusal.value = null;
+
     saving.value = true;
 
-    const answer = await ask<FaceDocument & { error?: string }>("/faces", {
+    const answer = await ask<FaceDocument & { refusal?: Refusal }>("/faces", {
       method: "PUT",
       body: JSON.stringify(saveBody(edited.value, saved.value.savedAt)),
     });
@@ -139,7 +143,9 @@ export function useEditor(road: EditorRoad) {
       return;
     }
 
-    refusal.value = (answer.body as { error?: string } | null)?.error ?? t("face.edit.error.save_failed");
+    const said = (answer.body as { refusal?: Refusal } | null)?.refusal;
+
+    refusal.value = said === undefined ? t("face.edit.error.save_failed") : refusalWords(said, t);
   }
 
   onMounted(async () => {

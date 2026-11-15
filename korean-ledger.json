@@ -1,21 +1,15 @@
 {
-  "client/app/domain/edit.ts": 1,
-  "client/app/domain/expression.ts": 3,
   "client/app/domain/overlays.ts": 1,
-  "client/app/pages/edit.vue": 4,
   "client/app/pages/index.vue": 1,
   "client/nuxt.config.ts": 1,
-  "client/tests/domain/edit.test.ts": 8,
-  "client/tests/domain/expression.test.ts": 12,
+  "client/tests/domain/expression.test.ts": 4,
   "client/tests/domain/listener.test.ts": 4,
   "client/tests/domain/served.test.ts": 1,
-  "server/src/faces.rs": 35,
+  "core/src/names.rs": 1,
   "server/src/handler.rs": 5,
   "server/src/login.rs": 4,
   "server/src/pass.rs": 3,
-  "server/tests/contract.rs": 6,
+  "server/tests/contract.rs": 5,
   "server/tests/tool.rs": 2,
-  "src/faces.ts": 36,
-  "src/fixtures.ts": 9,
-  "tests/faces.test.ts": 38
+  "src/faces.ts": 1
 }

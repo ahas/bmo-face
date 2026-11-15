@@ -2,14 +2,15 @@
 //! (docs/face.md, 「The expression document」).
 
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 
-use serde_json::Value;
+use bmo_face_core::check::{Refusal, check};
+use bmo_face_core::json::{number, same};
+use bmo_face_core::migrate::migrate;
+use serde_json::{Value, json};
 use tokio::sync::broadcast;
 
-use crate::faces::{check_document, default_document};
-use crate::numbers::{number, same};
-use crate::upgrade::upgrade_document;
+pub use bmo_face_core::json::document_text;
 
 pub const FACES_FILE: &str = "faces.json";
 
@@ -28,12 +29,22 @@ pub enum Saved {
   Saved(Value),
   /// One saved in between: the document standing now.
   Conflict(Value),
-  Refused(String),
+  Refused(Refusal),
 }
 
-/// The document as the server writes it to its file.
-pub fn document_text(document: &Value) -> String {
-  format!("{}\n", serde_json::to_string_pretty(document).expect("a document is plain data"))
+/// The default document the core draws, `savedAt` zero included, as the server writes it.
+pub fn default_document() -> &'static Value {
+  static DEFAULT: OnceLock<Value> = OnceLock::new();
+  DEFAULT.get_or_init(|| {
+    let mut document = bmo_face_core::default::document().to_json();
+    document["savedAt"] = json!(0);
+    document
+  })
+}
+
+/// The document as it may be kept, with its version: what the check hands back.
+fn checked(value: &Value) -> Result<Value, Refusal> {
+  check(value).map(|document| document.to_json())
 }
 
 pub struct FaceStore {
@@ -55,7 +66,7 @@ impl FaceStore {
   }
 
   /// Makes the stored document one the check passes, before anything is served: the default where
-  /// there is none or none was ever saved, the old shape turned into this one with its version
+  /// there is none or none was ever saved, an older form carried into this one with its version
   /// unchanged, and a document the check still refuses moved aside, never deleted, for the default.
   pub fn prepare(&self) -> std::io::Result<Preparation> {
     let Ok(stored) = std::fs::read_to_string(&self.path) else {
@@ -80,11 +91,10 @@ impl FaceStore {
       return Ok(Preparation::Default);
     }
 
-    let checked = match check_document(&upgrade_document(&parsed)) {
+    let mut document = match checked(&migrate(&parsed)) {
       Ok(checked) => checked,
-      Err(reason) => return self.set_aside(&reason),
+      Err(refusal) => return self.set_aside(&refusal.describe()),
     };
-    let mut document = checked;
     document["savedAt"] = number(saved_at);
     if same(&parsed, &document) {
       return Ok(Preparation::Kept);
@@ -108,9 +118,9 @@ impl FaceStore {
     if based_on.as_f64() != Some(standing) {
       return Ok(Saved::Conflict(current));
     }
-    let mut saved = match check_document(sent) {
+    let mut saved = match checked(sent) {
       Ok(checked) => checked,
-      Err(reason) => return Ok(Saved::Refused(reason)),
+      Err(refusal) => return Ok(Saved::Refused(refusal)),
     };
     let at = ((self.now)() as f64).max(standing + 1.0);
     saved["savedAt"] = number(at);
@@ -162,65 +172,39 @@ mod tests {
     serde_json::from_str(&std::fs::read_to_string(dir.path().join(FACES_FILE)).unwrap()).unwrap()
   }
 
-  // A stored case of the shared upgrade fixture, rebuilt whole: the faces it names as the default's.
-  fn rebuilt(case: &Value, faces_key: &str, named_key: &str, document: &Value) -> Value {
-    let default = default_document();
-    let mut whole = document.clone();
-    let mut faces = serde_json::Map::new();
-    let names = case.get(named_key).or_else(|| case["prepared"].get(named_key));
-    for name in names.and_then(Value::as_array).into_iter().flatten() {
-      let name = name.as_str().unwrap();
-      faces.insert(name.into(), default["faces"][name].clone());
-    }
-    for (name, face) in document[faces_key].as_object().into_iter().flatten() {
-      faces.insert(name.clone(), face.clone());
-    }
-    whole[faces_key] = Value::Object(faces);
-    whole
+  #[test]
+  fn a_saved_document_of_an_older_form_is_carried_with_its_version_kept() {
+    let old = json!({
+      "colors": { "body": "#58bfae", "screen": "#c9f0cf", "ink": "#1f3b35", "cheek": "#f4a3b4" },
+      "faces": { "idle": { "eyes": [{ "shape": "ellipse", "cx": 33, "cy": 30, "rx": 3.2, "ry": 3.8, "filled": true, "width": 1 }] } },
+      "mouths": [[], []],
+      "savedAt": 1700,
+    });
+    let (dir, store) = store(Some(&old.to_string()));
+    assert_eq!(store.prepare().unwrap(), Preparation::Upgraded);
+    let written = stored(&dir);
+    assert_eq!(written["savedAt"], 1700);
+    assert_eq!(written["form"], 2);
+    assert_eq!(written["colors"]["ink"], "#1f3b35");
+    assert_eq!(written["faces"]["idle"]["eyes"]["left"][0]["nodes"].as_array().unwrap().len(), 4);
+    assert_eq!(written["talk"], default_document()["talk"]);
+    assert_eq!(store.prepare().unwrap(), Preparation::Kept);
   }
 
   #[test]
-  fn a_stored_document_is_prepared_as_the_typescript_server_prepared_it() {
-    let cases: Vec<Value> = serde_json::from_str(include_str!("../tests/fixtures/upgrades.json")).unwrap();
-    for case in cases {
-      let name = case["name"].as_str().unwrap();
-      let stored_document = if case.get("storedDefaultFaces").is_some() {
-        rebuilt(&case, "faces", "storedDefaultFaces", &case["stored"])
-      } else {
-        case["stored"].clone()
-      };
-      let (dir, store) = store(Some(&serde_json::to_string(&stored_document).unwrap()));
-      let prepared = store.prepare().unwrap();
-      match case["prepared"].get("error") {
-        Some(error) => assert_eq!(
-          prepared,
-          Preparation::Broken {
-            reason: error.as_str().unwrap().to_owned(),
-            moved_to: dir.path().join(format!("{FACES_FILE}.broken-42")),
-          },
-          "{name}"
-        ),
-        None => {
-          let expected = rebuilt(&case, "faces", "defaultFaces", &case["prepared"]["ok"]);
-          let written = stored(&dir);
-          assert!(same(&written, &expected), "{name}: {written}");
-          let order: Vec<&str> = written["faces"].as_object().unwrap().keys().map(String::as_str).collect();
-          let wanted: Vec<&str> = case["prepared"]["faceOrder"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|one| one.as_str().unwrap())
-            .collect();
-          assert_eq!(order, wanted, "{name}");
-          let kind = if same(&stored_document, &expected) {
-            Preparation::Kept
-          } else {
-            Preparation::Upgraded
-          };
-          assert_eq!(prepared, kind, "{name}");
-        }
+  fn a_saved_document_the_check_still_refuses_is_moved_aside_for_the_default() {
+    let mut refused = default_document().clone();
+    refused["savedAt"] = json!(3);
+    refused["talk"] = json!([]);
+    let (dir, store) = store(Some(&refused.to_string()));
+    assert_eq!(
+      store.prepare().unwrap(),
+      Preparation::Broken {
+        reason: "families".into(),
+        moved_to: dir.path().join(format!("{FACES_FILE}.broken-42"))
       }
-    }
+    );
+    assert!(same(&stored(&dir), default_document()));
   }
 
   #[test]
@@ -229,7 +213,7 @@ mod tests {
     assert_eq!(store.prepare().unwrap(), Preparation::Created);
     assert_eq!(
       std::fs::read_to_string(dir.path().join(FACES_FILE)).unwrap(),
-      include_str!("../../tests/fixtures/default-faces.json")
+      document_text(default_document())
     );
   }
 

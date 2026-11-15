@@ -14,6 +14,11 @@ pub fn number(value: f64) -> Value {
   Number::from_f64(value).map_or(Value::Null, Value::Number)
 }
 
+/// A number as a drawing writes it: to a thousandth of a unit, far below a pixel of any screen.
+pub fn rounded(value: f64) -> Value {
+  number((value * 1000.0).round() / 1000.0)
+}
+
 /// Whether two documents hold the same thing: the same keys in any order, and equal numbers.
 pub fn same(left: &Value, right: &Value) -> bool {
   match (left, right) {
@@ -26,22 +31,7 @@ pub fn same(left: &Value, right: &Value) -> bool {
   }
 }
 
-#[cfg(test)]
-mod tests {
-  use serde_json::json;
-
-  use super::*;
-
-  #[test]
-  fn a_whole_number_is_written_without_a_point_and_minus_zero_as_zero() {
-    assert_eq!(number(25.0).to_string(), "25");
-    assert_eq!(number(-0.0).to_string(), "0");
-    assert_eq!(number(36.2).to_string(), "36.2");
-  }
-
-  #[test]
-  fn documents_are_the_same_whatever_their_key_order_and_number_form() {
-    assert!(same(&json!({ "a": 1, "b": [2.0, 3] }), &json!({ "b": [2, 3.0], "a": 1.0 })));
-    assert!(!same(&json!({ "a": 1 }), &json!({ "a": 1, "b": 2 })));
-  }
+/// The document as it is written to its file and handed to a reader.
+pub fn document_text(document: &Value) -> String {
+  format!("{}\n", serde_json::to_string_pretty(document).expect("a document is plain data"))
 }

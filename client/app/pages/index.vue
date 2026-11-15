@@ -4,18 +4,11 @@
   <main
     v-else
     class="face-page"
-    :style="{ background: document?.colors.body ?? DEFAULT_FACES.colors.body }"
-    :data-face="shown.face"
-    :data-stage="shown.talking ? stage : ''"
+    :style="{ background: document?.colors.body ?? bodyColour }"
+    :data-face="face ?? ''"
     @pointerdown="touched"
   >
-    <FaceView
-      v-if="document"
-      :colors="document.colors"
-      :face="faceFor(document, shown.face)"
-      :mouth="shown.talking ? (document.mouths[stage] ?? null) : null"
-      :label="t(`face.name.${shown.face}`)"
-    />
+    <FaceView v-if="document" :drawing="drawing" :screen="document.colors.screen" :label="face && isFaceName(face) ? t(`face.name.${face}`) : ''" />
 
     <p v-else-if="failed" class="face-note">{{ t("face.unloaded") }}</p>
 
@@ -30,34 +23,36 @@
 </template>
 
 <script setup lang="ts">
-import { DEFAULT_FACES, faceFor } from "#faces";
+import { FACTS } from "#core";
+import { DEFAULT_FACES, isFaceName } from "#faces";
 
-import { nextChange, shownFace } from "~/domain/expression";
 import { briefingKey, isFresh } from "~/domain/listener";
 
-import type { FaceState } from "#faces";
-import type { FaceMoment } from "~/domain/expression";
 import type { Heard } from "~/domain/listener";
 
-// The display (docs/face.md): BMO's face, full screen, moved by what BMO's listener stream says.
+// The display (docs/face.md): BMO's face, full screen, moved by what BMO's listener stream says. The
+// face's core decides which face shows and draws it on the held clock; this page tells it what is heard
+// and plays the sound.
 
 const { t } = useI18n();
 const route = useRoute();
 const { token, forget } = useDevice();
 const { document, failed } = useFaces();
 
+const bodyColour = DEFAULT_FACES.colors.body;
 const silent = route.query.sound === "off";
-const stages = computed(() => document.value?.mouths.length ?? 1);
-const { speaking, spoke, stage, suspended, play, stop, resume } = useSpeaker({ token, silent, stages });
+// The display's own chance: any seed draws BMO's face, and two displays need not blink together.
+const { drawing, face, clock, tell } = useFaceScene(document, Math.floor(Math.random() * 2 ** 32));
+const { speaking, suspended, play, stop, resume } = useSpeaker({ token, silent, face: { clock, tell } });
 
-const presence = ref<{ state: FaceState; since: number } | null>(null);
-const now = ref(Date.now());
 const heardBefore = new Set<string>();
 
 function heard(news: Heard): void {
   if (news.kind === "presence") {
     // The since is the console's clock; one ahead of this screen's is read as now.
-    presence.value = { state: news.state, since: Math.min(news.since, Date.now()) };
+    const ago = Math.max(0, Date.now() - news.since);
+
+    tell((scene, frame) => scene.presence(news.state, frame - Math.floor((ago * FACTS.fps) / 1000)));
   } else if (news.kind === "briefing") {
     const key = briefingKey(news.briefing);
 
@@ -71,31 +66,6 @@ function heard(news: Heard): void {
 }
 
 useListener(token, { heard, refused: forget });
-
-const moment = computed<FaceMoment>(() => ({
-  speaking: speaking.value === null ? null : { emotion: speaking.value.emotion },
-  spoke: spoke.value,
-  presence: presence.value,
-  now: now.value,
-}));
-const shown = computed(() => shownFace(moment.value));
-
-// The face changes on its own when an emotion's linger ends and when an idle turns to sleep; the
-// clock is looked at again at the next of those, and whenever something new is heard.
-let tick: ReturnType<typeof setTimeout> | null = null;
-
-watchEffect(() => {
-  if (tick !== null) {
-    clearTimeout(tick);
-  }
-
-  const next = nextChange(moment.value);
-
-  if (next !== null) {
-    tick = setTimeout(() => (now.value = Date.now()), Math.max(0, next - Date.now()) + 50);
-  }
-});
-watch([speaking, spoke, presence], () => (now.value = Date.now()));
 
 // 그만듣기: stops the sound here and tells every other listener to stop too.
 async function stopListening(): Promise<void> {
@@ -138,10 +108,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
   globalThis.document.removeEventListener("visibilitychange", keepAwake);
   void lock?.release();
-
-  if (tick !== null) {
-    clearTimeout(tick);
-  }
 });
 
 useHead({ title: () => t("face.title") });

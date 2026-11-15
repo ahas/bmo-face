@@ -1,7 +1,7 @@
 # Working in this repository
 
-This repository is BMO's face, `bmo-face`: the display, the editor, the server behind both and the
-`face/expression` tool entry, and the editor again as a console bundle. It knows no other unit's code.
+This repository is BMO's face, `bmo-face`: the face's core, the display, the editor, the server behind
+both and the `face/expression` tool entry, and the editor again as a console bundle. It knows no other unit's code.
 BMO's accounts are read from its archive at the address a setting names, and its listener routes are
 reached at the console's address; nothing of BMO's is imported.
 
@@ -9,8 +9,9 @@ reached at the console's address; nothing of BMO's is imported.
 
 - **`docs/` is canonical.** Read the document covering a change before changing code. A change that
   would make it wrong or incomplete repairs it first, stating what is true now, and the code is then
-  written to match. `docs/face.md` states the display, the expression document, the editor and every
-  route, the console screen among them; `docs/deploy.md` states the release, the unit and the tool
+  written to match. `docs/face.md` states the display, the held clock and its drivers, the expression
+  document, the face's core and its interface, the editor and every route, the console screen among
+  them; `docs/expressions.md` the design the face is drawn from; `docs/deploy.md` states the release, the unit and the tool
   entry.
 - **`.graph/` is written only with `bmo graph`.** It holds the repository's feature nodes and the
   boundary nodes for the APIs it exposes and calls; no other command and no hand edit changes it, and
@@ -30,13 +31,19 @@ reached at the console's address; nothing of BMO's is imported.
 - **No personal data in code, comments, documents, test fixtures or commit messages.**
   `docs/PERSONAL-DATA.md` states what that forbids, the values it allows and where a value belongs; a
   test's data is a neutral name and value, and `tests/personal-data.test.ts` is the pattern check.
-- **Tests live in `tests/`:** the crate's integration tests in `server/tests/`, the screen's in
-  `client/tests/`, and the expression document's, its fixtures' and the development copy's in the root
-  `tests/`, with their support under `tests/support/`. A unit test of a private helper stands beside it
+- **Tests live in `tests/`:** the core's in `core/tests/`, the server's integration tests in
+  `server/tests/`, the screen's in `client/tests/`, and the expression document's statement's, the
+  core's WebAssembly build's and the development copy's in the root `tests/`, with their support under
+  `tests/support/`. A unit test of a private helper stands beside it
   in the crate.
-- **One Cargo workspace at the root**, whose one member is `server/`. The root Bun project holds
-  `src/`, `scripts/` and `tests/`; `client/` is a Bun project of its own, with its own manifest and
+- **One Cargo workspace at the root**, whose members are `core/` and `server/`. The root Bun project
+  holds `src/`, `scripts/` and `tests/`; `client/` is a Bun project of its own, with its own manifest and
   lockfile.
+- **The face is drawn once, in the core.** The geometry, the blend, the drivers and the document's
+  check stand in `core/` alone; the screen draws what its WebAssembly build answers and keeps only the
+  SVG, the sound's decoding and the editor's handling. After a change under `core/`, `bun
+  scripts/core.ts` builds `src/wasm/` again, which needs the `wasm32-unknown-unknown` target and the
+  `wasm-bindgen` command at the version the core locks; the root's test fails until it is built.
 - **Documents state what is true now**: no change history, no quoted source and no file-and-line pins.
 
 ## Checks
@@ -50,5 +57,5 @@ A change moves through three stages in order:
    2-space indentation, as `rustfmt.toml` sets).
 3. Verification: the test targets the change touched, then the suite `testbed.toml` declares once.
 
-The suite runs the crate's tests, the root Bun test files, and the screen's check script, which is its
+The suite runs the crates' tests, the root Bun test files, and the screen's check script, which is its
 typecheck and its domain tests. The version is the repository's, and `VERSION` holds it. It moves only at a release the owner declares, as bmo-chat's `docs/conventions.md` 「Versions」 states; a commit, a deploy, a fix or a contract change moves none, and a deployment is told apart by its commit.

@@ -3,15 +3,21 @@
 **Fixed at 0.1.0-rev.1.**
 
 What the face display shows, what BMO sends it and by which road, how a screen signs in, the
-expression document both the display and the editor read, and the server that serves them.
+expression document both the display and the editor read, the core that draws the face for every
+caller, and the server that serves them.
 
 ## What stands here
 
-- **The display** — one full-screen web page, `/bmo-face/`, that draws BMO's face in SVG and CSS on
-  a teal body and moves it: the mouth with the sound BMO speaks, the eyes and brows with the emotion
-  it speaks with, and the whole face with what BMO is doing.
-- **The editor** — `/bmo-face/edit`, where a person draws and corrects the faces and the mouth
-  stages and saves them. What it saves is what every display shows, with no rebuild and no reload.
+- **The display** — one full-screen web page, `/bmo-face/`, that draws BMO's face in SVG on a teal
+  body and moves it on the animation's own held clock: the mouth with the sound BMO speaks, the face
+  with the emotion it speaks with and with what BMO is doing, and the eyes with every blink.
+- **The editor** — `/bmo-face/edit`, where a person draws and corrects the faces and the talking
+  mouths and saves them. What it saves is what every display shows, with no rebuild and no reload.
+- **The core** — the one implementation of the face, a Rust crate with no I/O and no clock of its
+  own: it reads the expression document, holds the shapes, does the geometry and the blending, and
+  drives speaking, blinking, changing expression and gazing frame by frame. The display and the
+  editor's preview draw what its WebAssembly build answers, and a native displayer drawing straight
+  to a panel draws what the crate itself answers (「The face's core」).
 - **The server** — serves both pages, keeps the expression document, logs the editor in, passes
   a display's requests through to BMO's listener routes, and answers a console for the console screen.
 - **The console screen** — the editor again, as a console bundle: a console that keeps bmo-ui's
@@ -108,43 +114,118 @@ expression document both the display and the editor read, and the server that se
 - **Ten emotion faces**, one per emotion BMO can speak with: `기본`, `기쁨`, `슬픔`, `놀람`, `화남`,
   `졸림`, `폭소`, `걱정`, `아픔`, `안간힘`.
 - **Three state faces**, one per presence: `writing`, `thinking`, `idle`.
-- **Which face shows**, first match wins:
-  1. **Speaking** — a briefing is playing: the face the briefing shows, with the mouth taken from
-     the mouth stages as the sound moves it.
-  2. **Just spoke** — for a few seconds after a briefing ends, that face with its own mouth,
-     so the feeling does not snap away with the last syllable.
-  3. **Asleep** — BMO has been `idle` for a long stretch: the `졸림` face.
-  4. **Otherwise** — the face of the current presence.
+- **Which face shows**, first match wins, as the core decides it for every caller:
+  1. **Pinned** — a face the caller pins shows whatever else is heard; the editor's preview pins the
+     face being edited.
+  2. **Speaking** — a briefing is playing: the face the briefing shows, with the talking mouth in
+     place of its own (「The mouth while speaking」).
+  3. **Just spoke** — for four seconds after a briefing ends, that face with its own mouth, so the
+     feeling does not snap away with the last syllable.
+  4. **Asleep** — BMO has been `idle` for ten minutes: the `졸림` face.
+  5. **Otherwise** — the face of the current presence; `idle` until the stream has said.
 - **A face that is missing** from the document falls back to `기본`, so a document with fewer faces
   still draws.
-- **Moving between faces** is a short transition of the parts that differ, not a cut.
-  - A part turns into the part standing at the same place in the same group of the next face, and
-    a part inside another into the one at the same place inside it.
-  - Every part is drawn as the same run of commands — one move and then a fixed number of cubic
-    segments, as many as a path can hold, the authored segments split evenly to make up the count
-    and a closed path returning to its start by a segment rather than a close — so any part
-    morphs into any other: a dot eye into an arc, an open mouth into a line.
-  - A paint changes colour over the same transition; a fill or a line that appears or goes away
-    does so at once. A part with no counterpart appears or goes away at once.
-  - The mouth moving with the sound is never eased.
-- **What each default face draws** is taken from the reference pictures of BMO's finished official
-  design, measured in `docs/expressions.md`: dot eyes far apart and high, and a small mouth centred
-  just below them.
+- **What each default face draws** is the animation's own design, measured frame by frame and
+  redrawn clean (`docs/expressions.md`): dot eyes far apart and high, and a small mouth centred well
+  below them.
+
+### The held clock
+
+- **The face is drawn on the animation's frames,** 23.976 a second, and every drawing is held for
+  whole frames: an ordinary drawing for two (on twos), now and then for one or four. Nothing on the
+  face is eased and nothing is tweened from one display frame to the next; a drawing is computed when
+  its frame comes and stands until the next drawing's frame.
+- **Frames are the caller's.** A caller counts frames from a moment of its own and asks the core the
+  drawing of a frame and the next frame the drawing may change; it waits until then, or until it hears
+  something new. Frames are asked in order.
+- **Idle, the drawing is held.** Between blinks nothing moves: the face does not drift or breathe.
+
+### Moving between faces
+
+- **A change of face is drawn as the animation draws one:** a cut about a third of the time, and
+  otherwise one to three in-between drawings, each held on twos, blended by correspondence from the
+  face that showed to the face that shows next (「Blending one drawing into another」). About three
+  changes in ten start with one drawing of anticipation: the face it leaves, every part pressed toward
+  its own middle to 85 % of its height, before it moves. An in-between that would cross itself is left out.
+- **Element by element, side by side.** Each eye, brow and blush side blends with the same side, the
+  mouth with the mouth, part by part in order; a part with no counterpart shows in the nearer half of
+  the change alone. Paints and what stands inside a part come from the nearer face, a line's width is
+  mixed.
+- **A change interrupted** starts its next change from the drawing showing at that frame.
+- **A save heard** is drawn at once, as a cut.
+
+### The blink
+
+- **The animation's blink:** the lid half down for one frame, the eye shut in a shallow arc for two,
+  half down again for one, then open — four frames, 167 milliseconds.
+- **Every four to six seconds,** jittered by seeded chance, and one blink in seven is followed at once,
+  after two open frames, by a second.
+- **On the same held clock, idle and speaking alike.** A blink waits for no other motion and none waits
+  for it, but none starts during a change's in-betweens.
+- **Only an open eye blinks.** An eye drawn as a filled closed shape is half covered by cutting away
+  its top, and shut as an ink arc 0.9 wide a little wider than the eye across its lower half; a face
+  whose eyes are strokes — already closed, as `폭소`'s and `안간힘`'s are — never blinks.
+
+### The gaze
+
+- **Where the eyes look** is a direction from −1 to 1 each way, the middle by default. The display
+  holds it at the middle; the editor's preview sets it with two sliders. A camera that will one day
+  set it is no part of this unit yet.
+- **It moves each open eye within the reach the face's eyes declare** (`reach`, how far each way in
+  screen units), and what stands inside an eye — a pupil, a shine — half as far again, cut off at the
+  eye's outline as ever.
+- **In held steps:** a direction set takes hold at the next frame on twos, never eased; through a blink
+  the direction that held as it began stays; an eye drawn as a stroke does not move.
+
+### Less motion
+
+- **A viewer whose setting asks for less motion** (`prefers-reduced-motion: reduce`) is shown every
+  change of face as a cut, with no in-betweens. The held clock already moves nothing smoothly, so the
+  blink, the talking mouth and the gaze's held steps stay: they are how the face speaks and looks
+  alive, and each is a cut from one held drawing to the next.
 
 ## The mouth while speaking
 
-- **The mouth stages** are an ordered list of mouths, from closed to widest open. Speaking draws
-  one of them at a time over the emotion face in place of its own mouth.
-- **A stage is parts like any group,** so an open stage is its opening with the teeth and the tongue
-  drawn inside it (「The expression document」). By default the first stage is a closed line and
-  every stage after it is BMO's smiling mouth at a larger size, with the upper teeth band and the
-  tongue inside it, as in the reference pictures (`docs/expressions.md`).
-- **The sound picks the stage.** The display decodes the briefing into the page's own audio
-  graph and reads its loudness many times a second:
-  - the loudness is smoothed, so a single spike does not flash the mouth open;
-  - it is mapped onto the stages, silence to the first and full voice to the last;
-  - a stage changes only when the loudness moves clearly past the boundary, so the mouth does not
-    flutter between two neighbours on a steady vowel.
+- **The talking mouth set** (「The expression document」) is the mouths the animation talks with,
+  in families — a bean in three sizes, a line, a slit, a round O, a small dark o, a grimace of teeth —
+  each family naming the sounds it is drawn for and how often it is drawn while talking, each mouth its
+  size class. Speaking draws one of them at a time over the face in place of its own mouth.
+- **The driver plans the whole sound before it plays.** The display decodes the briefing into the
+  page's own audio graph and reads its loudness once a frame of the held clock, in dBFS; the core
+  plans every drawing over it at once:
+  - each drawing is held two frames as a rule, one frame one time in ten and four frames one time in
+    ten, and cut to the next — never morphed;
+  - a drawing is picked for the sound two frames after it shows: the animation's mouth leads its
+    voice by two frames, so the display shows each drawing two frames before the sound it is drawn
+    for is heard;
+  - the loudness of those frames, ranked against the sound's own voiced frames in tenths, picks by
+    the measured relation how often the mouth is closed — about one drawing in five at the quietest
+    tenth, one in twenty-five at the loudest — and the size the open mouths aim at, from small to
+    large;
+  - a frame more than 35 dB below the sound's loudest, or quieter than −50 dBFS, is a pause: the mouth
+    closes on a line or a slit;
+  - the first drawing after a pause and the last before one are small, as the animation's mouth grows
+    from a line's first drawing and shrinks into its last;
+  - within what the loudness allows, the family is drawn by its weight and the mouth by seeded chance
+    — the seed is the briefing's message — and never the same mouth twice running.
+- **Timed text steers the family where a briefing carries it.** A cue is a run of the spoken text and
+  the frames of the sound it is spoken over; its sounds are spread evenly across them. The lips
+  meeting (P, B, M) draw a closed line or slit seven times in ten; a rounded vowel (O, U, W) draws the
+  small o or the round O; an open vowel (A) a large open mouth. Korean is read the same way by
+  extrapolation, never measured: ㅁ, ㅂ, ㅃ and ㅍ close the lips at a syllable's start or end, ㅗ,
+  ㅜ and the vowels built on them round them, ㅏ and ㅑ open them. Today's briefings carry no timed
+  text, so the loudness alone drives the mouth.
+- **The face follows the briefing while the mouth talks.** The briefing's expression selects the face
+  for as long as it speaks; the driver only replaces the mouth. A briefing could carry changes of
+  expression at times within its sound — the core takes a list of faces, each from a frame of the
+  sound — but BMO's briefing event names one expression, so the display hands the core one. A timed
+  list needs BMO's briefing event to carry each expression with the moment of the sound it starts at,
+  and the face's entry to answer each; neither is this unit's to change.
+- **The lead the display reaches.** The whole sound is decoded before it plays, so the plan stands
+  before the first sample: the display starts the sound on the audio clock so that it is heard two frames
+  after the first drawing shows — earlier by the output latency the browser reports, so the sound leaves
+  the speaker on that frame — and keeps the mouth on the frame clock from there. A browser that reports no output latency leads by two frames less what its own
+  output path delays.
 - **Heard or silent.** By default the display plays the sound. With `?sound=off` in its address it
   plays nothing and moves the mouth from the same decoded sound, for a case whose sound comes from
   somewhere else.
@@ -156,27 +237,31 @@ expression document both the display and the editor read, and the server that se
 ## The expression document
 
 - **One JSON document** in the data root, `faces.json`, which the display reads and the editor
-  writes. A server starting with none writes the default drawn into this project.
+  writes. A server starting with none writes the default the core draws.
 - **What it holds:**
-  - `colors` — the body and the screen, and the six paints a part is drawn in: `ink` (the lines,
-    eyes and outlines), `light` (the teeth and the white of an eye), `mouth` (the inside of an open
-    mouth), `tongue`, `cheek` and `tear`. Each is a `#rrggbb` colour.
-  - `faces` — one face per name above. A face is its parts in five groups, drawn in this order, each
-    over the ones before it: `eyes`, `brows`, `cheeks`, `mouth`, and `marks` — tears, sweat and
-    whatever else is drawn over the face. A group may be empty.
-  - `mouths` — the mouth stages, in order, each a group of parts.
+  - `form` — `2`, the form this document is written in; a document of an older form is carried into
+    this one as the server starts (「Preparing the document」).
+  - `colors` — the body and the screen, and the seven paints a part is drawn in: `ink` (the lines,
+    eyes and outlines), `light` (the teeth and an eye's shine), `mouth` (the inside of an open mouth),
+    `tongue` and `tongueLight` (the tongue's two tones), `cheek` (the blush) and `tear`. Each is a
+    `#rrggbb` colour.
+  - `faces` — one face per name above. A face is its elements, drawn in this order, each over the
+    ones before it:
+    - `blush`, `eyes` and `brows` — each a **pair**: its `left` parts, and its `right` parts or `null`
+      where the right is the left reflected across the screen's middle, which it is by default, so an
+      eye is drawn once and mirrored, or each side drawn on its own. `eyes` also holds `reach`, how far
+      in screen units each eye moves each way with the gaze (「The gaze」), at most 6.
+    - `mouth` — its parts: an open stroke for a closed mouth, or a closed outline filled `mouth` with
+      the teeth and the tongue standing inside it.
+    - `marks` — tears, sweat and whatever else is drawn over the face.
+    An element may be empty.
+  - `talk` — the talking mouth set: one to twelve families, each its `name` (small letters, digits and
+    dashes), the `voices` it is drawn for (`silence`, `closing`, `rounded`, `open`, `other`), its
+    `weight` (its share of the talking frames, above nothing and at most one) and its `mouths`, one to
+    twelve, each its `size` (`small`, `medium`, `large`) and its `parts`.
   - `savedAt` — when it was last saved, which is also its version.
-- **A part** is one path, in the screen's own coordinates, a box one hundred wide and seventy-five
-  high:
-  - its **nodes**, two to thirty-two of them. A node is an anchor the path passes through and two
-    handles held as offsets from the anchor: the one the path comes in by and the one it leaves by.
-  - between two nodes the path is the cubic Bézier curve from the first anchor, pulled by the first
-    node's leaving handle and the second node's coming handle, to the second anchor. A handle of no
-    length pulls nothing, so a node with both handles at nothing is a sharp corner and two such
-    nodes are joined by a straight line.
-  - every node is **smooth** or a **corner**. A smooth node's two handles stand on one line through
-    the anchor, which the editor keeps as either is dragged; a corner's handles move apart. The
-    drawing reads only the handles.
+- **A part** is one path (「How a path is written」), in the screen's own coordinates, a box one
+  hundred wide and seventy-five high, with:
   - **open or closed**: a closed path runs on from its last node back to its first.
   - its **fill** — a paint, or none; only a closed path is filled.
   - its **line** — a paint, or none, and its width, drawn with round ends and round joins. A part
@@ -184,51 +269,103 @@ expression document both the display and the editor read, and the server that se
   - what stands **inside** it — only for a closed path: parts drawn within its outline and cut off
     at it. They are drawn after its fill and before its line, in order, so the outline stays over
     the edge where they are cut. A part inside may be open or closed, and holds nothing inside it.
-    This is how an open mouth shows its teeth and its tongue, a laughing grin the lines between its
-    teeth, and an eye a pupil or a shine.
+    This is how an open mouth is drawn: its outline filled `mouth` as the cavity, and inside it the
+    upper teeth band and the lower one filled `light`, and the tongue in its two tones, `tongueLight`
+    showing as a rim along the top of `tongue`; and how an eye holds a pupil or a shine.
 - **The paint is the part's own.** A part names the paint it is filled and lined with; nothing takes
-  a colour from the group a part stands in.
-- **Saving is checked.** A document the editor sends is refused whole unless every face, stage and
-  part is well formed and within the screen — every anchor and the end of every handle — and it must
-  name the version it was edited from: one saved in between is a conflict, refused, and the editor
-  says another window saved first. A group holds at most sixteen parts, a part at most eight inside
-  it, and a line is between 0.2 and 10 wide.
-- **One check, in two languages.** The screen's editor checks with `src/faces.ts` and the server
-  with its own Rust copy of the same rules. The two are held to one set of documents in `tests/fixtures/`
-  — what each accepts, what it hands back, and the sentence it refuses each other one with — which
-  both test suites read, so neither can drift from the other unseen.
-  - **The default is drawn once,** in `src/faces.ts`. `tests/fixtures/default-faces.json` is that default
-    as the server writes it; the server reads its default from there, and a test fails while the two
-    differ. `bun scripts/fixtures.ts` writes it and the shared documents again after the default or the check
-    is changed.
+  a colour from the element a part stands in.
+
+### How a path is written
+
+- **A path is a run of cubic Bézier segments, as many as its shape needs.** Its nodes, two to
+  thirty-two of them, each an anchor the path passes through and two handles held as offsets from the
+  anchor: the one the path comes in by and the one it leaves by. Between two nodes the path is the
+  cubic Bézier curve from the first anchor, pulled by the first node's leaving handle and the second
+  node's coming handle, to the second anchor. A shape of two segments and one of seventeen are written
+  alike, and a blend between them adds or takes away segments as it needs, never a fixed count.
+- **Nodes are smooth by default.** A smooth node's two handles stand on one line through the anchor,
+  which the editor keeps as either is dragged; a corner's handles move apart. A handle of no length
+  pulls nothing, so a node with both handles at nothing is a sharp corner and two such nodes are joined
+  by a straight line. The drawing reads only the handles.
+- **A smooth run through points** — what the shapes are built from and what a node made smooth from
+  nothing takes — gives each inner node a leaving handle a sixth of the step from the point before it
+  to the point after it, and its coming handle that step reversed; the end of an open run leaves along
+  the parabola its first three points make, so three points draw an arc, never two strokes meeting in a
+  bend. A closed run's neighbours run round; two points are a straight line.
+- **Ends are round.** Every line is drawn with round caps and round joins, and an open mouth's two
+  ends are turned on a radius of 0.36 of its height (half its height for a round O), as the animation
+  turns them.
+- **The drawn form is the written form.** The display draws every segment as written, a closed path
+  closing on its first anchor; nothing is resampled into pieces.
+
+### Blending one drawing into another
+
+How an in-between of two parts is found (「Moving between faces」), so that it never folds:
+
+1. **Both paths are brought to one winding and one start.** A closed path runs clockwise on the
+   screen and is cut into two runs between its leftmost and rightmost points: over its top, and back
+   under its bottom. An open path runs from its left end to its right.
+2. **An open line meeting a closed shape is turned into a closed loop** that runs out along the line
+   and back along itself, so it opens as a mouth opens rather than folding. The closed shape is then
+   cut where it stands, seen from its middle, in the direction of the line's two ends, and taken first
+   the way the line bows: under its bottom for a line bowing down, over its top for one bowing up.
+3. **Each pair of runs is brought to one count of segments.** A straight segment is first written to
+   move at an even pace, its control points a third of the way along, which draws the same line. Each
+   run is then cut wherever the other has a node, by the share of its length behind that node, and a
+   run that still has fewer is made up by splitting its longest segment at its middle; neither changes
+   either drawing. The segments then pair in order of the length behind them.
+4. **The paired segments are mixed control point by control point.**
+
+The core's tests hold every in-between of every two default faces, at shares from a tenth to nine
+tenths, to never crossing itself, never turning inside out and never reaching past the box of the two
+drawings it stands between — which is where a hook would grow.
+
+### Saving is checked
+
+- **A document is refused whole** unless it is of this form and every face, part and talking mouth is
+  well formed and within the screen — every anchor and the end of every handle — and it must name the
+  version it was edited from: one saved in between is a conflict, refused, and the editor says another
+  window saved first. A list of parts holds at most sixteen, a part at most eight inside it, and a line
+  is between 0.2 and 10 wide.
+- **A refusal is a code and a place.** The check answers why — `node-count`, `off-screen`,
+  `line-width` and the like — and where, from the outside in: a colour, a face, an element, a side, a
+  part, a part inside it, a node, a family, a mouth, each counted from one, with the limits the code
+  turns on. The editor words it from its language pack; the server answers it under `refusal` beside an
+  English `error` line.
+- **One check, in the core.** The server checks with the core crate, and the editor with the same
+  crate's WebAssembly build before it sends anything, so the two cannot drift.
+- **The default is drawn once,** in the core, from its eye and talking mouth sets.
+
+### Preparing the document
+
 - **The document is prepared once, when the server starts,** before it answers any request, so a
   display and the editor only ever receive a document the check passes. After that a read only
   reads: nothing a display asks for writes the document, and only a save does.
-  - no document: the default drawn into this project is written;
-  - a document never saved from the editor — `savedAt` of zero — is the default drawn into this
-    project, and is replaced by the default drawn now;
+  - no document: the default is written;
+  - a document never saved from the editor — `savedAt` of zero — is the default drawn into an older
+    build, and is replaced by the default drawn now;
   - a saved document holding no face for a name the default draws is given the default's face for
     it, written in place with its version unchanged, so a face added here reaches a document saved
-    before it rather than falling back to `기본`;
-  - a document in the point-and-ellipse shape is turned into this one and written in place, with
+    before it rather than falling back to `기본`; colours it does not hold come from the default;
+  - a saved document of an older form is carried into this one by the core and written in place, with
     its version unchanged:
-    - a curve through points becomes a path whose nodes are those points, each smooth: a node's
-      leaving handle is a sixth of the step from the point before it to the point after it, and its
-      coming handle the same step reversed — the end of an open curve standing for its own missing
-      neighbour, a closed curve's neighbours running round. That is the very spline the points
-      drew, except where a handle had to be shortened to the screen's edge below, and a two-point
-      open curve stays a straight line.
-    - an ellipse becomes a closed path of four smooth nodes at the ends of its radii, each handle
-      along the ellipse and 4/3·(√2 − 1) ≈ 0.5523 of its radius long, which strays from the ellipse
-      by less than 0.03 percent of the radius;
-    - a filled ellipse is filled and has no line; an unfilled one has a line and no fill; a curve
-      has a line, and a fill of the same paint when it is closed and filled;
-    - a part in `cheeks` is painted `cheek` and every other part `ink`; `marks` is empty. This is
-      the one rule anywhere that reads a group's name, and it stands in the server alone: the
-      screen never carries it.
-    - a handle whose end falls outside the screen is shortened along itself to the screen's edge,
-      and the colours a document does not hold are taken from the default;
-    - the handles are kept as computed, not rounded.
+    - **form 1** drew a face in five groups and the speaking mouth as a ladder of stages. Its `eyes`,
+      `brows` and `cheeks` become the pairs `eyes`, `brows` and `blush`: a part whose anchors stand left
+      of the screen's middle on the left, the rest on the right, and the right left out — mirrored —
+      where it draws the left reflected, whichever node each starts at and whichever way each runs. Dot
+      eyes take a reach of 2.2 across and 1.6 up and down, stroked eyes none. `mouth` and `marks` stay
+      as they are, and the stages give way to the default's talking mouth set. Every path stays as it
+      was drawn.
+    - **form 0** drew a part as an ellipse or as a curve through points, and is carried through form 1:
+      a curve becomes a path whose nodes are those points, each smooth, its leaving handle a sixth of
+      the step from the point before it to the point after it and its coming handle that step reversed
+      — the end of an open curve standing for its own missing neighbour — so it draws as it drew; an
+      ellipse becomes four smooth nodes at the ends of its radii, each handle 4/3·(√2 − 1) ≈ 0.5523 of
+      its radius long; a filled ellipse is filled and has no line, an unfilled one a line and no fill, a
+      curve a line and a fill of the same paint when closed and filled; a part in `cheeks` is painted
+      `cheek` and every other part `ink`; a handle whose end falls outside the screen is shortened along
+      itself to the screen's edge.
+    - This carrying is the one place anything reads an older form's group names.
   - a document the check still refuses is moved aside, beside it, as `faces.json.broken-` and the
     time in milliseconds — never deleted — and the default is written in its place. The server says
     so on its error output.
@@ -237,20 +374,77 @@ expression document both the display and the editor read, and the server that se
 - **Every open display hears a save** on a small stream of this server's own,
   `/bmo-face/api/faces/events`, and draws the new document at once.
 
+## The face's core
+
+- **One crate, `core/`, is the face's one implementation:** the document read, checked and carried
+  from its older forms; the eye and talking mouth sets; the geometry of a path; the blend; the drivers
+  of speaking, blinking, changing expression and gazing; and which face shows. It does no I/O, keeps no
+  clock and depends on no platform. The server uses it as a crate; the display and the editor use its
+  WebAssembly build; a native displayer uses it as a crate.
+- **Its one question:** given the document, what the caller has told it and a frame of the held clock,
+  which drawing shows — deterministic for a seed: the same seed, document and events give the same
+  drawings to every caller.
+- **The scene is what a caller holds,** made from a checked document, a seed and the frame the caller
+  starts counting at. A caller tells it:
+  - a document saved since, drawn at once;
+  - what BMO is doing, with the frame it began;
+  - a briefing to speak: the sound's loudness in dBFS, one reading a frame from its first frame; the
+    timed text it says where known, each cue its text and the frames of the sound it is spoken over;
+    the seed its picks are drawn from; the face it shows, and the faces it moves to at frames of the
+    sound; and the frame its first frame is heard at;
+  - that the sound stopped, at a frame;
+  - where the eyes look from a frame on, −1 to 1 each way;
+  - a face to pin, or none;
+  - whether expression changes are calm (cuts alone) and whether the eyes blink.
+- **And it asks it:** the drawing a frame shows, and the next frame after it where the drawing may
+  change — none where nothing will change until it is told something. Frames are asked in order.
+- **The drawing** is the screen's size in document units (100 by 75), the body's and the screen's
+  colours, a list of clip outlines, and the paint to lay down in order. Each paint is a path filled, or
+  a path stroked with its width — always with round caps and round joins — in a `#rrggbb` colour, and
+  names the clip outline it is cut off at, if any. A path is its start point and each segment's two
+  control points and end, with whether it closes on its start. Numbers stand to a thousandth of a unit.
+  The screen's rounded rectangle is the caller's to draw: on the web it stands six units round at its
+  corners.
+- **What a native caller does:** scales the document's units to its panel — 1024 by 600 is wider than
+  4:3, so the 100 by 75 screen stands centred at 800 by 600 with the body's colour either side —
+  rasterises each paint in order with its clip as a mask, counts frames at 23.976 a second from its own
+  monotonic clock, reads the loudness of the sound it plays one frame at a time in dBFS before it plays
+  it, tells the scene the frame the sound's first sample will be heard at, and draws when the next
+  change comes. The scene asks nothing of its caller and never blocks.
+- **The WebAssembly build** is carried in the repository, under `src/wasm/`: the binding's glue and
+  types, the module's bytes written into a JavaScript module, and the hash of the sources it was made
+  from. `bun scripts/core.ts` makes it again — `cargo rustc` for `wasm32-unknown-unknown` under the
+  workspace's size-optimised `wasm` profile, then `wasm-bindgen` at the version the crate locks — and the
+  root's test fails while the build is not made from the core's sources as they stand. The screen
+  imports it through `src/core.ts`, which instantiates it on import and types what it answers; the
+  binding hands JSON text and plain numbers across and holds no logic.
+- **Tested** by its own tests, natively: the check and its refusals, the carrying of every older form
+  on the old default and the old fixtures, the geometry, every blend of every two default faces, the
+  driver's cadence, closing and loudness, the timed text in English and Korean, the blink's sequence,
+  rate and doubles, the change's cuts and in-betweens, the gaze's held steps, and a scene's every
+  change of drawing announced by the frame it named.
+
 ## The editor
 
 - **`/bmo-face/edit`, behind the editor's login.** Without a session it shows the login and nothing
   else.
 - **Two tabs, edited apart:**
   - `감정 표정` — one face at a time, chosen by name: the ten emotions and the three states. A face
-    is edited in its five groups — eyes, brows, cheeks, the resting mouth and the marks — one group
-    at a time.
-  - `입 모양 단계` — one stage at a time, from closed to widest open. Stages are added and removed
-    here, between two and eight of them.
+    is edited one element at a time — eyes, brows, blush, the resting mouth and the marks — and the
+    eyes, brows and blush one side at a time.
+  - `말하는 입` — the talking mouth set, one mouth at a time, chosen by its family and its place in
+    it; its size class is chosen beside them. Mouths are added to a family, a copy of the one being
+    edited, and removed, down to one a family.
   - Both tabs edit parts the same way, parts inside a part included.
-- **The canvas** is the screen at the display's own proportions, with the face or stage being edited
-  on it. The parts of the group being edited carry handles; the rest of the face stands dimmed
-  behind them for reference, each part in its own paints.
+- **A pair's two sides.** The eyes, the brows and the blush hold a switch, 좌우 대칭, on while the
+  right side is the left reflected. While it is on, the right side is not edited: it stands dimmed on
+  the canvas, and the side select offers the left alone. Turning it off gives the right side the left's
+  reflection to edit on its own; turning it on again drops the right side's own drawing.
+- **How far the eyes look.** The eyes hold the reach of the gaze across and up and down, two numbers
+  from 0 to 6.
+- **The canvas** is the screen at the display's own proportions, with the face or mouth being edited
+  on it. The parts being edited carry handles; the rest of the face stands dimmed behind them for
+  reference, each part in its own paints.
   - Every node of a part has a handle on its anchor. The chosen node also shows the ends of its two
     handles, each on a thin line to its anchor; a handle of no length shows none.
   - Dragging an anchor moves the node with its handles. Dragging a handle's end moves that handle;
@@ -276,30 +470,36 @@ expression document both the display and the editor read, and the server that se
   - making a node smooth:
     - when its leaving handle has a length, its coming handle turns to stand opposite it, keeping
       its own length, or taking the leaving handle's length when it had none;
-    - when both handles are nothing, the node takes the spline's handles: its leaving handle a sixth
-      of the step from the node before it to the node after it, its coming handle the same step
-      reversed, the end of an open path standing for its own missing neighbour. This is how a sharp
-      corner is pulled out again on the canvas, where a handle of no length shows no end to drag.
-- **Parts are added and removed** in the group being edited: an oval (a closed path of four smooth
-  nodes) or a line (an open path of three). Inside a chosen closed part: an upper teeth band along
-  the top of the opening, or a tongue rising from its bottom.
+    - when both handles are nothing, the node takes the handles of the smooth run through its part's
+      anchors (「How a path is written」). This is how a sharp corner is pulled out again on the
+      canvas, where a handle of no length shows no end to drag.
+- **Parts are added and removed** in what is being edited: an oval (a closed path of four smooth
+  nodes, the size of a dot eye) or a line (an open path of three smooth nodes). Inside a chosen closed
+  part: the upper teeth band hanging from the top of the opening, the lower one rising from its
+  bottom, the tongue, the tongue's light tone, or a shine high on its left.
   - Everything the editor makes is made from its one create button (「The screens' shared style」),
-    named 모양 추가 in the face tab and 모양·단계 추가 in the mouth stage tab. It opens one menu: the
-    oval and the line; the teeth band and the tongue under 안쪽 모양 while a closed part of the
-    target's own is chosen, offered as long as it holds fewer than it may; and, in the mouth stage
-    tab, a new stage after the one being edited. An entry that cannot be made now stands disabled.
+    named 모양 추가 in the face tab and 모양·입 추가 in the talking mouth tab. It opens one menu: the
+    oval and the line; the parts inside under 안쪽 모양 while a closed part of the target's own is
+    chosen, offered as long as it holds fewer than it may; and, in the talking mouth tab, a new mouth
+    in the family being edited. An entry that cannot be made now stands disabled.
   - What stands inside a chosen part is listed beside the canvas only once it holds something.
-  - A new part comes with its own paints, whatever group it is added to: an oval filled `ink` with
-    no line, a line in `ink` 2.2 wide, a teeth band filled `light`, a tongue filled `tongue`.
+  - A new part comes with its own paints, whatever element it is added to: an oval filled `ink` with
+    no line, a line in `ink` 0.8 wide, a teeth band filled `light`, a tongue filled `tongue`, its light
+    tone filled `tongueLight`, a shine filled `light`. The core draws each, sized to the part it stands
+    in.
   - A node is added after the chosen one by splitting the segment it leaves by at its middle, which
-    leaves the drawing as it was — at the end of an open path, the segment coming into it.
+    leaves the drawing as it was — at the end of an open path, the segment coming into it — and so a
+    path takes as many segments as its shape needs.
   - Removing a node removes the chosen one, down to two.
-- **The preview** beside the canvas is the display's own drawing of what is being edited. In the
-  mouth stage tab, and for a face, it can play through the mouth stages on a loop, as speaking
-  would.
+- **The preview** beside the canvas is the core's own drawing of the face being edited, on the held
+  clock, as a display draws it: it blinks as a display does, which a switch, 깜빡임, turns off; a
+  second switch, 말하기, speaks a sampled voice with the talking mouth set, the drawings cut on the held
+  clock as a briefing's are; and two sliders, 시선 가로 and 시선 세로, turn the gaze. In the talking
+  mouth tab it shows the mouth being edited in `기본`'s face until 말하기 is turned on.
 - **Saving** sends the whole document with the version it was edited from. A save refused by the
-  check says why beside the save button; one refused because another window saved first says so and
-  offers to load the saved document, dropping what was edited here.
+  check says why beside the save button, in the language pack's words for the refusal's code and
+  place; one refused because another window saved first says so and offers to load the saved
+  document, dropping what was edited here.
 - **Changes not yet saved** are marked beside the save button, and the button is only pressable
   while there are some.
 - **On a phone** the canvas takes the screen and the numbers and the preview open from one button,
@@ -378,7 +578,8 @@ expression document both the display and the editor read, and the server that se
 
 ## The server
 
-- **It is a Rust program,** the workspace's one crate in `server/`. It starts on `BMO_FACE_PORT`
+- **It is a Rust program,** the workspace's crate in `server/`, built on the core (「The face's core」),
+  which checks, prepares and draws its default. It starts on `BMO_FACE_PORT`
   (127.0.0.1:3217 live) and answers everything under `/bmo-face`:
   - the generated screen, and its page for every path that is not the server's;
   - the generated screen's build manifest, `/bmo-face/_nuxt/builds/latest.json`, whose build id a
@@ -418,10 +619,11 @@ expression document both the display and the editor read, and the server that se
 - **A request body is at most 2,000,000 bytes;** a larger one is answered `413` before it is read.
 - **The editor's password** is checked against the Argon2 hash BMO keeps in `web_users`, the one form
   BMO writes there.
-- **Its check** is the crate's tests: the document's check and its preparing against the shared
-  fixtures, the tool entry, and a contract test that stands the binary on a free port over a scratch
-  data root, a scratch archive and a stand-in for BMO's console. The screen's own test stands the
-  same binary up once more and reads its console manifest through bmo-ui's `consoleManifest`.
+- **Its check** is the crates' tests: the core's own (「The face's core」), and the server's — the
+  document's preparing over a scratch data root, the tool entry, and a contract test that stands the
+  binary on a free port over a scratch data root, a scratch archive and a stand-in for BMO's console.
+  The screen's own test stands the same binary up once more and reads its console manifest through
+  bmo-ui's `consoleManifest`.
 
 ## The console screen
 

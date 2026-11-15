@@ -24,7 +24,7 @@ export function keptDocument(drawn: FaceDocument | null, arrived: unknown): Face
   const checked = checkFaceDocument(arrived);
   const savedAt = (arrived as { savedAt?: unknown } | null)?.savedAt;
 
-  if ("error" in checked || typeof savedAt !== "number") {
+  if ("refusal" in checked || typeof savedAt !== "number") {
     return drawn;
   }
 

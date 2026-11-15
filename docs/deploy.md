@@ -12,7 +12,9 @@ declaration, `testbed.toml`; nothing here deploys itself.
   both from there, reading the bundle once as it starts: its own defaults are those two folders
   beside the release's `bin/` (`docs/face.md`, 「The server」 and 「The console screen」). The screen
   is generated in Korean, from the pack this repository holds, `client/i18n/locales/ko.yaml`, and the
-  bundle's words are read from the same pack.
+  bundle's words are read from the same pack. Both take the face's core from the WebAssembly build the
+  repository carries under `src/wasm/` (`docs/face.md`, 「The face's core」), so a release builds no
+  WebAssembly and needs no toolchain for it; the server's binary is built with the core as a crate.
 - **The unit:** `deploy/bmo-face.service`, kept by the testbed as a user unit. It runs
   `bin/bmo-face` in the release on 127.0.0.1:3217, with `BMO_FACE_DATA` naming the document and the
   session database under the shared data root, `face/`. Its health is read from the document route

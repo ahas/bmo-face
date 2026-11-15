@@ -31,18 +31,34 @@ face:
     title: 표정 에디터
     tab:
       faces: 감정 표정
-      mouths: 입 모양 단계
-    group:
+      talk: 말하는 입
+    element:
       eyes: 눈
       brows: 눈썹
-      cheeks: 볼
+      blush: 볼
       mouth: 입
       marks: 눈물·땀
-    stage: "{n}단계"
+    side:
+      left: 왼쪽
+      right: 오른쪽
+    family:
+      bean: 강낭콩
+      line: 선
+      slit: 틈
+      round: 동그라미
+      grimace: 이 드러냄
+      small-o: 작은 o
+    size:
+      small: 작게
+      medium: 중간
+      large: 크게
+    mouth_n: "{n}번"
     target:
       face: 표정
-      group: 부위
-      stage: 단계
+      element: 부위
+      side: 쪽
+      family: 입 모양
+      mouth: 그림
     action:
       save: 저장
       logout: 로그아웃
@@ -50,13 +66,16 @@ face:
       add_oval: 타원
       add_line: 선
       remove_part: 모양 삭제
-      add_stage: 단계
-      add_part_stage: 모양·단계 추가
-      remove_stage: 단계 삭제
+      add_mouth: 입 그림
+      add_part_mouth: 모양·입 추가
+      remove_mouth: 입 그림 삭제
       add_node: 노드 추가
       remove_node: 노드 삭제
       add_teeth: 윗니
+      add_lowerTeeth: 아랫니
       add_tongue: 혀
+      add_tongueLight: 혀 밝은 면
+      add_shine: 눈 반짝임
       outline: 바깥 모양
       fields: 모양
       more: 더 보기
@@ -84,17 +103,59 @@ face:
       smooth: 부드럽게
       inside: 안쪽 모양
       inside_part: "{paint} {n}"
+      mirror: 좌우 대칭
+      reach: 시선 범위
+      size: 크기
     paint:
       none: 없음
       ink: 검정
       light: 흰색
       mouth: 입 속
       tongue: 혀
+      tongueLight: 혀 밝은 면
       cheek: 볼
       tear: 눈물
     preview:
       title: 미리보기
-      talk: 입 움직이기
+      talk: 말하기
+      blink: 깜빡임
+      gaze_x: 시선 가로
+      gaze_y: 시선 세로
+    place:
+      color: "색 {name}"
+      part: "모양 {n}"
+      inside: "안쪽 {n}"
+      node: "노드 {n}"
+      family: "입 모양 {n}"
+      mouth: "그림 {n}"
+    refusal:
+      not-a-document: 표정 문서의 모양이 맞지 않아요.
+      color: "#rrggbb 꼴이어야 해요."
+      unknown-face: "모르는 표정 이름이에요: {name}"
+      no-fallback: 기본 표정은 삭제할 수 없어요.
+      not-a-face: 표정이 맞지 않아요.
+      not-a-pair: 왼쪽과 오른쪽이 맞지 않아요.
+      reach: "시선 범위는 {least}에서 {most} 사이여야 해요."
+      parts: "모양은 {most}개까지예요."
+      not-a-part: 모양이 아니에요.
+      closedness: 닫힌 선인지가 맞지 않아요.
+      node-count: "노드는 {least}개에서 {most}개 사이여야 해요."
+      node-value: 노드의 값이 맞지 않아요.
+      off-screen: 노드나 손잡이가 화면 밖으로 나가요.
+      fill-paint: 채우기 칠이 맞지 않아요.
+      line-value: 선의 값이 맞지 않아요.
+      line-width: "선 굵기는 {least}에서 {most} 사이여야 해요."
+      neither-fill-nor-line: 채우기나 선 가운데 하나는 있어야 해요.
+      open-filled: 열린 선은 채울 수 없어요.
+      nested-inside: 안에 넣은 모양 안에는 다시 넣을 수 없어요.
+      inside-open: 열린 선 안에는 모양을 넣을 수 없어요.
+      inside-count: "안에 넣는 모양은 {most}개까지예요."
+      families: "입 모양은 {least}개에서 {most}개 사이여야 해요."
+      family-name: 입 모양 이름이 맞지 않아요.
+      voices: 입 모양이 그려지는 소리가 맞지 않아요.
+      weight: 입 모양의 비중이 맞지 않아요.
+      mouths: "입 모양마다 그림은 {least}개에서 {most}개 사이여야 해요."
+      size: 그림의 크기가 맞지 않아요.
     login:
       title: 표정 에디터 로그인
       wrong: 아이디 또는 비밀번호가 맞지 않아요.

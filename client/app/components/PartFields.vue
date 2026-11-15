@@ -51,7 +51,7 @@
                 :key="axis"
                 :model-value="row.value[axis]"
                 :step="0.5"
-                :aria-label="`${t(`face.edit.fields.${row.kind}`)} ${t(axis === 0 ? 'edit.fields.x' : 'edit.fields.y')}`"
+                :aria-label="`${t(`face.edit.fields.${row.kind}`)} ${t(axis === 0 ? 'face.edit.fields.x' : 'face.edit.fields.y')}`"
                 class="w-full"
                 @update:model-value="(value: number | null) => setNumber(row.kind, axis, value)"
               />

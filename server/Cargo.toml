@@ -4,7 +4,7 @@
 [package]
 name = "bmo-face"
 version.workspace = true
-description = "BMO's face: the server, the expression document check and the expression tool entry."
+description = "BMO's face: the server, the expression document's keeping and the expression tool entry."
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
@@ -16,6 +16,8 @@ name = "bmo-face"
 path = "src/main.rs"
 
 [dependencies]
+# The face's core: the expression document's check, its carrying from older forms and its default.
+bmo-face-core = { path = "../core" }
 # The console face the console plugin contract asks of a service: its manifest, its bundle's files, its
 # words and their guard, served by bmo-chat's shared crate.
 bmo-console-face = { path = "../../../base/chat/console-face" }

@@ -211,7 +211,11 @@ fn save_answer(face: &Face, body: &Bytes) -> Response {
       &json!({ "error": "다른 창에서 먼저 저장했어요. 새로 불러온 뒤 다시 고쳐 주세요.", "current": current }),
       &[],
     ),
-    Ok(Saved::Refused(said)) => error(StatusCode::BAD_REQUEST, &said),
+    Ok(Saved::Refused(refusal)) => json_answer(
+      StatusCode::BAD_REQUEST,
+      &json!({ "error": format!("The document is refused: {}", refusal.describe()), "refusal": refusal.to_json() }),
+      &[],
+    ),
     Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
   }
 }

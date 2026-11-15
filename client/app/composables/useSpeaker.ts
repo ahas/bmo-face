@@ -1,28 +1,37 @@
-import { isFresh } from "~/domain/listener";
-import { envelope, MouthStager, rms } from "~/domain/mouth";
+import { FACTS } from "#core";
 
-import type { Emotion } from "#faces";
+import { isFresh } from "~/domain/listener";
+import { loudnessByFrame } from "~/domain/mouth";
+
+import type { FaceScene } from "#core";
+import type { HeldClock } from "~/composables/useFaceScene";
 import type { HeardBriefing } from "~/domain/listener";
 
-// Plays a briefing and moves the mouth with it (docs/face.md, 「The mouth while speaking」). The sound
-// is fetched with the screen's token and decoded into the page's own audio graph. Heard, the mouth
-// follows an analyser on what is playing; with `?sound=off`, nothing plays and the mouth follows the
-// decoded sound's loudness on a clock.
+// Plays a briefing and hands the face's core what it needs to move the mouth with it (docs/face.md,
+// 「The mouth while speaking」). The sound is fetched with the screen's token and decoded whole into the
+// page's own audio graph before it plays, its loudness read once a frame of the held clock, and the
+// core plans every drawing over it at once. The sound is started on the audio clock so that it is heard
+// the core's lead after the first drawing shows, the output latency the browser reports taken off; with
+// `?sound=off` nothing plays and the mouth runs on the frame clock alone.
 
-const STEP_MS = 1000 / 60;
+export interface SceneTeller {
+  clock: HeldClock;
+  tell: (what: (scene: FaceScene, frame: number) => void) => void;
+}
 
-export function useSpeaker(options: { token: Ref<string | null>; silent: boolean; stages: Ref<number> }) {
+/** How many frames the first drawing waits after a sound is decoded, so its own frame is not already past. */
+const SETTLE_FRAMES = 1;
+
+export function useSpeaker(options: { token: Ref<string | null>; silent: boolean; face: SceneTeller }) {
   const speaking = ref<HeardBriefing | null>(null);
-  const spoke = ref<{ emotion: Emotion; endedAt: number } | null>(null);
-  const stage = ref(0);
   /** The browser holds sound back until the screen is touched once. */
   const suspended = ref(false);
 
   let context: AudioContext | null = null;
   let source: AudioBufferSourceNode | null = null;
-  let frame: number | null = null;
+  let ending: ReturnType<typeof setTimeout> | null = null;
   let waiting: HeardBriefing | null = null;
-  // Each briefing's play is numbered, so a stop or a newer briefing ends the older one's loop.
+  // Each briefing's play is numbered, so a stop or a newer briefing ends the older one.
   let playing = 0;
 
   function audio(): AudioContext {
@@ -37,9 +46,9 @@ export function useSpeaker(options: { token: Ref<string | null>; silent: boolean
       return;
     }
 
-    if (frame !== null) {
-      cancelAnimationFrame(frame);
-      frame = null;
+    if (ending !== null) {
+      clearTimeout(ending);
+      ending = null;
     }
 
     try {
@@ -49,9 +58,8 @@ export function useSpeaker(options: { token: Ref<string | null>; silent: boolean
     }
 
     source = null;
-    spoke.value = { emotion: speaking.value.emotion, endedAt: Date.now() };
     speaking.value = null;
-    stage.value = 0;
+    options.face.tell((scene, frame) => scene.stop(frame));
   }
 
   async function play(briefing: HeardBriefing): Promise<void> {
@@ -82,58 +90,29 @@ export function useSpeaker(options: { token: Ref<string | null>; silent: boolean
       return;
     }
 
-    const stager = new MouthStager(options.stages.value);
+    const loudness = loudnessByFrame(buffer.getChannelData(0), buffer.sampleRate, FACTS.fps);
+    const { clock } = options.face;
+    // The first drawing shows a frame from now; the sound is heard the lead after it.
+    const heard = clock.frame() + SETTLE_FRAMES + FACTS.lead;
+    const heardIn = (clock.timeOf(heard) - performance.now()) / 1000;
 
     speaking.value = briefing;
-    stage.value = 0;
+    options.face.tell((scene) => scene.speak({ loudness, seed: briefing.messageId }, briefing.emotion, heard));
 
     if (options.silent) {
-      const readings = envelope(buffer.getChannelData(0), buffer.sampleRate, STEP_MS);
-      const began = performance.now();
-      const step = () => {
-        if (which !== playing) {
-          return;
-        }
-
-        const index = Math.floor((performance.now() - began) / STEP_MS);
-
-        if (index >= readings.length) {
-          finish(which);
-
-          return;
-        }
-
-        stage.value = stager.push(readings[index]!);
-        frame = requestAnimationFrame(step);
-      };
-
-      frame = requestAnimationFrame(step);
+      ending = setTimeout(() => finish(which), heardIn * 1000 + buffer.duration * 1000);
 
       return;
     }
 
-    const analyser = context.createAnalyser();
-    const samples = new Float32Array(1024);
+    // What the browser says its output path delays the sound by, taken off its start.
+    const latency = context.outputLatency || context.baseLatency || 0;
 
-    analyser.fftSize = samples.length;
     source = context.createBufferSource();
     source.buffer = buffer;
-    source.connect(analyser);
-    analyser.connect(context.destination);
+    source.connect(context.destination);
     source.onended = () => finish(which);
-    source.start();
-
-    const step = () => {
-      if (which !== playing) {
-        return;
-      }
-
-      analyser.getFloatTimeDomainData(samples);
-      stage.value = stager.push(rms(samples));
-      frame = requestAnimationFrame(step);
-    };
-
-    frame = requestAnimationFrame(step);
+    source.start(context.currentTime + Math.max(0, heardIn - latency));
   }
 
   /** Stops what is playing; the same as the sound running out. */
@@ -165,5 +144,5 @@ export function useSpeaker(options: { token: Ref<string | null>; silent: boolean
     void context?.close();
   });
 
-  return { speaking, spoke, stage, suspended, play, stop, resume };
+  return { speaking, suspended, play, stop, resume };
 }

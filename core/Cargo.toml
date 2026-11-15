@@ -1,0 +1,29 @@
+# BMO's face's core (docs/face.md, 「The face's core」): the expression document read and checked, the
+# shapes it is drawn from, and the drawing the display shows at each frame of the held clock. It does no
+# I/O and keeps no clock of its own, so the server, the web screen through its WebAssembly build and a
+# native displayer all draw the one face.
+
+[package]
+name = "bmo-face-core"
+version.workspace = true
+description = "BMO's face: the expression document, its shapes and the drawing shown at each frame."
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+# One test target, the harness at tests/main.rs (bmo-chat's docs/conventions.md, 「Rust builds」).
+autotests = false
+
+[dependencies]
+# The document keeps its keys in the order they were written, as the screen and the file read it, and
+# every number exactly as written, as JavaScript reads it.
+serde_json = { version = "1.0.138", features = ["float_roundtrip", "preserve_order"] }
+# Held to the version of the `wasm-bindgen` command the build runs, which must be the same.
+wasm-bindgen = { version = "=0.2.126", optional = true }
+
+[features]
+# The binding the screen's WebAssembly build exports; a native caller never builds it.
+wasm = ["dep:wasm-bindgen"]
+
+[[test]]
+name = "main"
+path = "tests/main.rs"

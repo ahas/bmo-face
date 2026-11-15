@@ -18,6 +18,7 @@ use axum::body::Bytes;
 use axum::extract::{Request, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
+use bmo_face::store::document_text;
 use futures_util::StreamExt;
 use http_body_util::{BodyExt, Full, StreamBody};
 use hyper::body::Frame;
@@ -31,7 +32,6 @@ use tokio::sync::Notify;
 
 const HOST: &str = "face.test";
 const ORIGIN: &str = "http://face.test";
-const DEFAULT: &str = include_str!("../../tests/fixtures/default-faces.json");
 const FIXED: &str = include_str!("../../console-manifest.json");
 /// The credential the scratch console calls with, as the server is given it.
 const TOKEN: &str = "console-token";
@@ -455,7 +455,7 @@ impl Drop for Face {
 }
 
 fn default_document() -> Value {
-  serde_json::from_str(DEFAULT).unwrap()
+  bmo_face::store::default_document().clone()
 }
 
 /// The next frame of an event stream, as text.
@@ -504,7 +504,7 @@ async fn the_document_is_read_openly_and_a_new_data_root_starts_from_the_default
   assert_eq!(status, 200);
   assert_eq!(headers["cache-control"], "no-store");
   assert_eq!(serde_json::from_str::<Value>(&body).unwrap(), default_document());
-  assert_eq!(std::fs::read_to_string(face.faces_file()).unwrap(), DEFAULT);
+  assert_eq!(std::fs::read_to_string(face.faces_file()).unwrap(), document_text(&default_document()));
 }
 
 #[tokio::test]
@@ -556,7 +556,7 @@ async fn a_save_needs_a_session_this_site_and_the_version_it_was_edited_from() {
 
   // A document the check refuses is refused, and nothing is written.
   let mut broken = saved.clone();
-  broken["mouths"] = json!([]);
+  broken["talk"] = json!([]);
   let (status, _, body) = face
     .write(
       "PUT",
@@ -565,10 +565,12 @@ async fn a_save_needs_a_session_this_site_and_the_version_it_was_edited_from() {
       &[("cookie", &cookie)],
     )
     .await;
+  let refused: Value = serde_json::from_str(&body).unwrap();
   assert_eq!(
-    (status, serde_json::from_str::<Value>(&body).unwrap()["error"].as_str().unwrap()),
-    (400, "입 모양 단계는 2개에서 8개 사이여야 해요.")
+    (status, &refused["refusal"]),
+    (400, &json!({ "code": "families", "at": [], "least": 1, "most": 12 }))
   );
+  assert_eq!(refused["error"], "The document is refused: families");
   assert_eq!(face.document().await, saved);
 
   // Nothing larger than the server takes is read: a body declared past the limit is answered before
@@ -778,7 +780,7 @@ async fn a_stored_document_is_made_right_before_the_server_answers() {
   let document = face.document().await;
   assert_eq!(document["savedAt"], 1700);
   assert_eq!(document["colors"]["ink"], "#1f3b35");
-  assert_eq!(document["faces"]["기본"]["eyes"][0]["nodes"].as_array().unwrap().len(), 4);
+  assert_eq!(document["faces"]["기본"]["eyes"]["left"][0]["nodes"].as_array().unwrap().len(), 4);
   assert_eq!(document["faces"]["폭소"], default_document()["faces"]["폭소"]);
   drop(face);
 

@@ -1,15 +1,18 @@
-import { checkFaceDocument, FALLBACK_FACE, LIMITS, ovalNodes, SCREEN, splineNodes } from "#faces";
+import { addNode as coreAddNode, mirrorParts, newInside as coreNewInside, newPart as coreNewPart, smoothHandles } from "#core";
+import { checkFaceDocument, FALLBACK_FACE, LIMITS, PAIR_ELEMENTS, SCREEN } from "#faces";
 
-import { pointOn, segmentsOf, splitSegment } from "./draw";
-
-import type { Face, FaceDocument, FaceName, Part, PartGroup, PathNode, Point } from "#faces";
+import type { NewInside, NewPart } from "#core";
+import type { Element, Face, FaceDocument, FaceName, Pair, PairElement, Part, PathNode, Point, Refusal, Side, Size } from "#faces";
 
 // The editor's own logic, kept apart from its screen (docs/face.md, 「The editor」): which parts are
 // being edited, the handles each part is dragged by, and every change as a new part or a new
-// document, so the screen only ever swaps one for the next.
+// document, so the screen only ever swaps one for the next. The geometry of a change — a node added,
+// a smooth node's handles, a new part — is the face's core's.
 
-/** What is being edited: a group of one face, or one mouth stage. */
-export type EditTarget = { tab: "faces"; face: FaceName; group: PartGroup } | { tab: "mouths"; stage: number };
+export type { NewInside, NewPart };
+
+/** What is being edited: one side of a face's paired element or its other element, or one talking mouth. */
+export type EditTarget = { tab: "faces"; face: FaceName; element: Element; side: Side } | { tab: "talk"; family: number; mouth: number };
 
 /** A part among the target's parts: one of them, or one standing inside one of them. */
 export interface PartAt {
@@ -28,23 +31,93 @@ export interface HandleAt extends Handle {
   at: Point;
 }
 
-export function partsOf(document: FaceDocument, target: EditTarget): Part[] {
-  if (target.tab === "mouths") {
-    return document.mouths[target.stage] ?? [];
-  }
+export const isPair = (element: Element): element is PairElement => PAIR_ELEMENTS.includes(element);
 
-  return document.faces[target.face]?.[target.group] ?? [];
+/** The face a target edits, made from the fallback face where the document lacks it. */
+function faceOf(document: FaceDocument, name: FaceName): Face {
+  return document.faces[name] ?? structuredClone(document.faces[FALLBACK_FACE] as Face);
 }
 
-/** The document with the target's parts replaced. A face the document lacks is made from 기본 first. */
-export function withParts(document: FaceDocument, target: EditTarget, parts: Part[]): FaceDocument {
-  if (target.tab === "mouths") {
-    return { ...document, mouths: document.mouths.map((stage, index) => (index === target.stage ? parts : stage)) };
+/** Whether the target is a right side drawn as the left reflected, which is not edited on its own. */
+export function isMirrored(document: FaceDocument, target: EditTarget): boolean {
+  if (target.tab !== "faces" || !isPair(target.element)) {
+    return false;
   }
 
-  const face: Face = document.faces[target.face] ?? structuredClone(document.faces[FALLBACK_FACE] as Face);
+  return faceOf(document, target.face)[target.element].right === null;
+}
 
-  return { ...document, faces: { ...document.faces, [target.face]: { ...face, [target.group]: parts } } };
+export function partsOf(document: FaceDocument, target: EditTarget): Part[] {
+  if (target.tab === "talk") {
+    return document.talk[target.family]?.mouths[target.mouth]?.parts ?? [];
+  }
+
+  const face = document.faces[target.face];
+
+  if (face === undefined) {
+    return [];
+  }
+
+  if (!isPair(target.element)) {
+    return face[target.element as "mouth" | "marks"];
+  }
+
+  const pair: Pair = face[target.element];
+
+  return target.side === "left" ? pair.left : (pair.right ?? mirrorParts(pair.left));
+}
+
+/** The document with the target's parts replaced. A face the document lacks is made from the fallback first. */
+export function withParts(document: FaceDocument, target: EditTarget, parts: Part[]): FaceDocument {
+  if (target.tab === "talk") {
+    return {
+      ...document,
+      talk: document.talk.map((family, index) =>
+        index !== target.family ? family : { ...family, mouths: family.mouths.map((mouth, place) => (place === target.mouth ? { ...mouth, parts } : mouth)) },
+      ),
+    };
+  }
+
+  const face = faceOf(document, target.face);
+  const element = isPair(target.element) ? { ...face[target.element], [target.side]: parts } : parts;
+
+  return { ...document, faces: { ...document.faces, [target.face]: { ...face, [target.element]: element } } };
+}
+
+/** The document with a face's paired element mirrored, the right dropped; or drawn apart, the right the left reflected to edit on its own. */
+export function setMirrored(document: FaceDocument, name: FaceName, element: PairElement, mirrored: boolean): FaceDocument {
+  const face = faceOf(document, name);
+  const pair = face[element];
+  const right = mirrored ? null : (pair.right ?? mirrorParts(pair.left));
+
+  return { ...document, faces: { ...document.faces, [name]: { ...face, [element]: { ...pair, right } } } };
+}
+
+/** The document with how far a face's eyes move with the gaze set, each way held to the limit. */
+export function setReach(document: FaceDocument, name: FaceName, reach: Point): FaceDocument {
+  const face = faceOf(document, name);
+  const held = reach.map((value) => Math.min(LIMITS.maxReach, Math.max(0, value))) as Point;
+
+  return { ...document, faces: { ...document.faces, [name]: { ...face, eyes: { ...face.eyes, reach: held } } } };
+}
+
+/** A face's parts in the order they are drawn, both sides of a pair drawn out, leaving out one element's side or a whole element. */
+export function faceParts(face: Face, except: { element: Element; side: Side | null } | null = null): Part[] {
+  const order: Element[] = ["blush", "eyes", "brows", "mouth", "marks"];
+
+  return order.flatMap((element) => {
+    if (!isPair(element)) {
+      return except?.element === element ? [] : face[element as "mouth" | "marks"];
+    }
+
+    const pair: Pair = face[element];
+    const sides: [Side, Part[]][] = [
+      ["left", pair.left],
+      ["right", pair.right ?? mirrorParts(pair.left)],
+    ];
+
+    return sides.flatMap(([side, parts]) => (except?.element === element && (except.side === null || except.side === side) ? [] : parts));
+  });
 }
 
 /** The part a place names among the parts, or none. */
@@ -229,7 +302,7 @@ export function moveHandle(part: Part, handle: Handle, to: Point): Part {
 /**
  * The part with a node made smooth or a corner. Made smooth, its coming handle turns to stand
  * opposite its leaving one, keeping its length or taking the leaving one's where it had none; a node
- * with both handles at nothing takes the spline's handles through its neighbours.
+ * with both handles at nothing takes the handles of the smooth run through its part's anchors.
  */
 export function setSmooth(part: Part, index: number, smooth: boolean): Part {
   const node = part.nodes[index];
@@ -248,12 +321,12 @@ export function setSmooth(part: Part, index: number, smooth: boolean): Part {
     } else if (!isNothing(coming)) {
       changedNode = { ...changedNode, leaving: along(anchor, [-coming[0], -coming[1]], length(coming)) };
     } else {
-      const spline = splineNodes(
-        part.nodes.map((own) => own.anchor),
-        part.closed,
-      )[index]!;
+      const [coming, leaving] = smoothHandles(part, index) ?? [
+        [0, 0],
+        [0, 0],
+      ];
 
-      changedNode = { ...changedNode, coming: along(anchor, spline.coming, length(spline.coming)), leaving: along(anchor, spline.leaving, length(spline.leaving)) };
+      changedNode = { ...changedNode, coming: along(anchor, coming, length(coming)), leaving: along(anchor, leaving, length(leaving)) };
     }
   }
 
@@ -266,35 +339,11 @@ export function setSmooth(part: Part, index: number, smooth: boolean): Part {
  * `chosen` is the new node. A part at its limit is left as it stands.
  */
 export function addNode(part: Part, index: number): { part: Part; chosen: number } {
-  const count = part.nodes.length;
-
-  if (count >= LIMITS.maxNodes || index < 0 || index >= count) {
+  if (part.nodes.length >= LIMITS.maxNodes || index < 0 || index >= part.nodes.length) {
     return { part, chosen: index };
   }
 
-  const segment = !part.closed && index === count - 1 ? index - 1 : index;
-  const [first, second] = splitSegment(segmentsOf(part)[segment]!, 0.5);
-  const from = part.nodes[segment]!;
-  const toIndex = (segment + 1) % count;
-  const to = part.nodes[toIndex]!;
-  const middle = first[3];
-  const offset = ([x, y]: Point, [ax, ay]: Point): Point => [x - ax, y - ay];
-  const added: PathNode = { anchor: middle, coming: offset(first[2], middle), leaving: offset(second[1], middle), kind: "smooth" };
-  const nodes = part.nodes.map((own, place) => {
-    if (place === segment) {
-      return { ...own, leaving: offset(first[1], from.anchor) };
-    }
-
-    if (place === toIndex) {
-      return { ...own, coming: offset(second[2], to.anchor) };
-    }
-
-    return own;
-  });
-
-  nodes.splice(segment + 1, 0, added);
-
-  return { part: { ...part, nodes }, chosen: segment + 1 };
+  return coreAddNode(part, index);
 }
 
 /** The part with a node taken out, down to two. */
@@ -325,72 +374,23 @@ export function setClosed(part: Part, closed: boolean): Part | null {
 }
 
 // ---------------------------------------------------------------------------------------------
-// New parts. Each comes with its own paints, whatever group it is added to.
+// New parts, drawn by the core, each with its own paints whatever element it is added to.
 
-export type NewPart = "oval" | "line";
-export type NewInside = "teeth" | "tongue";
-
-/** A new part in the middle of the screen: an ink dot of four smooth nodes, or an ink line of three. */
+/** A new part in the middle of the screen: an ink dot the size of an eye, or an ink line of three smooth nodes. */
 export function newPart(kind: NewPart): Part {
-  const mx = SCREEN.width / 2;
-  const my = SCREEN.height / 2;
-
-  return kind === "oval"
-    ? { nodes: ovalNodes(mx, my, 4, 4), closed: true, fill: "ink", line: null }
-    : { nodes: splineNodes([[mx - 8, my], [mx, my + 4], [mx + 8, my]], false), closed: false, fill: null, line: { paint: "ink", width: 2.2 } };
+  return coreNewPart(kind);
 }
 
-/** The box a part's drawing stands in, read from points along its segments. */
-function boundsOf(part: Part): { left: number; right: number; top: number; bottom: number } {
-  const points = segmentsOf(part).flatMap((segment) => Array.from({ length: 9 }, (_, step) => pointOn(segment, step / 8)));
-  const xs = points.map(([x]) => x);
-  const ys = points.map(([, y]) => y);
-
-  return { left: Math.min(...xs), right: Math.max(...xs), top: Math.min(...ys), bottom: Math.max(...ys) };
-}
-
-const corner = (anchor: Point, coming: Point = [0, 0], leaving: Point = [0, 0]): PathNode => ({ anchor: onScreen(anchor), coming, leaving, kind: "corner" });
-
-/**
- * A new part to stand inside `outer`, sized to its opening: the upper teeth band along the top,
- * reaching past the sides to be cut off at the outline; or the tongue, a dome rising from below the
- * bottom edge, a little to the left.
- */
+/** A new part to stand inside `outer`, sized to its opening. */
 export function newInside(kind: NewInside, outer: Part): Part {
-  const { left, right, top, bottom } = boundsOf(outer);
-  const width = right - left;
-  const height = bottom - top;
-
-  if (kind === "teeth") {
-    const lower = top + height * 0.3;
-    const pull = round(width / 4);
-
-    return {
-      nodes: [corner([left - 2, top - 2]), corner([right + 2, top - 2]), corner([right + 2, lower], [0, 0], [-pull, 0.6]), corner([left - 2, lower], [pull, 0.6])],
-      closed: true,
-      fill: "light",
-      line: null,
-    };
-  }
-
-  const [from, to] = [onScreen([left + width * 0.15, bottom + 2]), onScreen([left + width * 0.65, bottom + 2])];
-  const peak = onScreen([(from[0] + to[0]) / 2, bottom - height * 0.4]);
-  const rise = round((peak[1] - from[1]) * 0.55);
-  const reach = round(((to[0] - from[0]) / 2) * 0.55);
-
-  return {
-    nodes: [corner(from, [0, 0], [0, rise]), { anchor: peak, coming: [-reach, 0], leaving: [reach, 0], kind: "smooth" }, corner(to, [0, rise])],
-    closed: true,
-    fill: "tongue",
-    line: null,
-  };
+  return coreNewInside(kind, outer);
 }
 
 /** The part with a new part inside it; an open part, or one holding as many as it may, is left as it stands. */
 export function addInside(part: Part, kind: NewInside): Part {
   const inside = part.inside ?? [];
 
-  if (!part.closed || inside.length >= LIMITS.partsInside) {
+  if (!part.closed || inside.length >= LIMITS.inside) {
     return part;
   }
 
@@ -411,28 +411,42 @@ export function removeInside(part: Part, index: number): Part {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Stages and saving.
+// The talking mouth set and saving.
 
-/** The mouth stages with one added after the given one, a copy of it; none past the limit. */
-export function addStage(document: FaceDocument, after: number): FaceDocument {
-  if (document.mouths.length >= LIMITS.maxStages) {
-    return document;
-  }
+/** The talking mouth set with a mouth added to a family after the given one, a copy of it; none past the limit. */
+export function addMouth(document: FaceDocument, family: number, after: number): FaceDocument {
+  return {
+    ...document,
+    talk: document.talk.map((own, index) => {
+      if (index !== family || own.mouths.length >= LIMITS.mouths) {
+        return own;
+      }
 
-  const mouths = [...document.mouths];
+      const mouths = [...own.mouths];
 
-  mouths.splice(after + 1, 0, structuredClone(mouths[after] ?? []));
+      mouths.splice(after + 1, 0, structuredClone(mouths[after] ?? { size: "small", parts: [] }));
 
-  return { ...document, mouths };
+      return { ...own, mouths };
+    }),
+  };
 }
 
-/** The mouth stages with one removed; never fewer than the least. */
-export function removeStage(document: FaceDocument, stage: number): FaceDocument {
-  if (document.mouths.length <= LIMITS.minStages) {
-    return document;
-  }
+/** The talking mouth set with a mouth removed from a family; never its last. */
+export function removeMouth(document: FaceDocument, family: number, mouth: number): FaceDocument {
+  return {
+    ...document,
+    talk: document.talk.map((own, index) => (index !== family || own.mouths.length <= 1 ? own : { ...own, mouths: own.mouths.filter((_, place) => place !== mouth) })),
+  };
+}
 
-  return { ...document, mouths: document.mouths.filter((_, index) => index !== stage) };
+/** The talking mouth set with a mouth's size class set. */
+export function setSize(document: FaceDocument, family: number, mouth: number, size: Size): FaceDocument {
+  return {
+    ...document,
+    talk: document.talk.map((own, index) =>
+      index !== family ? own : { ...own, mouths: own.mouths.map((each, place) => (place === mouth ? { ...each, size } : each)) },
+    ),
+  };
 }
 
 /** What a save sends: the document without its version, and the version it was edited from. */
@@ -469,8 +483,25 @@ export function changed(edited: FaceDocument, saved: FaceDocument): boolean {
 }
 
 /** Why the edited document would be refused, checked here before it is sent; null for one that passes. */
-export function refusalOf(document: FaceDocument): string | null {
+export function refusalOf(document: FaceDocument): Refusal | null {
   const checked = checkFaceDocument(saveBody(document, 0).document);
 
-  return "error" in checked ? checked.error : null;
+  return "refusal" in checked ? checked.refusal : null;
+}
+
+/** The words of a refusal: where it was met, from the outside in, and why, each from the language pack. */
+export function refusalWords(refusal: Refusal, t: (key: string, values?: Record<string, unknown>) => string): string {
+  const place = (at: Refusal["at"][number]): string => {
+    if ("face" in at) return t(`face.name.${at.face}`);
+    if ("element" in at) return t(`face.edit.element.${at.element}`);
+    if ("side" in at) return t(`face.edit.side.${at.side}`);
+    if ("color" in at) return t("face.edit.place.color", { name: at.color });
+
+    const [kind, n] = Object.entries(at)[0] as [string, number];
+
+    return t(`face.edit.place.${kind}`, { n });
+  };
+  const why = t(`face.edit.refusal.${refusal.code}`, { least: refusal.least, most: refusal.most, name: refusal.name });
+
+  return refusal.at.length === 0 ? why : `${refusal.at.map(place).join(" · ")}: ${why}`;
 }

@@ -1,114 +1,170 @@
 # BMO's expressions
 
-BMO's face as its finished official design draws it, measured from a set of reference pictures, and
-what each face and mouth stage of the default expression document (`docs/face.md`, 「The expression
-document」) takes from them.
+BMO's face as the animated series draws it, measured frame by frame, and what the face's shapes, its
+default faces and its drivers take from those measurements (`docs/face.md`, 「The faces」 and 「The
+mouth while speaking」).
 
-## The references
+## The study
 
-- **Only finished official pictures are references:** the pictures the owner gave, official product
-  illustrations and packaging, photographs of official figures and plush, and official sticker art.
-  Fan wikis' stills, galleries, storyboards and concept sketches are drafts and are not references.
-- **The owner's three pictures come first.** Where the others disagree with them, the three decide.
-- The pictures and a file of where each came from are kept on this worker's workbench, under
-  `references/` — `img/` the pictures, `sources.tsv` their addresses, `crops/` each screen cut out,
-  `measurements.txt` what was measured on them. They are not committed: they are other people's
-  pictures, kept only to draw against.
-
-| Id | Picture | Kind | Source |
-| --- | --- | --- | --- |
-| r1 | smiling, arms up | flat illustration | the owner, message 9110 |
-| r2 | smiling, beside a skateboard | photograph of the official figure | the owner, message 9111 |
-| r3 | calm smile, walking | line art | the owner, message 9112 |
-| r4 | laughing, open case | photograph of Kidrobot's official 8" art figure | `https://www.kidrobot.com/products/adventure-time-bmo-art-figure-by-kidrobot` |
-| r5 | smiling | the front of Kidrobot's official art-figure box | `https://www.kidrobot.com/products/adventure-time-bmo-glow-in-the-dark-vinyl-art-figure-game-over-limited-edition-con-exclusive` |
-| r7 | smiling | photograph of Kidrobot's official plush | `https://www.kidrobot.com/products/adventure-time-bmo-12-glow-in-the-dark-interactive-plush` |
-| r8 | smiling, dancing | sticker of the official LINE pack 「Animated Adventure Time」 (Turner Japan) | `https://store.line.me/stickershop/product/5331/en` |
-| r9 | crying into its hands | a sticker of the same pack | `https://store.line.me/stickershop/product/5331/en` |
-
-## How the face is measured
-
-- On each picture the screen is the pale region around the face, and its box is the unit: the
-  screen's width is 100, as in the expression document.
-- The ink is every dark pixel inside it; each eye and each mouth is one blob of it, and its box and
-  centre are read off in those units.
-- r3 is drawn at an angle and r8 turned, so their distances are foreshortened and they speak for the
-  shapes rather than the numbers.
-- The colours are sampled from the flat pictures (r1, r3, r5, r8), whose paint no lighting has moved.
+- **What was read:** 26,135 frames in which BMO's eyes and mouth could be read, from 199 studio lines
+  over 48 episodes and from 12 whole episodes: 5,450 mouth drawings in 40 clusters, 5,462 eye samples
+  in 28 clusters, 199 blinks, 142 expression changes, and the sound under every talking frame.
+- **The unit is the screen.** BMO's screen, read in each frame, is 100 wide; its height stands at 1.33
+  of the width as the median (1.25 to 1.41), so the document's 4:3 screen of 100 by 75 holds, and
+  every size here is in its units.
+- **Nothing of the series enters the repository.** The frames and the sheets read from them stay
+  where the study ran. What the face takes is numbers, and shapes redrawn clean at the measured sizes
+  and proportions; where the study fitted exact control points it reads them as noise of the fit and
+  takes the size, the proportion and the roundness instead.
 
 ## The common design
 
-What every reference agrees on, as the default draws it on the screen of 100 by 75.
-
 - **Flat drawing on a pale mint screen.** Flat fills and near-black lines; no glow, no gradient.
-- **The screen** is wider than tall: 1.28 (r2, r4) to 1.64 (r7) wide to one high, 1.39 as the
-  middle of them. The document's 4:3 stands inside that range.
-- **Two small black dot eyes, far apart and high:**
-  - centre to centre 53 of the width — 50 (r2), 52.5 (r5), 53 (r4), 53.6 (r7), 57.6 (r1) — so each
-    eye stands about a quarter of the way in from its side: at 23.5 and 76.5;
-  - a little taller than wide: 6.3 wide and 7.8 high as the middle of 5.5 to 6.9 wide and 6 to 10.4
-    high;
-  - about a third of the way down the screen — 29 % (r1) to 37 % (r4, r5): at 25 of 75.
-- **The mouth is small, centred between the eyes and just below them.** Its top stands about 10
-  below the eyes' centres — 4.6 (r2) to 17.5 (r1) — so the eyes and the mouth read as one small
-  face high on the screen, with the screen's lower third left empty.
-- **The smiling mouth — the face BMO wears in nearly every reference** — is one open bowl:
-  - 32 wide (29 to 40) and 15.5 high (13 to 17.4), a little under half as high as wide;
-  - its top edge sags gently toward the middle and meets the round bottom in two corners;
-  - an ink outline;
-  - three layers inside it, cut off at the outline: the dark green inside; one white band of upper
-    teeth along the top edge, thickest in the middle and thinning into the corners, never separate
-    teeth; and a light green tongue rising from the bottom across most of the width, its peak right
-    of the middle and a little above half the mouth's height.
-- **The calm mouth** is one thin ink arc (r3): 20 wide, 4 deep, its ends about 12 below the eyes.
-- **A feeling changes the parts, not the proportions.** Eyes stay at the eyes' places and the size
-  of a dot; a mouth stays centred under them and no wider than the laughing mouth.
+- **Two small dot eyes, far apart and high:** 6 wide and 6.5 high, their centres 53.6 apart (49.3 to
+  58 as the middle half), 24.6 down the screen. One pair of eyes in five is drawn unalike, so each
+  eye is a side of its own, mirrored by default.
+- **The mouth stands 23.8 below the eyes,** centre to centre, at 48.4 down the screen. It is one value
+  of the eye and mouth sets, which a later change sets.
+- **Lines are thin and round.** A mouth's outline is 0.5 to 1.0 wide in the animation; the face draws
+  0.8, 0.7 around a small opening and 0.9 for a closed eye. Every line has round caps and round joins.
+- **No sharp corner on a mouth.** An open mouth's ends are turned on a radius of 0.36 of its height as
+  the median (0.28 to 0.46), half its height on a round O.
+- **An open mouth is a rounded bean:** a level top sagging a little toward the middle, round ends, a
+  full round bottom; inside, the dark green cavity, a white band of upper teeth hanging from the top,
+  thickest in the middle and stopping short of the corners, a two-tone tongue rising from the bottom
+  a little right of the middle, and now and then a band of lower teeth. 33 % of read frames show
+  teeth, 46 % a tongue.
+- **A line mouth bows a little:** 63 % of them bow upward in the middle.
+- **Other elements:** brows on 9 % of frames, a stroke above each eye; a white shine inside an eye on
+  3 %; pink blush under the eyes on 3 %; tears, sweat and the like as marks.
 
 ## The colours
 
-| Paint | Colour | Sampled from |
+The daylight palette, the screen colour of 65 % of the sampled frames, each colour the median of its
+pixels there.
+
+| Paint | Colour | Drawn as |
 | --- | --- | --- |
-| body | `#5fbb9c` | r1 (`#56bc9e` to `#5fbd9c`) |
-| screen | `#cef7d8` | r1 (`#d0e9d2`), r3 (`#d9ffe8`), r8 (`#c1fcce`) |
-| ink | `#000a00` | the dark lines of every picture |
-| light | `#fcfcfc` | the teeth band, r8 (`#fefefe`), r1 (`#eef9ef`) |
-| mouth | `#417640` | the inside of the mouth, r1 (`#385d37`), r5 (`#417936`), r8 (`#43794a`) |
-| tongue | `#66b567` | r1 (`#7aaf6d`), r5 (`#6ca46c`), r8 (`#50c862`) |
-| cheek | `#f4a3b4` | no reference draws cheeks; the paint is kept for the editor |
-| tear | `#74f1f0` | no reference draws tears; the paint is kept for the editor |
+| screen | `#cdfeda` | the screen |
+| ink | `#000201` | every line, the eyes, the outlines |
+| light | `#fcfbfc` | the teeth, an eye's shine |
+| mouth | `#2c843b` | the cavity of an open mouth |
+| tongue | `#50dc66` | the tongue |
+| tongueLight | `#64ea80` | the tongue's lighter tone, a rim along its top |
+| cheek | `#fecbc0` | the blush |
+| tear | `#74f1f0` | kept for the editor; no default face draws tears |
 
-## What the default draws, and after which reference
+The body around the screen, `#5fbb9c`, is no measurement of the animation; it is the teal of the
+official figure the face drew before.
 
-Every face stands on the common design above: its eyes at the eyes' places, its mouth centred under
-them. Where a reference shows the feeling itself, the face follows it; where none does, the face is
-drawn from the common design alone, and says so.
+## How a shape is drawn
 
-| Face | Eyes | Brows | Mouth | Follows |
-| --- | --- | --- | --- | --- |
-| `기본` | dots | — | the calm arc | r3 |
-| `기쁨` | dots | — | the smiling bowl with teeth band and tongue | r1, r2, r5, r8, r7 |
-| `폭소` | closed arcs bowed upward | — | a larger bowl, 40 wide and 18 high | r4 |
-| `슬픔` | closed arcs bowed upward, higher at the inner end | — | a small open wail: an arched top, the teeth band along it, the tongue below | r9 |
-| `놀람` | larger dots | — | a small round opening, teeth band and tongue | the common design alone |
-| `화남` | dots | heavy, slanted down toward the middle | an open wail wider than `슬픔`'s | the common design alone |
-| `걱정` | dots | raised toward the middle | a small gritted strip of teeth, filled `light` and lined `ink` | the common design alone |
-| `아픔` | `x x` of two crossed strokes each | — | a thin crescent opening under the teeth band | the common design alone |
-| `안간힘` | squeezed flat dots | — | a long lozenge, upper teeth above and lower teeth below | the common design alone |
-| `졸림` | closed arcs bowed downward | — | a short flat line | the common design alone |
-| `writing` | dots a little lower, looking down | level | a short flat line | the common design alone |
-| `thinking` | dots up and to the left | one, raised on the left | a short line rising to the right | the common design alone |
-| `idle` | dots | — | a short flat line | the common design alone |
+- **An eye** is a filled ink oval of four smooth nodes; a lid half down is that oval with its top cut
+  away and the cut drawn straight; a closed eye is a stroke through three or five points.
+- **An open mouth** is six smooth segments: a quarter turn at each end on the end radius, the level
+  top in two halves meeting at the middle, and the round bottom in two halves, each reaching a share
+  of its half (0.55 an ellipse, more a squarer bowl). Turned upside down it is a wail.
+- **The teeth band** hangs from above the outline, to be cut off at it, its lower edge falling from
+  its ends to its middle; the lower band is the same, risen from below.
+- **The tongue** is a dome rising from below the outline's bottom, its peak right of the middle; its
+  light tone is the same dome raised by 0.45, drawn under it, so it shows as a rim along its top.
+- **A line mouth** is a stroke through three points: its ends and its middle, the middle bowed.
 
-- **No face draws cheeks or tears,** since no reference does.
+## The eye set
 
-## The mouth stages
+The eyes the animation draws, each redrawn as the left eye around its centre, the right its
+reflection. The reach is how far each moves with the gaze; a closed eye has none.
 
-The mouths while speaking, from closed to widest, all of one family: the calm arc, then the smiling
-bowl of the references at four sizes, each with the teeth band and the tongue inside it, so a
-briefing's mouth is BMO's own smile opening and closing.
+| Name | Shape | Size (wide × high) | Reach |
+| --- | --- | --- | --- |
+| `dot` | filled oval | 6 × 6.5 | 2.2 × 1.6 |
+| `dot-small` | filled oval | 4.8 × 6.2 | 2.2 × 1.6 |
+| `oval` | tall oval | 5.8 × 9.6 | 1.8 × 1.2 |
+| `oval-tall` | taller oval | 6.8 × 13 | 1.6 × 1.0 |
+| `oval-wide` | large oval | 8.2 × 11.2 | 1.6 × 1.0 |
+| `surprise` | surprise oval | 8 × 17.2 | 1.4 × 0.8 |
+| `shining` | big eye, two white shines inside | 10.2 × 9.8 | 1.6 × 1.2 |
+| `half-lid-small` | lid half down | 5.2 × 3.75 | 1.6 × 0.6 |
+| `half-lid` | lid half down | 6.2 × 5 | 1.8 × 0.6 |
+| `half-lid-wide` | lid half down | 10 × 5.5 | 1.2 × 0.4 |
+| `closed-arc` | shallow arc ‿ | 10 × 1.9 | — |
+| `closed-cap` | arc ⌒ | 9 × 3.4 | — |
+| `closed-u` | shallow U | 11 × 4.5 | — |
+| `closed-u-deep` | deep U | 6.8 × 7.8 | — |
+| `squeezed` | `>` of two straight strokes | 5.8 × 5.6 | — |
 
-1. the calm arc of `기본` (r3);
-2. the bowl 16 wide and 6 high;
-3. 22 wide and 9.5 high;
-4. 27 wide and 12.5 high;
-5. 32 wide and 15.5 high — the smiling mouth of `기쁨` (r1, r2, r5, r8).
+## The talking mouth set
+
+The 23 mouth drawings that occur twenty times or more inside the studied lines, in the animation's
+eight families folded into six — its small, medium and large beans are one family of three sizes.
+Each family's weight is its share of the talking frames; its voices are the sounds it is drawn for.
+Sizes are wide × high; inside, the upper teeth band's depth (T), the lower band's (L) and the tongue's
+rise (G), each as a share of the height.
+
+| Family | Voices | Weight | Mouths |
+| --- | --- | --- | --- |
+| `bean` | open, other | 0.528 | small: 14.9 × 7.2 G .38; 20.5 × 7.8 T .22 G .34; 21.8 × 9.8 T .24 G .36 — medium: 28.2 × 8.5 T .3, top bowed up; 22 × 11.2 G .55; 27 × 12.2 T .24 G .4; 23.8 × 13.8 T .24 G .36; 32.2 × 12.2 T .22 G .4 — large: 28.8 × 15.8 T .22 G .38; 35.2 × 14.2 T .24 G .4; 32.5 × 15.5 T .2 G .42; 42.1 × 18.2 T .2 G .38 |
+| `line` | silence, closing | 0.139 | small 16.8 wide, bowed 0.5; medium 27.5, bowed 0.9; large 30.2, bowed 3.2 |
+| `slit` | silence, closing, other | 0.110 | small 15.5 × 4.8 G .4; medium 21.1 × 5.8 T .45 |
+| `round` | rounded, open | 0.085 | small 15.5 × 10.5 G .34; medium 17.2 × 13.8 T .16 G .32; large 19.8 × 17.8 T .16 G .3; large 26.5 × 20.2 T .18 G .28 |
+| `grimace` | other | 0.068 | large 34.8 × 10.5 T .44 L .44 |
+| `small-o` | rounded | 0.051 | small 7.2 × 8, a dark oval with nothing inside |
+
+## How the animation moves
+
+- **The talking mouth is drawn on twos:** a new drawing every two frames at 23.976 a second in 72 %
+  of holds, four frames in 11 %, one frame in 10 %. Drawings cut from one to the next; the same
+  drawing follows itself in 11 % of steps.
+- **The mouth leads the sound by two frames:** its openness follows the loudness best two frames
+  ahead.
+- **Loudness opens the mouth, weakly** (Spearman's ρ 0.21). By tenths of the loudness, quietest first:
+
+  | Tenth | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+  | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+  | Openness | .47 | .47 | .53 | .54 | .60 | .60 | .68 | .72 | .72 | .75 |
+  | Closed | 22 % | 17 % | 13 % | 11 % | 9 % | 9 % | 6 % | 8 % | 6 % | 4 % |
+
+- **By sound** (English audio, a tendency): on P, B and M the mouth is closed a third of the time and
+  widest and flattest; on rounded vowels narrowest, most often the small dark o; on open vowels most
+  open; in pauses between words closed a quarter of the time.
+- **Lines start and end small:** across the start of a line the mouth's opening grows from about 80
+  to about 200 square units, and across its end it shrinks from about 243 to about 94.
+- **The blink:** open, half-lid for one frame, a closed shallow arc for two, half-lid for one, open —
+  four frames in 52 % of blinks; 10 to 15 a minute; 14 % come as doubles.
+- **A change of expression** is a cut (13 of 40 eye changes, 29 of 102 mouth changes) or one to three
+  held in-between drawings on twos, some with anticipation or overshoot; never a smooth ease.
+- **Idle, the drawing is held;** only the blink moves, and the face does not drift.
+
+## What each default face draws
+
+Every face stands on the common design: its eyes at the eyes' places, its mouth centred under them.
+
+| Face | Eyes | Brows | Mouth |
+| --- | --- | --- | --- |
+| `기본` | `dot` | — | a line 14 wide, smiling 1 deep |
+| `기쁨` | `dot` | — | the large bean 28.8 × 15.8, teeth and tongue |
+| `슬픔` | `oval` | raised toward the middle | a small wail 18 × 9, its round side up, a tongue |
+| `놀람` | `oval-wide`, a little higher | — | a round O 15 × 14, teeth and tongue |
+| `화남` | `dot`, a little lower | slanted down toward the middle | a wail 24 × 10 under its teeth band |
+| `졸림` | `half-lid` | — | a level line 9 wide |
+| `폭소` | `closed-u-deep` | — | the widest bean 38 × 18, teeth and tongue |
+| `걱정` | `dot-small` | raised toward the middle | a slit of clenched teeth, both rows |
+| `아픔` | `x x` of two straight strokes each | — | a slit 24 × 7 under a deep teeth band |
+| `안간힘` | `squeezed` | — | the grimace 34.8 × 10.5, both rows of teeth |
+| `writing` | `dot`, a little lower | level | a level line 8 wide |
+| `thinking` | `dot`, up and to the left | the left one raised | a line rising to the right |
+| `idle` | `dot` | — | a level line 10 wide |
+
+No default face draws blush, tears or a shine; the set holds them for the editor.
+
+## Where the face still differs from the animation
+
+- **The animation draws its mouth fresh each time;** the face draws 23 drawings, so a long briefing
+  repeats them, though never twice running.
+- **Expressions in the animation change with the scene;** the face's expressions are its thirteen
+  faces, chosen by BMO's emotion and presence.
+- **The talking mouth does not lean, squash or tilt** with the head, as the animation's does when BMO
+  moves; the face has no head to move.
+- **The loudness relation was measured on English voices.** Korean's sounds are mapped by
+  extrapolation (`docs/face.md`, 「The mouth while speaking」), and BMO's briefings carry no timed text
+  today.

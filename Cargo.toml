@@ -1,10 +1,11 @@
-# The Cargo workspace: the face's one Rust project, the server and its tool entry. The root Bun
-# project holds the expression document's TypeScript statement and the scripts; the screen under
-# client/ is a Bun project of its own.
+# The Cargo workspace: the face's core, which reads the expression document and answers the drawing
+# shown at every frame, and the server with its tool entry, built on it. The root Bun project holds the
+# document's TypeScript statement, the core's WebAssembly build and the scripts; the screen under client/
+# is a Bun project of its own.
 
 [workspace]
 resolver = "3"
-members = ["server"]
+members = ["core", "server"]
 
 [workspace.package]
 version = "0.1.0-rev.1"
@@ -40,3 +41,11 @@ opt-level = 3
 [profile.release]
 debug = false
 strip = "debuginfo"
+
+# The core's WebAssembly build, optimised for size (docs/face.md, 「The face's core」).
+[profile.wasm]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"

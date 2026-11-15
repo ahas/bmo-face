@@ -8,9 +8,11 @@ export default defineNuxtConfig({
   // The face is a single page generated into static files; its own server hands them out and
   // answers every other path under the prefix with the page (docs/face.md, 「The server」).
   ssr: false,
-  // The expression document is stated once, at the repository's root, and read here as it stands.
+  // The expression document is stated once, at the repository's root, and the face's core built
+  // there; both are read here as they stand.
   alias: {
-    "#faces": fileURLToPath(new URL("../src/faces.ts", import.meta.url))
+    "#faces": fileURLToPath(new URL("../src/faces.ts", import.meta.url)),
+    "#core": fileURLToPath(new URL("../src/core.ts", import.meta.url))
   },
   app: {
     baseURL: "/bmo-face/",

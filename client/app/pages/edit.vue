@@ -25,9 +25,13 @@
             </AppTooltip>
             <template v-if="tab === 'faces'">
               <USelect v-model="face" size="sm" :items="faceItems" :aria-label="t('face.edit.target.face')" class="w-32 min-w-0" />
-              <USelect v-model="group" size="sm" :items="groupItems" :aria-label="t('face.edit.target.group')" class="w-28 min-w-0" />
+              <USelect v-model="element" size="sm" :items="elementItems" :aria-label="t('face.edit.target.element')" class="w-24 min-w-0" />
+              <USelect v-if="isPair(element)" v-model="side" size="sm" :items="sideItems" :aria-label="t('face.edit.target.side')" class="w-24 min-w-0" />
             </template>
-            <USelect v-else v-model="stage" size="sm" :items="stageItems" :aria-label="t('face.edit.target.stage')" class="w-24 min-w-0" />
+            <template v-else>
+              <USelect v-model="family" size="sm" :items="familyItems" :aria-label="t('face.edit.target.family')" class="w-28 min-w-0" />
+              <USelect v-model="mouth" size="sm" :items="mouthItems" :aria-label="t('face.edit.target.mouth')" class="w-24 min-w-0" />
+            </template>
 
             <!-- Wide, the actions stand as icon buttons in groups of three or fewer. -->
             <div class="hidden items-center gap-1 lg:flex">
@@ -36,10 +40,10 @@
                 <UButton size="sm" icon="i-material-symbols-delete-outline" color="neutral" variant="ghost" :aria-label="t('face.edit.action.remove_part')" :disabled="chosen === null" @click="removePart" />
               </AppTooltip>
 
-              <template v-if="tab === 'mouths'">
+              <template v-if="tab === 'talk'">
                 <USeparator orientation="vertical" class="h-6" />
-                <AppTooltip :text="t('face.edit.action.remove_stage')">
-                  <UButton size="sm" icon="i-material-symbols-layers-clear-outline" color="neutral" variant="ghost" :aria-label="t('face.edit.action.remove_stage')" :disabled="!canRemoveStage" @click="dropStage" />
+                <AppTooltip :text="t('face.edit.action.remove_mouth')">
+                  <UButton size="sm" icon="i-material-symbols-layers-clear-outline" color="neutral" variant="ghost" :aria-label="t('face.edit.action.remove_mouth')" :disabled="!canRemoveMouth" @click="dropMouth" />
                 </AppTooltip>
               </template>
             </div>
@@ -101,6 +105,14 @@
       </template>
       <template #body>
         <template v-if="edited">
+          <ElementFields
+            :document="edited"
+            :target="target"
+            @mirror="changeMirror"
+            @reach="changeReach"
+            @size="changeSize"
+          />
+          <USeparator />
           <PartFields
             :part="chosenPart"
             :empty="layer.length === 0"
@@ -112,7 +124,7 @@
             @leave="leave"
           />
           <USeparator />
-          <EditPreview :document="edited" :face="previewFace" :stage="tab === 'mouths' ? stage : null" />
+          <EditPreview :document="edited" :face="previewFace" :mouth="previewMouth" />
         </template>
         <USkeleton v-else-if="!loadFailed" class="edit-preview-skeleton" role="status" :aria-label="t('face.edit.preview.title')" />
         <p v-else class="text-base text-error">{{ t("face.edit.error.load_failed") }}</p>
@@ -128,6 +140,8 @@
     </template>
     <template #body>
       <div v-if="edited" class="flex flex-col gap-4">
+        <ElementFields :document="edited" :target="target" @mirror="changeMirror" @reach="changeReach" @size="changeSize" />
+        <USeparator />
         <PartFields
           :part="chosenPart"
           :empty="layer.length === 0"
@@ -139,27 +153,27 @@
           @leave="leave"
         />
         <USeparator />
-        <EditPreview :document="edited" :face="previewFace" :stage="tab === 'mouths' ? stage : null" />
+        <EditPreview :document="edited" :face="previewFace" :mouth="previewMouth" />
       </div>
     </template>
   </UDrawer>
 </template>
 
 <script setup lang="ts">
-import { faceFor, FACE_NAMES, LIMITS, PART_GROUPS } from "#faces";
+import { ELEMENTS, faceFor, FACE_NAMES, FALLBACK_FACE, LIMITS, SIDES } from "#faces";
 
 import CreateButton from "~/components/CreateButton.vue";
-import { addInside, addStage, newPart, partsOf, removeStage, withParts } from "~/domain/edit";
+import { addInside, addMouth, faceParts, isMirrored, isPair, newPart, partsOf, removeMouth, setMirrored, setReach, setSize, withParts } from "~/domain/edit";
 import { useBackClose } from "~/domain/layers";
 
 import type { DropdownMenuItem } from "@nuxt/ui";
-import type { FaceName, Part, PartGroup } from "#faces";
+import type { Element, FaceName, Part, PairElement, Point, Side, Size } from "#faces";
 import type { EditTarget, NewInside, NewPart } from "~/domain/edit";
 import type { EditorRoad } from "~/composables/useEditor";
 
-// The expression editor (docs/face.md, 「The editor」): one face's group or one mouth stage at a time
-// on the canvas — or the parts inside one of its parts — the chosen part's numbers and the preview
-// beside it, and one save for the whole. The page's own route reaches the server behind the editor's
+// The expression editor (docs/face.md, 「The editor」): one side of one face's element, or one talking
+// mouth, at a time on the canvas — or the parts inside one of its parts — the element's and the chosen
+// part's numbers and the preview beside it, and one save for the whole. The page's own route reaches the server behind the editor's
 // login; the console screen hands it the console's road, which needs none (「The console screen」).
 
 const props = defineProps<{ road?: EditorRoad }>();
@@ -167,13 +181,15 @@ const props = defineProps<{ road?: EditorRoad }>();
 // Whether the console this screen stands in offers its title bar, under bmo-web's key for it.
 const barOffered = inject("bmo-console-title-bar", null) !== null;
 const road = props.road ?? sessionRoad();
-const { t } = useI18n();
+const { t, te } = useI18n();
 const { editor, edited, loadFailed, saving, refusal, dirty, login, logout, save } = useEditor(road);
 
-const tab = ref<"faces" | "mouths">("faces");
-const face = ref<FaceName>("기본");
-const group = ref<PartGroup>("eyes");
-const stage = ref(0);
+const tab = ref<"faces" | "talk">("faces");
+const face = ref<FaceName>(FALLBACK_FACE);
+const element = ref<Element>("eyes");
+const side = ref<Side>("left");
+const family = ref(0);
+const mouth = ref(0);
 // The part whose inside is being edited, among the target's parts; null while the target's own
 // parts are. `chosen` and `chosenNode` are within what is being edited.
 const outline = ref<number | null>(null);
@@ -184,38 +200,49 @@ const createButton = useTemplateRef<{ element: () => HTMLElement | null }>("crea
 
 const tabs = computed(() => [
   { label: t("face.edit.tab.faces"), value: "faces" },
-  { label: t("face.edit.tab.mouths"), value: "mouths" },
+  { label: t("face.edit.tab.talk"), value: "talk" },
 ]);
 const faceItems = computed(() => FACE_NAMES.map((name) => ({ label: t(`face.name.${name}`), value: name })));
-const groupItems = computed(() => PART_GROUPS.map((name) => ({ label: t(`face.edit.group.${name}`), value: name })));
-const stageItems = computed(() => (edited.value?.mouths ?? []).map((_, index) => ({ label: t("face.edit.stage", { n: index + 1 }), value: index })));
-const canAddStage = computed(() => edited.value !== null && edited.value.mouths.length < LIMITS.maxStages);
-const canRemoveStage = computed(() => edited.value !== null && edited.value.mouths.length > LIMITS.minStages);
+const elementItems = computed(() => ELEMENTS.map((name) => ({ label: t(`face.edit.element.${name}`), value: name })));
+// A mirrored right side is drawn from the left and not edited on its own.
+const mirrored = computed(() => edited.value !== null && tab.value === "faces" && isMirrored(edited.value, { tab: "faces", face: face.value, element: element.value, side: "right" }));
+const sideItems = computed(() => SIDES.map((name) => ({ label: t(`face.edit.side.${name}`), value: name, disabled: name === "right" && mirrored.value })));
+const familyName = (name: string) => (te(`face.edit.family.${name}`) ? t(`face.edit.family.${name}`) : name);
+const familyItems = computed(() => (edited.value?.talk ?? []).map((own, index) => ({ label: familyName(own.name), value: index })));
+const mouthItems = computed(() => (edited.value?.talk[family.value]?.mouths ?? []).map((_, index) => ({ label: t("face.edit.mouth_n", { n: index + 1 }), value: index })));
+const canAddMouth = computed(() => (edited.value?.talk[family.value]?.mouths.length ?? LIMITS.mouths) < LIMITS.mouths);
+const canRemoveMouth = computed(() => (edited.value?.talk[family.value]?.mouths.length ?? 0) > 1);
 
 // What the create button makes (docs/face.md, 「The editor」): a part of what is being edited; inside a
-// chosen closed part of the target's own, a teeth band or a tongue; and, in the mouth stage tab, a stage.
-const createLabel = computed(() => (tab.value === "faces" ? t("face.edit.action.add_part") : t("face.edit.action.add_part_stage")));
+// chosen closed part of the target's own, a part to stand inside it; and, in the talking mouth tab, a mouth.
+const createLabel = computed(() => (tab.value === "faces" ? t("face.edit.action.add_part") : t("face.edit.action.add_part_mouth")));
+const INSIDE: { kind: NewInside; icon: string }[] = [
+  { kind: "teeth", icon: "i-material-symbols-dentistry-outline" },
+  { kind: "lowerTeeth", icon: "i-material-symbols-dentistry-outline" },
+  { kind: "tongue", icon: "i-material-symbols-sentiment-very-satisfied-outline" },
+  { kind: "tongueLight", icon: "i-material-symbols-light-mode-outline" },
+  { kind: "shine", icon: "i-material-symbols-auto-awesome-outline" },
+];
 const createItems = computed((): DropdownMenuItem[][] => {
   const own = chosenPart.value;
   const groups: DropdownMenuItem[][] = [
     [
-      { label: t("face.edit.action.add_oval"), icon: "i-material-symbols-circle-outline", disabled: layerFull.value, onSelect: () => addPart("oval") },
-      { label: t("face.edit.action.add_line"), icon: "i-material-symbols-gesture", disabled: layerFull.value, onSelect: () => addPart("line") },
+      { label: t("face.edit.action.add_oval"), icon: "i-material-symbols-circle-outline", disabled: layerFull.value || mirroredSide.value, onSelect: () => addPart("oval") },
+      { label: t("face.edit.action.add_line"), icon: "i-material-symbols-gesture", disabled: layerFull.value || mirroredSide.value, onSelect: () => addPart("line") },
     ],
   ];
 
   if (outline.value === null && own !== null && own.closed) {
-    const full = (own.inside ?? []).length >= LIMITS.partsInside;
+    const full = (own.inside ?? []).length >= LIMITS.inside;
 
     groups.push([
       { type: "label", label: t("face.edit.fields.inside") },
-      { label: t("face.edit.action.add_teeth"), icon: "i-material-symbols-dentistry-outline", disabled: full, onSelect: () => addPartInside("teeth") },
-      { label: t("face.edit.action.add_tongue"), icon: "i-material-symbols-sentiment-very-satisfied-outline", disabled: full, onSelect: () => addPartInside("tongue") },
+      ...INSIDE.map(({ kind, icon }) => ({ label: t(`face.edit.action.add_${kind}`), icon, disabled: full, onSelect: () => addPartInside(kind) })),
     ]);
   }
 
-  if (tab.value === "mouths") {
-    groups.push([{ label: t("face.edit.action.add_stage"), icon: "i-material-symbols-library-add-outline", disabled: !canAddStage.value, onSelect: moreStage }]);
+  if (tab.value === "talk") {
+    groups.push([{ label: t("face.edit.action.add_mouth"), icon: "i-material-symbols-library-add-outline", disabled: !canAddMouth.value, onSelect: moreMouth }]);
   }
 
   return groups;
@@ -246,27 +273,34 @@ const createMenu = {
 const narrowItems = computed((): DropdownMenuItem[][] => [
   [{ label: t("face.edit.action.fields"), icon: "i-material-symbols-tune", onSelect: () => (drawer.value = true) }],
   [{ label: t("face.edit.action.remove_part"), icon: "i-material-symbols-delete-outline", disabled: chosen.value === null, onSelect: removePart }],
-  ...(tab.value === "mouths"
-    ? [[{ label: t("face.edit.action.remove_stage"), icon: "i-material-symbols-layers-clear-outline", disabled: !canRemoveStage.value, onSelect: dropStage }]]
+  ...(tab.value === "talk"
+    ? [[{ label: t("face.edit.action.remove_mouth"), icon: "i-material-symbols-layers-clear-outline", disabled: !canRemoveMouth.value, onSelect: dropMouth }]]
     : []),
 ]);
 
-const target = computed<EditTarget>(() => (tab.value === "faces" ? { tab: "faces", face: face.value, group: group.value } : { tab: "mouths", stage: stage.value }));
+const target = computed<EditTarget>(() =>
+  tab.value === "faces" ? { tab: "faces", face: face.value, element: element.value, side: side.value } : { tab: "talk", family: family.value, mouth: mouth.value },
+);
+// The right side while it mirrors the left: drawn from the left, so nothing is added to it here.
+const mirroredSide = computed(() => mirrored.value && isPair(element.value) && side.value === "right");
 const parts = computed<Part[]>(() => (edited.value === null ? [] : partsOf(edited.value, target.value)));
 // The part whose inside is being edited, and what is being edited: its inside, or the target's parts.
 const outer = computed<Part | null>(() => (outline.value === null ? null : (parts.value[outline.value] ?? null)));
 const layer = computed<Part[]>(() => (outline.value === null ? parts.value : (outer.value?.inside ?? [])));
-const layerFull = computed(() => layer.value.length >= (outline.value === null ? LIMITS.partsPerGroup : LIMITS.partsInside));
+const layerFull = computed(() => layer.value.length >= (outline.value === null ? LIMITS.parts : LIMITS.inside));
 const chosenPart = computed(() => (chosen.value === null ? null : (layer.value[chosen.value] ?? null)));
 const targetLabel = computed(() => {
-  const named = tab.value === "faces" ? `${t(`face.name.${face.value}`)} · ${t(`face.edit.group.${group.value}`)}` : t("face.edit.stage", { n: stage.value + 1 });
+  const named =
+    tab.value === "faces"
+      ? [t(`face.name.${face.value}`), t(`face.edit.element.${element.value}`), ...(isPair(element.value) ? [t(`face.edit.side.${side.value}`)] : [])].join(" · ")
+      : `${familyName(edited.value?.talk[family.value]?.name ?? "")} · ${t("face.edit.mouth_n", { n: mouth.value + 1 })}`;
 
   return outline.value === null ? named : `${named} · ${t("face.edit.fields.inside")}`;
 });
 
 // The rest of the face behind what is being edited, each part in its own paints: the face's other
-// groups, or, for a mouth stage, the 기본 face without its mouth; and, inside a part, the target's
-// other parts.
+// elements and sides, or, for a talking mouth, the fallback face without its mouth; and, inside a part,
+// the target's other parts.
 const others = computed<Part[]>(() => {
   const document = edited.value;
 
@@ -274,13 +308,23 @@ const others = computed<Part[]>(() => {
     return [];
   }
 
-  const shown = tab.value === "faces" ? faceFor(document, face.value) : faceFor(document, "기본");
-  const skipped: PartGroup = tab.value === "faces" ? group.value : "mouth";
+  const except = tab.value === "faces" ? { element: element.value, side: isPair(element.value) ? side.value : null } : { element: "mouth" as const, side: null };
+  const shown = faceFor(document, tab.value === "faces" ? face.value : FALLBACK_FACE);
   const siblings = outline.value === null ? [] : parts.value.filter((_, index) => index !== outline.value);
 
-  return [...PART_GROUPS.filter((name) => name !== skipped).flatMap((name) => shown[name]), ...siblings];
+  return [...faceParts(shown, except), ...siblings];
 });
-const previewFace = computed(() => (edited.value === null ? null : faceFor(edited.value, tab.value === "faces" ? face.value : "기본"))!);
+const previewFace = computed<FaceName>(() => (tab.value === "faces" ? face.value : FALLBACK_FACE));
+const previewMouth = computed<Part[] | null>(() => (tab.value === "talk" ? parts.value : null));
+
+// A mirrored right side is not edited on its own: the left is.
+watch(mirrored, (now) => {
+  if (now) {
+    side.value = "left";
+  }
+});
+// Another family's mouths are counted afresh.
+watch(family, () => (mouth.value = 0));
 
 // A new target starts at its own parts, with nothing chosen.
 watch(target, () => {
@@ -376,17 +420,35 @@ function removePart(): void {
   }
 }
 
-function moreStage(): void {
-  if (edited.value !== null) {
-    edited.value = addStage(edited.value, stage.value);
-    stage.value += 1;
+function moreMouth(): void {
+  if (edited.value !== null && canAddMouth.value) {
+    edited.value = addMouth(edited.value, family.value, mouth.value);
+    mouth.value += 1;
   }
 }
 
-function dropStage(): void {
+function dropMouth(): void {
+  if (edited.value !== null && canRemoveMouth.value) {
+    edited.value = removeMouth(edited.value, family.value, mouth.value);
+    mouth.value = Math.min(mouth.value, (edited.value.talk[family.value]?.mouths.length ?? 1) - 1);
+  }
+}
+
+function changeMirror(mirror: boolean): void {
+  if (edited.value !== null && tab.value === "faces" && isPair(element.value)) {
+    edited.value = setMirrored(edited.value, face.value, element.value as PairElement, mirror);
+  }
+}
+
+function changeReach(reach: Point): void {
   if (edited.value !== null) {
-    edited.value = removeStage(edited.value, stage.value);
-    stage.value = Math.min(stage.value, edited.value.mouths.length - 1);
+    edited.value = setReach(edited.value, face.value, reach);
+  }
+}
+
+function changeSize(size: Size): void {
+  if (edited.value !== null) {
+    edited.value = setSize(edited.value, family.value, mouth.value, size);
   }
 }
 

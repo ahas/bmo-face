@@ -8,7 +8,8 @@
   ],
   "compilerOptions": {
     "paths": {
-      "#faces": ["../src/faces.ts"]
+      "#faces": ["../src/faces.ts"],
+      "#core": ["../src/core.ts"]
     }
   }
 }

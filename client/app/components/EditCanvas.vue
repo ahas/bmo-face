@@ -13,31 +13,23 @@
     <rect x="0" y="0" :width="SCREEN.width" :height="SCREEN.height" rx="6" :fill="colors.screen" />
 
     <!-- The rest of the face, for reference only. -->
-    <g class="edit-context" aria-hidden="true">
-      <PartShape v-for="(part, index) in context" :key="index" :part="part" :clip="`${id}-context-${index}`" />
-    </g>
+    <DrawingPaint class="edit-context" aria-hidden="true" :drawing="context" />
 
     <!-- Editing what stands inside a part: its outline stands dimmed, as the edge they are cut off at. -->
     <g v-if="outline" class="edit-outline" aria-hidden="true">
-      <path :d="outline.d" :fill="outline.fill" stroke="none" />
+      <path v-if="outline.fill" v-bind="outline.fill" />
       <clipPath :id="`${id}-outline`">
         <path :d="outline.d" />
       </clipPath>
     </g>
 
     <g class="edit-parts" :clip-path="outline ? `url(#${id}-outline)` : undefined">
-      <PartShape
-        v-for="(part, index) in drawn"
-        :key="index"
-        :part="part"
-        :clip="`${id}-part-${index}`"
-        class="edit-part"
-        :class="{ chosen: index === chosen }"
-        @pointerdown.stop="emit('choose', index, null)"
-      />
+      <g v-for="(part, index) in drawn" :key="index" class="edit-part" :class="{ chosen: index === chosen }" @pointerdown.stop="emit('choose', index, null)">
+        <DrawingPaint :drawing="part" />
+      </g>
     </g>
 
-    <path v-if="outline" class="edit-outline-line" :d="outline.d" fill="none" :stroke="outline.stroke" :stroke-width="outline.strokeWidth" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" />
+    <path v-if="outline?.line" class="edit-outline-line" v-bind="outline.line" aria-hidden="true" />
 
     <!-- The chosen node's handles, each a thin line from its anchor to its end. -->
     <g v-if="chosenNode !== null && chosen !== null" class="edit-arms" aria-hidden="true">
@@ -65,7 +57,9 @@
 <script setup lang="ts">
 import { SCREEN } from "#faces";
 
-import { drawPart } from "~/domain/draw";
+import { partsDrawing } from "#core";
+
+import { paintAttributes, pathData } from "~/domain/draw";
 import { handlesOf, moveHandle, reachOf } from "~/domain/edit";
 
 import type { FaceColors, Part, Point } from "#faces";
@@ -128,9 +122,24 @@ onMounted(() => {
 });
 onBeforeUnmount(() => watcher?.disconnect());
 
-const drawn = computed(() => props.parts.map((part) => drawPart(part, props.colors)));
-const context = computed(() => props.others.map((part) => drawPart(part, props.colors)));
-const outline = computed(() => (props.outer === null ? null : drawPart({ ...props.outer, inside: [] }, props.colors)));
+// Each part is drawn on its own, so a press on it chooses it.
+const drawn = computed(() => props.parts.map((part) => partsDrawing([part], props.colors)));
+const context = computed(() => partsDrawing(props.others, props.colors));
+const outline = computed(() => {
+  if (props.outer === null) {
+    return null;
+  }
+
+  const { paint } = partsDrawing([{ ...props.outer, inside: [] }], props.colors);
+  const noClip = () => "";
+  const fill = paint.find((one) => "fill" in one);
+  const line = paint.find((one) => "stroke" in one);
+  const shape = fill ?? line;
+
+  return shape === undefined
+    ? null
+    : { d: pathData(shape.path), fill: fill === undefined ? null : paintAttributes(fill, noClip), line: line === undefined ? null : paintAttributes(line, noClip) };
+});
 
 const handles = computed(() => props.parts.map((part, index) => handlesOf(part, index === props.chosen ? props.chosenNode : null)));
 const handlesFor = (index: number): HandleAt[] => handles.value[index] ?? [];
