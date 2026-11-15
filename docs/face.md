@@ -449,6 +449,9 @@ expression document both the display and the editor read, and the server that se
   repository's root, the declaration the console face is built from and the file the bundle reads its
   screen path, service name and API prefix from:
   - the screens' calls stand under `/console`;
+  - the screen stands in the console sidebar's `administration` section, among the services an
+    administrator runs the system with, since the face is the machine's own display and no reader's
+    application;
   - a member opens the screen, and an administrator with it;
   - no owner key: the expression document is the machine's one document, no reader's own;
   - no events, no websocket and no pushes: the editor reads the document when it opens and after a

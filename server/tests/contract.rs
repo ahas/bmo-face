@@ -807,6 +807,7 @@ async fn the_manifest_reads_through_the_vendored_release_with_the_faces_own_fiel
   for (field, value) in declared.as_object().unwrap() {
     assert_eq!(&read[field], value, "{field}");
   }
+  assert_eq!(read["sidebarSection"], "administration");
   assert_eq!(read["layer"], vendored_layer());
 }
 

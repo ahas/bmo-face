@@ -5,6 +5,7 @@
   "screenPath": "/face",
   "serviceName": "face",
   "apiPrefix": "/console",
+  "sidebarSection": "administration",
   "role": "member",
   "ownerKey": false,
   "events": false,
