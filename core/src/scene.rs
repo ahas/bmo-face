@@ -1,19 +1,22 @@
 //! The face as it stands from frame to frame (docs/face.md, 「The face's core」 and 「Which face
 //! shows」): the document, what the caller has told it — what BMO is doing, a sound being spoken, where
 //! the eyes look — and the drawing every frame shows. Frames are the caller's, counted on the held clock
-//! and asked in order; given one seed and one run of events, every caller is handed the same drawings.
+//! and asked in order; given one seed and one run of events, every caller is handed the same drawings,
+//! and the speaking turns on what is heard alone.
 
 use crate::blink::{Blinks, Lid, lidded};
 use crate::change;
 use crate::clock::{ON_TWOS, frames_in};
 use crate::document::Document;
 use crate::drawing::Drawing;
+use crate::eyes::voiced;
 use crate::gaze::{GazeTrack, gazed};
 use crate::geometry::Point;
 use crate::look::Look;
+use crate::mouth::{Mouths, between};
 use crate::names::ASLEEP;
 use crate::random::Random;
-use crate::talk::{self, LEAD, Speech, Step};
+use crate::talk::{self, LEAD, Pose, Speech};
 
 /// How long a briefing's face stays after its sound ends.
 pub const LINGER_SECONDS: f64 = 4.0;
@@ -23,7 +26,8 @@ pub const SLEEP_SECONDS: f64 = 600.0;
 /// The presence a scene starts in, until it is told otherwise.
 const FIRST_PRESENCE: &str = "idle";
 
-/// A briefing being spoken: the face it shows and when, and the plan of its mouth.
+/// A briefing being spoken: the face it shows and when, and what the face does at each frame of its
+/// sound.
 #[derive(Clone, Debug)]
 struct Speaking {
   /// The frame the sound's first frame is heard at.
@@ -33,7 +37,8 @@ struct Speaking {
   /// The face it shows from its start, and the faces it moves to at frames of the sound.
   face: String,
   faces: Vec<(i64, String)>,
-  steps: Vec<Step>,
+  poses: Vec<Pose>,
+  on_twos: bool,
 }
 
 impl Speaking {
@@ -49,6 +54,20 @@ impl Speaking {
       .rev()
       .find(|(at, _)| self.start + at <= frame)
       .map_or(&self.face, |(_, face)| face)
+  }
+
+  /// The pose a frame shows, while it shows.
+  fn pose_at(&self, frame: i64) -> Option<&Pose> {
+    if !self.shows(frame) {
+      return None;
+    }
+    talk::pose_at(&self.poses, frame - self.start, self.on_twos)
+  }
+
+  /// The next frame after this one whose pose differs from its own, while it shows.
+  fn next_pose(&self, frame: i64) -> Option<i64> {
+    let now = self.pose_at(frame).copied();
+    (frame + 1..self.end).find(|later| self.pose_at(*later).copied() != now)
   }
 }
 
@@ -72,6 +91,8 @@ impl Changing {
 
 pub struct Scene {
   document: Document,
+  /// The talking set made ready to draw from.
+  mouths: Mouths,
   /// Expression changes are cuts alone, for a viewer who asks for less motion.
   calm: bool,
   blinking: bool,
@@ -93,6 +114,7 @@ impl Scene {
   /// A scene of a document, its chance drawn from `seed`, its presence idle from `frame`.
   pub fn new(document: Document, seed: u64, frame: i64) -> Scene {
     Scene {
+      mouths: Mouths::new(&document.talk.anchors),
       document,
       calm: false,
       blinking: true,
@@ -110,6 +132,7 @@ impl Scene {
 
   /// A document saved since: the face shown is drawn from it at once, with no in-between.
   pub fn set_document(&mut self, document: Document) {
+    self.mouths = Mouths::new(&document.talk.anchors);
     self.document = document;
     self.shown = None;
     self.changing = None;
@@ -137,8 +160,9 @@ impl Scene {
   /// A sound to speak, first heard at `start`, with the face it shows and the faces it moves to at
   /// frames of the sound.
   pub fn speak(&mut self, speech: &Speech, face: &str, faces: Vec<(i64, String)>, start: i64) {
-    let steps = talk::plan(speech, &self.document.talk);
-    let end = start + speech.loudness.len() as i64;
+    let tuning = &self.document.talk.tuning;
+    let poses = talk::plan(speech, tuning);
+    let end = start + speech.heard.len() as i64;
     if let Some(earlier) = self.speaking.take() {
       self.spoke = Some((earlier.face_at(start).to_owned(), start.min(earlier.end)));
     }
@@ -147,7 +171,8 @@ impl Scene {
       end,
       face: face.to_owned(),
       faces,
-      steps,
+      poses,
+      on_twos: tuning.on_twos,
     });
   }
 
@@ -222,12 +247,9 @@ impl Scene {
       .map_or_else(|| Look::of(self.document.face(&self.face_at(frame))), |(_, look)| look.clone())
   }
 
-  /// The talking mouth a frame shows, while a briefing is spoken.
-  fn talking_at(&self, frame: i64) -> Option<Vec<crate::document::Part>> {
-    let speaking = self.speaking.as_ref().filter(|speaking| speaking.shows(frame))?;
-    let step = talk::step_at(&speaking.steps, frame - speaking.start)?;
-    let mouth = self.document.talk.get(step.family)?.mouths.get(step.mouth)?;
-    Some(mouth.parts.clone())
+  /// The pose a frame shows, while a briefing is spoken.
+  fn pose_at(&self, frame: i64) -> Option<Pose> {
+    self.speaking.as_ref().and_then(|speaking| speaking.pose_at(frame)).copied()
   }
 
   /// The drawing a frame shows.
@@ -236,22 +258,30 @@ impl Scene {
     Drawing::of(&look, &self.document.colors)
   }
 
-  /// The look a frame shows, the talking mouth, the lids and the gaze laid over it.
+  /// The look a frame shows, the talking mouth, the eyes' answer to the voice, the lids and the gaze
+  /// laid over it. The talking mouth stands in for the face's own as far as the pose's voice says, and a
+  /// blink, while it plays, wins over the eyes' answer.
   pub fn look(&mut self, frame: i64) -> Look {
     self.advance(frame);
     let mut look = self.base_at(frame);
-    if let Some(mouth) = self.talking_at(frame) {
-      look.mouth = mouth;
+    let pose = self.pose_at(frame);
+    if let Some(pose) = &pose {
+      let talking = self.mouths.draw(pose.shape, look.corners * self.document.talk.tuning.corners);
+      look.mouth = between(std::mem::take(&mut look.mouth), &talking, pose.voice);
     }
     let blink = (self.blinking && self.changing.is_none() && look.blinks())
       .then(|| self.blinks.at(frame))
       .flatten();
     let gaze = self.gaze.at(frame, blink.map(|(_, start)| start));
     let lid = blink.map_or(Lid::Open, |(lid, _)| lid);
-    let reach = look.reach;
+    let (reach, voice) = (look.reach, look.voice);
     for side in &mut look.eyes {
       for eye in side.iter_mut() {
-        *eye = lidded(&gazed(eye, reach, gaze), lid);
+        let answered = match (&pose, blink) {
+          (Some(pose), None) => voiced(eye, voice, pose),
+          _ => eye.clone(),
+        };
+        *eye = lidded(&gazed(&answered, reach, gaze), lid);
       }
     }
     look
@@ -266,7 +296,7 @@ impl Scene {
     }
     if let Some(speaking) = &self.speaking {
       let sound = frame - speaking.start + LEAD;
-      next.extend(speaking.steps.iter().map(|step| speaking.start + step.at - LEAD).find(|at| *at > frame));
+      next.extend(speaking.next_pose(frame));
       next.extend(speaking.faces.iter().map(|(at, _)| speaking.start + at).find(|at| *at > frame));
       next.push(if sound < 0 { speaking.start - LEAD } else { speaking.end });
     }

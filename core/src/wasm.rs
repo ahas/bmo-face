@@ -7,14 +7,18 @@ use wasm_bindgen::prelude::*;
 
 use crate::check::{self, check, check_colors};
 use crate::clock::FPS;
-use crate::document::{Colors, FORM, Paint, Part, SCREEN, Size, Voice, limits, parts_json};
+use crate::document::{Colors, EyeVoice, FORM, Paint, Part, SCREEN, limits, parts_json};
 use crate::drawing::Drawing;
 use crate::edit::{self, NewInside, NewPart};
+use crate::hearing::{self, BAND_EDGES, Heard};
 use crate::migrate::migrate;
+use crate::mouth::measure;
 use crate::names::{EMOTIONS, FALLBACK, STATES};
 use crate::scene::Scene;
 use crate::talk::{self, LEAD, Speech};
 use crate::text::Cue;
+use crate::tuning::Tuning;
+use crate::voice;
 
 fn read(text: &str) -> Result<Value, JsError> {
   serde_json::from_str(text).map_err(|fault| JsError::new(&format!("not JSON: {fault}")))
@@ -30,8 +34,9 @@ fn read_colors(text: &str) -> Result<Colors, JsError> {
   check_colors(colors).map_err(|refusal| JsError::new(&refusal.describe()))
 }
 
-/// What a caller needs to know of the document and the clock: the form, the screen, the limits, the
-/// names, the paints, the sizes and the sounds, the frame rate and the lead.
+/// What a caller needs to know of the document, the clock and the hearing: the form, the screen, the
+/// limits, the names, the paints, the eyes' answer to the voice, the tuning's declaration, the frame rate,
+/// the lead and the spectrum's bands.
 #[wasm_bindgen]
 pub fn facts() -> String {
   json!({
@@ -45,17 +50,18 @@ pub fn facts() -> String {
       "minWidth": limits::MIN_WIDTH,
       "maxWidth": limits::MAX_WIDTH,
       "maxReach": limits::MAX_REACH,
-      "families": limits::FAMILIES,
-      "mouths": limits::MOUTHS,
+      "anchors": limits::ANCHORS,
+      "maxEyeVoice": limits::MAX_EYE_VOICE,
     },
     "emotions": EMOTIONS,
     "states": STATES,
     "fallback": FALLBACK,
     "paints": Paint::ALL.map(Paint::name),
-    "sizes": Size::ALL.map(Size::name),
-    "voices": Voice::ALL.map(Voice::name),
+    "eyeVoice": EyeVoice::KEYS,
+    "tuning": Tuning::declaration(),
     "fps": FPS,
     "lead": LEAD,
+    "bands": BAND_EDGES,
   })
   .to_string()
 }
@@ -142,10 +148,49 @@ pub fn mirror_parts(parts: &str) -> Result<String, JsError> {
   Ok(parts_json(&parts.iter().map(Part::mirrored).collect::<Vec<_>>()).to_string())
 }
 
-/// A sound's loudness sampled for a preview, in dBFS a frame.
-#[wasm_bindgen(js_name = sampleLoudness)]
-pub fn sample_loudness(seed: f64, frames: usize) -> Vec<f64> {
-  talk::sample_loudness(seed as u64, frames)
+/// Where a drawing stands among the talking set's, measured from itself: `{ "at": [open, wide], "teeth" }`,
+/// or null for a drawing of nothing.
+#[wasm_bindgen(js_name = measureAnchor)]
+pub fn measure_anchor(parts: &str) -> Result<String, JsError> {
+  let parts = check::parts(&read(parts)?).map_err(|refusal| JsError::new(&refusal.describe()))?;
+  Ok(measure(&parts).map_or(Value::Null, |(at, teeth)| json!({ "at": at, "teeth": teeth })).to_string())
+}
+
+/// What the face hears of a sound, one channel of samples at `rate` a second: a reading a frame.
+#[wasm_bindgen]
+pub fn hear(samples: &[f32], rate: u32) -> String {
+  Value::Array(hearing::hear(samples, rate).iter().map(Heard::to_json).collect()).to_string()
+}
+
+/// The voice sampled for previews, at `rate` samples a second.
+#[wasm_bindgen(js_name = sampleVoice)]
+pub fn sample_voice(rate: u32) -> Vec<f32> {
+  voice::sample_voice(rate)
+}
+
+fn read_heard(value: &Value) -> Vec<Heard> {
+  value.as_array().into_iter().flatten().map(|one| Heard::from_json(one).unwrap_or_else(Heard::silent)).collect()
+}
+
+/// What the face does at each frame of a sound under a tuning, for the editor to draw beneath its
+/// preview: `[{ "voice", "open", "round", "teeth", "tongue", "grow", "squint", "shine" }]`.
+#[wasm_bindgen]
+pub fn poses(heard: &str, tuning: &str) -> Result<String, JsError> {
+  let tuning = Tuning::from_json(&read(tuning)?).map_err(|wrong| JsError::new(&format!("tuning {}", wrong.key)))?;
+  let speech = Speech {
+    heard: read_heard(&read(heard)?),
+    cues: Vec::new(),
+  };
+  let poses: Vec<Value> = talk::plan(&speech, &tuning)
+    .iter()
+    .map(|pose| {
+      json!({
+        "voice": pose.voice, "open": pose.shape.open, "round": pose.shape.round, "teeth": pose.shape.teeth,
+        "tongue": pose.shape.tongue, "grow": pose.grow, "squint": pose.squint, "shine": pose.shine,
+      })
+    })
+    .collect();
+  Ok(Value::Array(poses).to_string())
 }
 
 /// The face from frame to frame, as the display and the editor's preview hold it.
@@ -193,12 +238,12 @@ impl FaceScene {
     self.scene.presence(state, since as i64);
   }
 
-  /// A sound to speak, first heard at `start`: `{ "loudness": [dBFS a frame], "cues": [{ "from", "to",
-  /// "text" }], "seed", "faces": [{ "at", "face" }] }`, showing `face`.
+  /// A sound to speak, first heard at `start`: `{ "heard": [what `hear` answers], "cues": [{ "from",
+  /// "to", "text" }], "faces": [{ "at", "face" }] }`, showing `face`.
   pub fn speak(&mut self, speech: &str, face: &str, start: f64) -> Result<(), JsError> {
     let speech = read(speech)?;
     let numbers = |key: &str| speech[key].as_array().cloned().unwrap_or_default();
-    let loudness = numbers("loudness").iter().map(|level| level.as_f64().unwrap_or(-120.0)).collect();
+    let heard = read_heard(&speech["heard"]);
     let cues = numbers("cues")
       .iter()
       .filter_map(|cue| {
@@ -213,17 +258,7 @@ impl FaceScene {
       .iter()
       .filter_map(|change| Some((change["at"].as_i64()?, change["face"].as_str()?.to_owned())))
       .collect();
-    let seed = speech["seed"].as_f64().unwrap_or(0.0) as u64;
-    self.scene.speak(
-      &Speech {
-        loudness,
-        cues,
-        seed,
-      },
-      face,
-      faces,
-      start as i64,
-    );
+    self.scene.speak(&Speech { heard, cues }, face, faces, start as i64);
     Ok(())
   }
 

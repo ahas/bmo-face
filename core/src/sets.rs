@@ -3,8 +3,9 @@
 //! units. Each set is a list of entries; a shape added to one is one more entry, and nothing that draws
 //! or drives the face changes with it.
 
-use crate::document::{Kind, Line, Node, Paint, Part, Size, TalkFamily, TalkMouth, Voice};
+use crate::document::{Anchor, EyeVoice, Kind, Line, Node, Paint, Part};
 use crate::geometry::{Point, add};
+use crate::mouth::measure;
 use crate::shapes::{Insides, Opening, STROKE, Turn, cut_above, dot, mouth, oval, stroke};
 
 /// Where the left eye's centre stands: 53.6 from the right eye's, 24.6 down the screen.
@@ -19,11 +20,13 @@ pub const MOUTH: Point = [50.0, LEFT_EYE[1] + MOUTH_DROP];
 /// The width of a closed eye's stroke.
 const LID: f64 = 0.9;
 
-/// One eye of the eye set: its name, how far it moves each way as the gaze turns (nothing for a closed
-/// eye), and how it is drawn as the left eye around a centre; the right eye is its reflection.
+/// One eye of the eye set: its name, how far it moves each way as the gaze turns and how far it answers
+/// the voice (nothing for a closed eye), and how it is drawn as the left eye around a centre; the right
+/// eye is its reflection.
 pub struct EyeShape {
   pub name: &'static str,
   pub reach: Point,
+  pub voice: EyeVoice,
   draw: fn(Point) -> Vec<Part>,
 }
 
@@ -83,76 +86,131 @@ pub const EYE_SET: [EyeShape; 15] = [
   EyeShape {
     name: "dot",
     reach: [2.2, 1.6],
+    voice: EyeVoice {
+      grow: 0.1,
+      squint: 0.15,
+      shine: 0.0,
+    },
     draw: |c| vec![dot(c, 3.0, 3.25)],
   },
   EyeShape {
     name: "dot-small",
     reach: [2.2, 1.6],
+    voice: EyeVoice {
+      grow: 0.1,
+      squint: 0.15,
+      shine: 0.0,
+    },
     draw: |c| vec![dot(c, 2.4, 3.1)],
   },
   EyeShape {
     name: "oval",
     reach: [1.8, 1.2],
+    voice: EyeVoice {
+      grow: 0.08,
+      squint: 0.12,
+      shine: 0.0,
+    },
     draw: |c| vec![dot(c, 2.9, 4.8)],
   },
   EyeShape {
     name: "oval-tall",
     reach: [1.6, 1.0],
+    voice: EyeVoice {
+      grow: 0.06,
+      squint: 0.1,
+      shine: 0.0,
+    },
     draw: |c| vec![dot(c, 3.4, 6.5)],
   },
   EyeShape {
     name: "oval-wide",
     reach: [1.6, 1.0],
+    voice: EyeVoice {
+      grow: 0.06,
+      squint: 0.1,
+      shine: 0.0,
+    },
     draw: |c| vec![dot(c, 4.1, 5.6)],
   },
   EyeShape {
     name: "surprise",
     reach: [1.4, 0.8],
+    voice: EyeVoice {
+      grow: 0.05,
+      squint: 0.08,
+      shine: 0.0,
+    },
     draw: |c| vec![dot(c, 4.0, 8.6)],
   },
   EyeShape {
     name: "shining",
     reach: [1.6, 1.2],
+    voice: EyeVoice {
+      grow: 0.06,
+      squint: 0.1,
+      shine: 0.25,
+    },
     draw: shining,
   },
   EyeShape {
     name: "half-lid-small",
     reach: [1.6, 0.6],
+    voice: EyeVoice {
+      grow: 0.04,
+      squint: 0.1,
+      shine: 0.0,
+    },
     draw: |c| lidded(c, 2.6, 3.1, 3.75),
   },
   EyeShape {
     name: "half-lid",
     reach: [1.8, 0.6],
+    voice: EyeVoice {
+      grow: 0.04,
+      squint: 0.1,
+      shine: 0.0,
+    },
     draw: |c| lidded(c, 3.1, 3.4, 5.0),
   },
   EyeShape {
     name: "half-lid-wide",
     reach: [1.2, 0.4],
+    voice: EyeVoice {
+      grow: 0.04,
+      squint: 0.1,
+      shine: 0.0,
+    },
     draw: |c| lidded(c, 5.0, 3.6, 5.5),
   },
   EyeShape {
     name: "closed-arc",
     reach: [0.0, 0.0],
+    voice: EyeVoice::STILL,
     draw: |c| around(c, &[[-5.0, 0.0], [0.0, 1.9], [5.0, 0.0]], LID),
   },
   EyeShape {
     name: "closed-cap",
     reach: [0.0, 0.0],
+    voice: EyeVoice::STILL,
     draw: |c| around(c, &[[-4.5, 1.6], [0.0, -1.8], [4.5, 1.6]], LID),
   },
   EyeShape {
     name: "closed-u",
     reach: [0.0, 0.0],
+    voice: EyeVoice::STILL,
     draw: |c| around(c, &[[-5.5, -2.2], [0.0, 2.3], [5.5, -2.2]], LID),
   },
   EyeShape {
     name: "closed-u-deep",
     reach: [0.0, 0.0],
+    voice: EyeVoice::STILL,
     draw: |c| around(c, &[[-3.4, -4.2], [-2.9, 1.2], [0.0, 3.6], [2.9, 1.2], [3.4, -4.2]], LID),
   },
   EyeShape {
     name: "squeezed",
     reach: [0.0, 0.0],
+    voice: EyeVoice::STILL,
     draw: |c| vec![corners(c, &[[-3.2, -2.8], [2.6, 0.0], [-3.2, 2.8]], LID)],
   },
 ];
@@ -262,121 +320,54 @@ const fn inside(teeth: f64, lower: f64, tongue: f64) -> Insides {
   }
 }
 
-/// One family of the talking mouth set as the set states it.
-struct FamilyEntry {
-  name: &'static str,
-  voices: &'static [Voice],
-  weight: f64,
-  mouths: &'static [(Size, Drawn)],
-}
-
-/// The talking mouth set: the 23 drawings that occur twenty times or more inside the studied lines, in
-/// eight measured families folded into six — the three sizes of bean are one family — each with its
-/// share of the talking frames and the sounds it is drawn for.
-const TALK_SET: [FamilyEntry; 6] = [
-  FamilyEntry {
-    name: "bean",
-    voices: &[Voice::Open, Voice::Other],
-    weight: 0.528,
-    mouths: &[
-      (Size::Small, open(14.9, 7.2, 0.04, 0.6, inside(0.0, 0.0, 0.38))),
-      (Size::Small, open(20.5, 7.8, 0.06, 0.58, inside(0.22, 0.0, 0.34))),
-      (Size::Small, open(21.8, 9.8, 0.04, 0.62, inside(0.24, 0.0, 0.36))),
-      (Size::Medium, open(28.2, 8.5, -0.08, 0.58, inside(0.3, 0.0, 0.0))),
-      (Size::Medium, open(22.0, 11.2, 0.08, 0.62, inside(0.0, 0.0, 0.55))),
-      (Size::Medium, open(27.0, 12.2, 0.05, 0.6, inside(0.24, 0.0, 0.4))),
-      (Size::Medium, open(23.8, 13.8, 0.06, 0.62, inside(0.24, 0.0, 0.36))),
-      (Size::Medium, open(32.2, 12.2, 0.04, 0.58, inside(0.22, 0.0, 0.4))),
-      (Size::Large, open(28.8, 15.8, 0.06, 0.63, inside(0.22, 0.0, 0.38))),
-      (Size::Large, open(35.2, 14.2, 0.05, 0.6, inside(0.24, 0.0, 0.4))),
-      (Size::Large, open(32.5, 15.5, 0.08, 0.62, inside(0.2, 0.0, 0.42))),
-      (Size::Large, open(42.1, 18.2, 0.07, 0.62, inside(0.2, 0.0, 0.38))),
-    ],
+/// The talking set's drawings: the 23 mouths that occur twenty times or more inside the studied lines,
+/// in the animation's families — the beans small, medium and large, the lines, the slits, the round Os,
+/// the grimace and the small dark o — each standing among the others where its own size puts it.
+const TALK_SET: [Drawn; 23] = [
+  open(14.9, 7.2, 0.04, 0.6, inside(0.0, 0.0, 0.38)),
+  open(20.5, 7.8, 0.06, 0.58, inside(0.22, 0.0, 0.34)),
+  open(21.8, 9.8, 0.04, 0.62, inside(0.24, 0.0, 0.36)),
+  open(28.2, 8.5, -0.08, 0.58, inside(0.3, 0.0, 0.0)),
+  open(22.0, 11.2, 0.08, 0.62, inside(0.0, 0.0, 0.55)),
+  open(27.0, 12.2, 0.05, 0.6, inside(0.24, 0.0, 0.4)),
+  open(23.8, 13.8, 0.06, 0.62, inside(0.24, 0.0, 0.36)),
+  open(32.2, 12.2, 0.04, 0.58, inside(0.22, 0.0, 0.4)),
+  open(28.8, 15.8, 0.06, 0.63, inside(0.22, 0.0, 0.38)),
+  open(35.2, 14.2, 0.05, 0.6, inside(0.24, 0.0, 0.4)),
+  open(32.5, 15.5, 0.08, 0.62, inside(0.2, 0.0, 0.42)),
+  open(42.1, 18.2, 0.07, 0.62, inside(0.2, 0.0, 0.38)),
+  Drawn::Line {
+    width: 16.8,
+    bow: 0.5,
   },
-  FamilyEntry {
-    name: "line",
-    voices: &[Voice::Silence, Voice::Closing],
-    weight: 0.139,
-    mouths: &[
-      (
-        Size::Small,
-        Drawn::Line {
-          width: 16.8,
-          bow: 0.5,
-        },
-      ),
-      (
-        Size::Medium,
-        Drawn::Line {
-          width: 27.5,
-          bow: 0.9,
-        },
-      ),
-      (
-        Size::Large,
-        Drawn::Line {
-          width: 30.2,
-          bow: 3.2,
-        },
-      ),
-    ],
+  Drawn::Line {
+    width: 27.5,
+    bow: 0.9,
   },
-  FamilyEntry {
-    name: "slit",
-    voices: &[Voice::Silence, Voice::Closing, Voice::Other],
-    weight: 0.11,
-    mouths: &[
-      (Size::Small, open(15.5, 4.8, 0.0, 0.6, inside(0.0, 0.0, 0.4))),
-      (Size::Medium, open(21.1, 5.8, 0.0, 0.6, inside(0.45, 0.0, 0.0))),
-    ],
+  Drawn::Line {
+    width: 30.2,
+    bow: 3.2,
   },
-  FamilyEntry {
-    name: "round",
-    voices: &[Voice::Rounded, Voice::Open],
-    weight: 0.085,
-    mouths: &[
-      (Size::Small, round_open(15.5, 10.5, inside(0.0, 0.0, 0.34))),
-      (Size::Medium, round_open(17.2, 13.8, inside(0.16, 0.0, 0.32))),
-      (Size::Large, round_open(19.8, 17.8, inside(0.16, 0.0, 0.3))),
-      (Size::Large, round_open(26.5, 20.2, inside(0.18, 0.0, 0.28))),
-    ],
-  },
-  FamilyEntry {
-    name: "grimace",
-    voices: &[Voice::Other],
-    weight: 0.068,
-    mouths: &[(Size::Large, open(34.8, 10.5, 0.0, 0.62, inside(0.44, 0.44, 0.0)))],
-  },
-  FamilyEntry {
-    name: "small-o",
-    voices: &[Voice::Rounded],
-    weight: 0.051,
-    mouths: &[(
-      Size::Small,
-      Drawn::Round {
-        width: 7.2,
-        height: 8.0,
-      },
-    )],
+  open(15.5, 4.8, 0.0, 0.6, inside(0.0, 0.0, 0.4)),
+  open(21.1, 5.8, 0.0, 0.6, inside(0.45, 0.0, 0.0)),
+  round_open(15.5, 10.5, inside(0.0, 0.0, 0.34)),
+  round_open(17.2, 13.8, inside(0.16, 0.0, 0.32)),
+  round_open(19.8, 17.8, inside(0.16, 0.0, 0.3)),
+  round_open(26.5, 20.2, inside(0.18, 0.0, 0.28)),
+  open(34.8, 10.5, 0.0, 0.62, inside(0.44, 0.44, 0.0)),
+  Drawn::Round {
+    width: 7.2,
+    height: 8.0,
   },
 ];
 
-/// The talking mouth set as the default document holds it.
-pub fn talk_set() -> Vec<TalkFamily> {
-  TALK_SET
-    .iter()
-    .map(|entry| TalkFamily {
-      name: entry.name.to_owned(),
-      voices: entry.voices.to_vec(),
-      weight: entry.weight,
-      mouths: entry
-        .mouths
-        .iter()
-        .map(|(size, drawn)| TalkMouth {
-          size: *size,
-          parts: drawn.parts(),
-        })
-        .collect(),
-    })
-    .collect()
+/// The talking set as the default document holds it, each drawing at the place measured from it.
+pub fn anchors() -> Vec<Anchor> {
+  TALK_SET.iter().map(|drawn| anchor(drawn.parts())).collect()
+}
+
+/// A drawing of the talking set at the place measured from it.
+pub fn anchor(parts: Vec<Part>) -> Anchor {
+  let (at, teeth) = measure(&parts).expect("a drawing of the set draws something");
+  Anchor { at, teeth, parts }
 }

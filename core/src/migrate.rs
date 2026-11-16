@@ -4,13 +4,27 @@
 //!
 //! - Form 0 drew a part as an ellipse or a curve through points; each becomes a path of smooth nodes.
 //! - Form 1 drew a face in five groups and the speaking mouth as a ladder of stages; its eyes, brows and
-//!   cheeks become pairs, split at the screen's middle, and the stages give way to the talking mouth set.
+//!   cheeks become pairs, split at the screen's middle, and the stages give way to the default talking
+//!   set.
+//! - Form 2 talked in families of mouths picked by chance; each of its mouths becomes an anchor at the
+//!   place measured from its drawing, and its faces take how far their eyes answer the voice and how far
+//!   their talking mouth's corners lift.
 
 use serde_json::{Map, Value, json};
 
+use crate::check;
 use crate::default;
-use crate::document::{FORM, SCREEN};
-use crate::json::number;
+use crate::document::{FORM, SCREEN, limits};
+use crate::json::{number, same};
+use crate::mouth::measure;
+use crate::sets::{anchor, eye};
+
+/// The form whose faces were drawn in pairs and whose talking set was families of mouths.
+const FAMILIES_FORM: u64 = 2;
+
+/// How near the places of two carried anchors of one plane may stand before the later is left out, as
+/// the check holds them apart.
+const APART: f64 = 0.005;
 
 /// How far each dot eye of a carried face moves with the gaze.
 const CARRIED_REACH: [f64; 2] = [2.2, 1.6];
@@ -23,14 +37,15 @@ pub fn migrate(value: &Value) -> Value {
     return value.clone();
   };
   let defaults = default::document().to_json();
-  let older = document.get("form").and_then(Value::as_u64) != Some(FORM);
+  let form = document.get("form").and_then(Value::as_u64).unwrap_or(0);
 
   let faces = match document.get("faces") {
     Some(Value::Object(held)) => {
       let mut faces = defaults["faces"].as_object().cloned().unwrap_or_default();
       for (name, face) in held {
         let carried = match face {
-          Value::Object(face) if older => carry_face(face),
+          Value::Object(face) if form < FAMILIES_FORM => answering(name, &carry_face(face), &defaults),
+          Value::Object(_) if form < FORM => answering(name, face, &defaults),
           other => other.clone(),
         };
         faces.insert(name.clone(), carried);
@@ -54,14 +69,92 @@ pub fn migrate(value: &Value) -> Value {
     Some(faces) => carried.insert("faces".into(), faces),
     None => carried.remove("faces"),
   };
-  if older {
-    carried.remove("mouths");
-    carried.insert("talk".into(), defaults["talk"].clone());
-  }
+  let talk = match (form, document.get("talk")) {
+    (FORM, Some(Value::Object(talk))) => Value::Object(tuned(talk, &defaults["talk"]["tuning"])),
+    (FORM, talk) => talk.cloned().unwrap_or(Value::Null),
+    (FAMILIES_FORM, Some(families)) => carry_families(families).unwrap_or_else(|| defaults["talk"].clone()),
+    _ => defaults["talk"].clone(),
+  };
+  carried.remove("mouths");
+  carried.insert("talk".into(), talk);
   Value::Object(carried)
 }
 
-/// A face of form 1 or 0 as a face of this form.
+/// A talking set of this form given the tuning values it lacks from the default's.
+fn tuned(talk: &Map<String, Value>, defaults: &Value) -> Map<String, Value> {
+  let mut talk = talk.clone();
+  if let (Some(Value::Object(held)), Some(defaults)) = (talk.get("tuning"), defaults.as_object()) {
+    let mut tuning = defaults.clone();
+    for (key, value) in held {
+      tuning.insert(key.clone(), value.clone());
+    }
+    talk.insert("tuning".into(), Value::Object(tuning));
+  }
+  talk
+}
+
+/// The families of form 2 as anchors: each mouth, in order, at the place measured from its drawing,
+/// leaving out one that draws nothing, that the check refuses, or that stands where an earlier one of its
+/// plane stands, up to the most a set holds; with the default tuning. None where no mouth is left.
+fn carry_families(families: &Value) -> Option<Value> {
+  let mut anchors: Vec<crate::document::Anchor> = Vec::new();
+  let mouths = families.as_array()?.iter().filter_map(|family| family["mouths"].as_array()).flatten();
+  for mouth in mouths {
+    let Ok(parts) = check::parts(&mouth["parts"]) else {
+      continue;
+    };
+    let Some((at, teeth)) = measure(&parts) else {
+      continue;
+    };
+    let crowded = anchors.iter().any(|other| {
+      other.teeth == teeth && (other.at[0] - at[0]).abs() < APART && (other.at[1] - at[1]).abs() < APART
+    });
+    if !crowded && anchors.len() < limits::ANCHORS {
+      anchors.push(anchor(parts));
+    }
+  }
+  (!anchors.is_empty()).then(|| {
+    json!({
+      "anchors": anchors.iter().map(crate::document::Anchor::to_json).collect::<Vec<_>>(),
+      "tuning": default::talk().tuning.to_json(),
+    })
+  })
+}
+
+/// A face of form 2 as a face of this form: its eyes answering the voice as the default face of its name
+/// does where they draw as its eyes do, else as a dot eye does where they are solid and not at all where
+/// they are strokes; and its talking mouth's corners lifted as the default face of its name lifts them.
+fn answering(name: &str, face: &Value, defaults: &Value) -> Value {
+  let mut face = face.clone();
+  let own = &defaults["faces"][name];
+  if let Some(eyes) = face.get_mut("eyes").and_then(Value::as_object_mut)
+    && !eyes.contains_key("voice")
+  {
+    let drawn_alike = ["left", "right"].iter().all(|side| {
+      let held = eyes.get(*side).cloned().unwrap_or(Value::Null);
+      same(&held, &own["eyes"][*side])
+    });
+    let solid = ["left", "right"].iter().filter_map(|side| eyes.get(*side)?.as_array()).flatten().any(|part| {
+      part["closed"] == json!(true) && !part["fill"].is_null()
+    });
+    let voice = if drawn_alike && own.is_object() {
+      own["eyes"]["voice"].clone()
+    } else if solid {
+      eye("dot").voice.to_json()
+    } else {
+      crate::document::EyeVoice::STILL.to_json()
+    };
+    eyes.insert("voice".into(), voice);
+  }
+  if let Some(face) = face.as_object_mut()
+    && !face.contains_key("corners")
+  {
+    face.insert("corners".into(), own.get("corners").cloned().unwrap_or(json!(0)));
+  }
+  face
+}
+
+/// A face of form 1 or 0 as a face of form 2.
 fn carry_face(face: &Map<String, Value>) -> Value {
   let group = |name: &str, paint: &str| match face.get(name) {
     None | Some(Value::Null) => json!([]),

@@ -1,6 +1,6 @@
 //! Carrying a stored document of an older form into this one (docs/face.md, 「Preparing the document」),
 //! proved on the default of form 1, on the documents form 1's check accepted and refused, and on the
-//! documents of form 0 form 1 was carried from.
+//! documents of form 0 form 1 was carried from, and on the default of form 2 and its edited sets.
 
 use bmo_face_core::check::check;
 use bmo_face_core::default;
@@ -125,4 +125,53 @@ fn a_document_of_this_form_is_only_given_what_it_lacks() {
   assert_eq!(carried["faces"]["idle"], default::document().to_json()["faces"]["idle"]);
   assert_eq!(check(&carried).unwrap().to_json(), default::document().to_json());
   assert_eq!(migrate(&json!("not a document")), json!("not a document"));
+}
+
+#[test]
+fn the_default_of_form_two_is_carried_to_the_default_of_this_form_exactly() {
+  let old = fixture("form-2-default.json");
+  assert_eq!(old["form"], json!(2));
+  let carried = check(&migrate(&old)).expect("the carried default passes").to_json();
+  assert_eq!(carried, default::document().to_json());
+}
+
+#[test]
+fn an_edited_set_of_form_two_becomes_anchors_measured_from_its_mouths() {
+  let mut old = fixture("form-2-default.json");
+  old["savedAt"] = json!(5);
+  // A bean drawn wider, a mouth repeated in another family, a family of nothing that draws.
+  let bean = old["talk"][0]["mouths"][0].clone();
+  old["talk"][0]["mouths"][0]["parts"][0]["nodes"][3]["anchor"][0] = json!(70);
+  old["talk"][1]["mouths"].as_array_mut().unwrap().push(bean.clone());
+  old["talk"][5]["mouths"] = json!([{ "size": "small", "parts": [] }]);
+  old["faces"][FALLBACK]["eyes"]["left"][0]["nodes"][0]["anchor"][0] = json!(27.5);
+  let carried = check(&migrate(&old)).expect("the carried document passes");
+  let defaults = default::document();
+  // The widened bean stands wider; the repeated mouth stands once; the empty family gives none.
+  assert_eq!(carried.talk.anchors.len(), defaults.talk.anchors.len() - 1);
+  assert!(carried.talk.anchors[0].at[1] > defaults.talk.anchors[0].at[1]);
+  assert_eq!(carried.talk.anchors[1..], defaults.talk.anchors[1..22]);
+  assert_eq!(carried.talk.tuning, defaults.talk.tuning);
+  // Eyes no longer the default's answer as a dot eye does; the corners are the name's.
+  let fallback = carried.face(FALLBACK);
+  assert_eq!(fallback.eyes.voice, bmo_face_core::sets::eye("dot").voice);
+  assert_eq!(fallback.corners, defaults.face(FALLBACK).corners);
+  assert_eq!(carried.face("폭소").eyes.voice, bmo_face_core::document::EyeVoice::STILL);
+}
+
+#[test]
+fn a_set_of_form_two_with_no_mouth_left_takes_the_default_set() {
+  let mut old = fixture("form-2-default.json");
+  old["talk"] = json!([{ "name": "nothing", "voices": ["other"], "weight": 1, "mouths": [{ "size": "small", "parts": [] }] }]);
+  assert_eq!(check(&migrate(&old)).unwrap().talk, default::document().talk);
+}
+
+#[test]
+fn a_document_of_this_form_is_given_the_tuning_values_it_lacks() {
+  let mut document = default::document().to_json();
+  document["talk"]["tuning"].as_object_mut().unwrap().shift_remove("glide");
+  document["talk"]["tuning"]["rest"] = json!(500);
+  let carried = check(&migrate(&document)).unwrap();
+  assert_eq!(carried.talk.tuning.glide, default::document().talk.tuning.glide);
+  assert_eq!(carried.talk.tuning.rest, 500.0);
 }

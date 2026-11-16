@@ -1,17 +1,17 @@
 //! The check every document goes through before it is kept or drawn (docs/face.md, 「Saving is
-//! checked」): a document of this form, every face, part and talking mouth well formed and within the
-//! screen, or the one refusal saying where and why. A refusal is a code with the place it was met at;
-//! the screen words it from its language pack.
+//! checked」): a document of this form, every face, part and drawing of the talking set well formed and
+//! within the screen and every tuning value within its bounds, or the one refusal saying where and why. A
+//! refusal is a code with the place it was met at; the screen words it from its language pack.
 
 use serde_json::{Map, Value, json};
 
 use crate::document::{
-  Colors, Eyes, FORM, Face, Kind, Line, Node, Paint, Pair, Part, SCREEN, Size, TalkFamily, TalkMouth,
-  Voice, limits,
+  Anchor, Colors, EyeVoice, Eyes, FORM, Face, Kind, Line, Node, Paint, Pair, Part, SCREEN, Talk, limits,
 };
 use crate::geometry::Point;
 use crate::json::number;
 use crate::names::{FALLBACK, is_face_name};
+use crate::tuning::Tuning;
 
 /// Where in a document a refusal was met, from the outside in.
 #[derive(Clone, Debug, PartialEq)]
@@ -23,8 +23,8 @@ pub enum Place {
   Part(usize),
   Inside(usize),
   Node(usize),
-  Family(usize),
-  Mouth(usize),
+  Anchor(usize),
+  Tuning(&'static str),
 }
 
 impl Place {
@@ -38,8 +38,8 @@ impl Place {
       Place::Part(index) => json!({ "part": index + 1 }),
       Place::Inside(index) => json!({ "inside": index + 1 }),
       Place::Node(index) => json!({ "node": index + 1 }),
-      Place::Family(index) => json!({ "family": index + 1 }),
-      Place::Mouth(index) => json!({ "mouth": index + 1 }),
+      Place::Anchor(index) => json!({ "anchor": index + 1 }),
+      Place::Tuning(key) => json!({ "tuning": key }),
     }
   }
 }
@@ -61,6 +61,10 @@ pub enum Why {
   NotAPair,
   /// How far the eyes move with the gaze is not two numbers within the bound.
   Reach,
+  /// How far the eyes answer the voice is not three shares within the bound.
+  EyeVoice,
+  /// How far the talking mouth's corners lift is not a number from −1 to 1.
+  Corners,
   /// A list of parts is no list, or holds more than it may.
   Parts,
   NotAPart,
@@ -77,13 +81,15 @@ pub enum Why {
   NestedInside,
   InsideOpen,
   InsideCount,
-  /// The talking mouth set is no list, or holds too few or too many families.
-  Families,
-  FamilyName,
-  Voices,
-  Weight,
-  Mouths,
-  Size,
+  /// The talking set is no set of anchors and tuning, or holds too few or too many anchors.
+  Anchors,
+  /// An anchor's place is not two numbers from nought to one, or it does not say whether its teeth
+  /// stand together.
+  AnchorValue,
+  /// Two anchors of one plane stand at one place.
+  AnchorPlace,
+  /// A tuning value is missing or outside its bounds.
+  Tuning { least: f64, most: f64 },
 }
 
 impl Why {
@@ -96,6 +102,8 @@ impl Why {
       Why::NotAFace => "not-a-face",
       Why::NotAPair => "not-a-pair",
       Why::Reach => "reach",
+      Why::EyeVoice => "eye-voice",
+      Why::Corners => "corners",
       Why::Parts => "parts",
       Why::NotAPart => "not-a-part",
       Why::Closedness => "closedness",
@@ -110,12 +118,10 @@ impl Why {
       Why::NestedInside => "nested-inside",
       Why::InsideOpen => "inside-open",
       Why::InsideCount => "inside-count",
-      Why::Families => "families",
-      Why::FamilyName => "family-name",
-      Why::Voices => "voices",
-      Why::Weight => "weight",
-      Why::Mouths => "mouths",
-      Why::Size => "size",
+      Why::Anchors => "anchors",
+      Why::AnchorValue => "anchor-value",
+      Why::AnchorPlace => "anchor-place",
+      Why::Tuning { .. } => "tuning",
     }
   }
 
@@ -127,9 +133,10 @@ impl Why {
       Why::LineWidth => Some((limits::MIN_WIDTH, limits::MAX_WIDTH)),
       Why::InsideCount => Some((0.0, limits::INSIDE as f64)),
       Why::Reach => Some((0.0, limits::MAX_REACH)),
-      Why::Families => Some((1.0, limits::FAMILIES as f64)),
-      Why::Mouths => Some((1.0, limits::MOUTHS as f64)),
-      Why::Weight => Some((0.0, 1.0)),
+      Why::EyeVoice => Some((0.0, limits::MAX_EYE_VOICE)),
+      Why::Corners => Some((-1.0, 1.0)),
+      Why::Anchors => Some((1.0, limits::ANCHORS as f64)),
+      Why::Tuning { least, most } => Some((*least, *most)),
       _ => None,
     }
   }
@@ -178,8 +185,8 @@ impl Refusal {
         Place::Part(index) => format!("part {}", index + 1),
         Place::Inside(index) => format!("inside {}", index + 1),
         Place::Node(index) => format!("node {}", index + 1),
-        Place::Family(index) => format!("family {}", index + 1),
-        Place::Mouth(index) => format!("mouth {}", index + 1),
+        Place::Anchor(index) => format!("anchor {}", index + 1),
+        Place::Tuning(key) => format!("tuning {key}"),
       })
       .collect();
     if at.is_empty() {
@@ -351,82 +358,108 @@ fn check_reach(value: Option<&Value>, at: &[Place]) -> Checked<Point> {
   }
 }
 
+/// How far the eyes answer the voice: each share from nought to the bound; nothing where the document
+/// says nothing.
+fn check_eye_voice(value: Option<&Value>, at: &[Place]) -> Checked<EyeVoice> {
+  let wrong = || Refusal::new(Why::EyeVoice, at);
+  let voice = match value {
+    None | Some(Value::Null) => return Ok(EyeVoice::STILL),
+    Some(voice) => voice.as_object().ok_or_else(wrong)?,
+  };
+  let share = |key: &str| {
+    voice
+      .get(key)
+      .and_then(Value::as_f64)
+      .filter(|share| (0.0..=limits::MAX_EYE_VOICE).contains(share))
+      .ok_or_else(wrong)
+  };
+  let [grow, squint, shine] = EyeVoice::KEYS;
+  Ok(EyeVoice {
+    grow: share(grow)?,
+    squint: share(squint)?,
+    shine: share(shine)?,
+  })
+}
+
 fn check_face(value: &Value, name: &str) -> Checked<Face> {
   let at = [Place::Face(name.to_owned())];
   let face = value.as_object().ok_or_else(|| Refusal::new(Why::NotAFace, &at))?;
   let element = |name: &'static str| with(&at, Place::Element(name));
   let eyes = face.get("eyes");
+  let corners = match face.get("corners") {
+    None | Some(Value::Null) => 0.0,
+    Some(corners) => corners
+      .as_f64()
+      .filter(|corners| (-1.0..=1.0).contains(corners))
+      .ok_or_else(|| Refusal::new(Why::Corners, &at))?,
+  };
   Ok(Face {
     blush: check_pair(face.get("blush"), &element("blush"))?,
     eyes: Eyes {
       pair: check_pair(eyes, &element("eyes"))?,
       reach: check_reach(eyes.and_then(|eyes| eyes.get("reach")), &element("eyes"))?,
+      voice: check_eye_voice(eyes.and_then(|eyes| eyes.get("voice")), &element("eyes"))?,
     },
     brows: check_pair(face.get("brows"), &element("brows"))?,
     mouth: check_parts(face.get("mouth"), &element("mouth"))?,
     marks: check_parts(face.get("marks"), &element("marks"))?,
+    corners,
   })
 }
 
-fn is_family_name(name: &str) -> bool {
-  let mut letters = name.chars();
-  letters.next().is_some_and(|first| first.is_ascii_lowercase())
-    && name.len() <= 24
-    && letters.all(|one| one.is_ascii_lowercase() || one.is_ascii_digit() || one == '-')
+/// How near two anchors of one plane may stand, on each of the plane's two ways.
+const APART: f64 = 0.005;
+
+fn check_anchor(value: &Value, index: usize) -> Checked<Anchor> {
+  let at = [Place::Anchor(index)];
+  let anchor = value.as_object().ok_or_else(|| Refusal::new(Why::AnchorValue, &at))?;
+  let place = point(anchor.get("at"))
+    .filter(|place| place.iter().all(|one| (0.0..=1.0).contains(one)))
+    .ok_or_else(|| Refusal::new(Why::AnchorValue, &at))?;
+  let teeth = anchor
+    .get("teeth")
+    .and_then(Value::as_bool)
+    .ok_or_else(|| Refusal::new(Why::AnchorValue, &at))?;
+  Ok(Anchor {
+    at: place,
+    teeth,
+    parts: check_parts(anchor.get("parts"), &at)?,
+  })
 }
 
-fn check_family(value: &Value, index: usize) -> Checked<TalkFamily> {
-  let at = [Place::Family(index)];
-  let family = value.as_object().ok_or_else(|| Refusal::new(Why::FamilyName, &at))?;
-  let name = family
-    .get("name")
-    .and_then(Value::as_str)
-    .filter(|name| is_family_name(name))
-    .ok_or_else(|| Refusal::new(Why::FamilyName, &at))?;
-  let voices = family
-    .get("voices")
+/// The talking set: one to the most anchors, no two of one plane at one place, and its tuning.
+fn check_talk(value: Option<&Value>) -> Checked<Talk> {
+  let talk = value.and_then(Value::as_object).ok_or_else(|| Refusal::new(Why::Anchors, &[]))?;
+  let anchors = talk
+    .get("anchors")
     .and_then(Value::as_array)
-    .filter(|voices| !voices.is_empty())
-    .and_then(|voices| {
-      voices
-        .iter()
-        .map(|voice| voice.as_str().and_then(Voice::named))
-        .collect::<Option<Vec<_>>>()
-    })
-    .filter(|voices| voices.iter().enumerate().all(|(at, voice)| !voices[..at].contains(voice)))
-    .ok_or_else(|| Refusal::new(Why::Voices, &at))?;
-  let weight = family
-    .get("weight")
-    .and_then(Value::as_f64)
-    .filter(|weight| *weight > 0.0 && *weight <= 1.0)
-    .ok_or_else(|| Refusal::new(Why::Weight, &at))?;
-  let mouths = family
-    .get("mouths")
-    .and_then(Value::as_array)
-    .filter(|mouths| (1..=limits::MOUTHS).contains(&mouths.len()))
-    .ok_or_else(|| Refusal::new(Why::Mouths, &at))?;
-  let mouths = mouths
+    .filter(|anchors| (1..=limits::ANCHORS).contains(&anchors.len()))
+    .ok_or_else(|| Refusal::new(Why::Anchors, &[]))?;
+  let anchors = anchors
     .iter()
     .enumerate()
-    .map(|(place, mouth)| {
-      let at = with(&at, Place::Mouth(place));
-      let size = mouth
-        .get("size")
-        .and_then(Value::as_str)
-        .and_then(Size::named)
-        .ok_or_else(|| Refusal::new(Why::Size, &at))?;
-      Ok(TalkMouth {
-        size,
-        parts: check_parts(mouth.get("parts"), &at)?,
-      })
-    })
-    .collect::<Checked<Vec<TalkMouth>>>()?;
-  Ok(TalkFamily {
-    name: name.to_owned(),
-    voices,
-    weight,
-    mouths,
-  })
+    .map(|(index, anchor)| check_anchor(anchor, index))
+    .collect::<Checked<Vec<Anchor>>>()?;
+  for (index, anchor) in anchors.iter().enumerate() {
+    let near = |other: &Anchor| {
+      other.teeth == anchor.teeth
+        && (other.at[0] - anchor.at[0]).abs() < APART
+        && (other.at[1] - anchor.at[1]).abs() < APART
+    };
+    if anchors[..index].iter().any(near) {
+      return Err(Refusal::new(Why::AnchorPlace, &[Place::Anchor(index)]));
+    }
+  }
+  let tuning = Tuning::from_json(talk.get("tuning").unwrap_or(&Value::Null)).map_err(|wrong| {
+    Refusal::new(
+      Why::Tuning {
+        least: wrong.least,
+        most: wrong.most,
+      },
+      &[Place::Tuning(wrong.key)],
+    )
+  })?;
+  Ok(Talk { anchors, tuning })
 }
 
 fn is_colour(colour: &str) -> bool {
@@ -453,7 +486,7 @@ pub fn check_colors(colors: &Map<String, Value>) -> Checked<Colors> {
   })
 }
 
-/// The document as it may be kept and drawn — its colours, faces and talking mouths, and nothing else —
+/// The document as it may be kept and drawn — its colours, faces and talking set, and nothing else —
 /// or the refusal saying where and why not. `savedAt` is not checked here.
 pub fn check(value: &Value) -> Checked<crate::document::Document> {
   let not_a_document = || Refusal::new(Why::NotADocument, &[]);
@@ -481,16 +514,7 @@ pub fn check(value: &Value) -> Checked<crate::document::Document> {
     return Err(Refusal::new(Why::NoFallback, &[]));
   }
 
-  let talk = document
-    .get("talk")
-    .and_then(Value::as_array)
-    .filter(|talk| (1..=limits::FAMILIES).contains(&talk.len()))
-    .ok_or_else(|| Refusal::new(Why::Families, &[]))?;
-  let talk = talk
-    .iter()
-    .enumerate()
-    .map(|(index, family)| check_family(family, index))
-    .collect::<Checked<_>>()?;
+  let talk = check_talk(document.get("talk"))?;
 
   Ok(crate::document::Document {
     colors,

@@ -1,270 +1,220 @@
-//! The speaking driver (docs/face.md, 「The mouth while speaking」): the mouth drawings a sound is spoken
-//! with, planned once over the whole sound before it plays. Each drawing is held for whole frames — two
-//! as a rule, one or four now and then — and cut to the next, never morphed. A drawing is picked for the
-//! sound two frames after it shows, as the animation's mouth leads its voice: the loudness of those
-//! frames picks the family and size by the measured relation, a timed text's sound steers the family,
-//! and within what is left the pick is seeded chance that never draws the same mouth twice running.
+//! The speaking driver (docs/face.md, 「The mouth while speaking」 and 「The eyes while speaking」): what
+//! the face does at each frame of a sound, read from what is heard there, planned once over the whole
+//! sound before it plays. The level opens the mouth, the first formant opens it further, a low second
+//! formant rounds it, a hiss shows the teeth and an open voiced sound the tongue; a timed text bends it
+//! toward round or wide where one is given. Each of these follows its aim with a light smoothing, quick to
+//! rise and slower to fall, and the eyes follow the level, its sharp starts, its long loud stretches and
+//! its hiss. The same sound gives the same face: nothing is drawn by chance.
 
-use crate::clock::ON_TWOS;
-use crate::document::{Size, TalkFamily, Voice};
-use crate::random::Random;
-use crate::text::{Cue, voice_at};
+use crate::clock::{FPS, ON_TWOS};
+use crate::hearing::{Heard, decibels};
+use crate::mouth::Shape;
+use crate::text::{Cue, Voice, voice_at};
+use crate::tuning::Tuning;
 
 /// How many frames a drawing shows before the sound it is drawn for.
 pub const LEAD: i64 = 2;
 
-/// How long drawings are held, and how often each: on twos, now and then on ones or fours.
-const HOLDS: [(i64, f64); 3] = [(1, 0.1), (ON_TWOS, 0.8), (4, 0.1)];
+/// The share of the sound's frames above the floor that are quieter than its loud level.
+const LOUD_SHARE: f64 = 0.95;
 
-/// The loudness at or below which a frame is silent: this far below the sound's loudest frame, or
-/// quieter than the floor.
-const QUIET_BELOW_PEAK: f64 = 35.0;
-const QUIET_FLOOR: f64 = -50.0;
+/// How much a full hiss closes the mouth, toward the slit its teeth stand in.
+const HISS_CLOSES: f64 = 0.7;
 
-/// What the animation's mouth does at each tenth of its voice's loudness, quietest first: how open it
-/// stands, as the size scale reads it, and how often it is closed.
-const BY_LOUDNESS: [(f64, f64); 10] = [
-  (0.472, 0.216),
-  (0.469, 0.172),
-  (0.534, 0.13),
-  (0.539, 0.108),
-  (0.602, 0.086),
-  (0.597, 0.086),
-  (0.679, 0.064),
-  (0.718, 0.079),
-  (0.718, 0.055),
-  (0.754, 0.04),
-];
+/// How far above the voiced bands, in dB, the hiss band must stand to show the teeth fully.
+const HISS_SPAN: f64 = 12.0;
 
-/// How often a frame whose text closes the lips is drawn closed.
-const CLOSING_SHARE: f64 = 0.7;
+/// Where an open voiced sound starts to show the tongue, and where it shows it whole, in openness.
+const TONGUE_FROM: f64 = 0.45;
+const TONGUE_SPAN: f64 = 0.35;
 
-/// How widely the size of a pick spreads around the openness aimed at: wide, as the animation's openness
-/// follows its loudness only weakly.
-const SIZE_SPREAD: f64 = 0.25;
+/// How fast an eye's start widening falls away, and how long a loud stretch is averaged over before
+/// the eyes squint, in milliseconds; and how loud on average a stretch is before they start to.
+const ONSET_FALL: f64 = 250.0;
+const SUSTAIN: f64 = 1_500.0;
+const SQUINT_FROM: f64 = 0.5;
 
-/// The same spread where a timed text names an open vowel, which draws the mouth wide, and at the edge
-/// of a line, where the mouth is small.
-const OPEN_SPREAD: f64 = 0.1;
-const EDGE_SPREAD: f64 = 0.05;
-
-/// The most a drawing at the edge of a line may open: the first after a pause and the last before one
-/// are small, as the animation's opening grows from a line's first drawing and shrinks into its last.
-const EDGE_OPENNESS: f64 = Size::Small.openness();
-
-/// A sound to speak: its loudness in dBFS at each frame from its first, the timed text it says where it
-/// is known, and the seed its picks are drawn from.
+/// A sound to speak: what is heard at each frame from its first, and the timed text it says where it is
+/// known.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Speech {
-  pub loudness: Vec<f64>,
+  pub heard: Vec<Heard>,
   pub cues: Vec<Cue>,
-  pub seed: u64,
 }
 
-/// One drawing of the plan: from which frame of the sound it is drawn for, for how many frames, and which
-/// mouth of the set.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Step {
-  pub at: i64,
-  pub hold: i64,
-  pub family: usize,
-  pub mouth: usize,
+/// What the face does at one frame of a sound: how far the talking mouth stands in for the face's own,
+/// the talking mouth's shape, and how far the eyes grow, squint and shimmer, each from nought to one.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Pose {
+  pub voice: f64,
+  pub shape: Shape,
+  pub grow: f64,
+  pub squint: f64,
+  pub shine: f64,
 }
 
-/// What the coming frames call for.
-#[derive(Clone, Copy, Debug, PartialEq)]
-struct Call {
-  voice: Voice,
-  /// The tenth of the sound's loudness the frames stand at; none where they are silent.
-  tenth: Option<usize>,
-}
-
-/// The loudness of a sound read for its calls: which frames are silent, and the tenth each voiced
-/// frame's loudness stands at among the voiced frames.
-struct Loudness {
-  tenths: Vec<Option<usize>>,
-}
-
-impl Loudness {
-  fn new(loudness: &[f64]) -> Loudness {
-    let peak = loudness.iter().copied().fold(f64::NEG_INFINITY, f64::max);
-    let quiet = (peak - QUIET_BELOW_PEAK).max(QUIET_FLOOR);
-    let mut voiced: Vec<f64> = loudness.iter().copied().filter(|level| *level > quiet).collect();
-    voiced.sort_by(f64::total_cmp);
-    let tenths = loudness
-      .iter()
-      .map(|level| {
-        (*level > quiet).then(|| {
-          let below = voiced.partition_point(|other| other < level);
-          (below * 10 / voiced.len().max(1)).min(9)
-        })
-      })
-      .collect();
-    Loudness { tenths }
-  }
-
-  fn silent(&self, frame: i64) -> bool {
-    usize::try_from(frame)
-      .ok()
-      .and_then(|frame| self.tenths.get(frame))
-      .is_none_or(Option::is_none)
-  }
-
-  /// The tenth a run of frames stands at, their middle one's, or none where most of them are silent.
-  fn tenth(&self, from: i64, to: i64) -> Option<usize> {
-    let tenths: Vec<usize> = (from..to)
-      .filter_map(|frame| {
-        usize::try_from(frame).ok().and_then(|frame| self.tenths.get(frame).copied().flatten())
-      })
-      .collect();
-    if tenths.len() * 2 < (to - from) as usize {
-      return None;
+impl Pose {
+  /// The pose to a thousandth, so two frames that would draw alike are equal.
+  fn settled(self) -> Pose {
+    let unit = |value: f64| (value.clamp(0.0, 1.0) * 1000.0).round() / 1000.0;
+    Pose {
+      voice: unit(self.voice),
+      shape: Shape {
+        open: unit(self.shape.open),
+        round: unit(self.shape.round),
+        teeth: unit(self.shape.teeth),
+        tongue: unit(self.shape.tongue),
+      },
+      grow: unit(self.grow),
+      squint: unit(self.squint),
+      shine: unit(self.shine),
     }
-    let mut tenths = tenths;
-    tenths.sort_unstable();
-    tenths.get(tenths.len() / 2).copied()
   }
 }
 
-/// The plan of drawings over a whole sound, the last one closing the mouth as the sound ends.
-pub fn plan(speech: &Speech, set: &[TalkFamily]) -> Vec<Step> {
-  let length = speech.loudness.len() as i64;
-  let loudness = Loudness::new(&speech.loudness);
-  let mut random = Random::for_use(speech.seed, 1);
-  let mut steps: Vec<Step> = Vec::new();
-  let mut at = 0;
-  let mut edge = true;
-  while at < length {
-    let weights: Vec<f64> = HOLDS.iter().map(|(_, share)| *share).collect();
-    let hold = HOLDS[random.weighted(&weights).unwrap_or(1)].0;
-    let tenth = loudness.tenth(at, at + hold);
-    let voice = match tenth {
-      None => Voice::Silence,
-      Some(_) => (at..at + hold).find_map(|frame| voice_at(&speech.cues, frame)).unwrap_or(Voice::Other),
+/// Where a frequency stands between two, from nought to one, in octaves.
+fn between(hertz: f64, [from, to]: [f64; 2]) -> f64 {
+  ((libm::log2(hertz) - libm::log2(from)) / (libm::log2(to) - libm::log2(from))).clamp(0.0, 1.0)
+}
+
+/// How a sound's level is read: the level from which the mouth opens, and the sound's own loud level,
+/// the one most of its frames above the floor stay under.
+struct Scale {
+  quiet: f64,
+  loud: f64,
+}
+
+impl Scale {
+  fn of(heard: &[Heard], tuning: &Tuning) -> Scale {
+    let mut levels: Vec<f64> = heard.iter().map(|one| one.level).filter(|level| *level > tuning.floor).collect();
+    levels.sort_by(f64::total_cmp);
+    let loud = match levels.len() {
+      0 => tuning.floor,
+      count => levels[((count - 1) as f64 * LOUD_SHARE).round() as usize],
     };
-    let last_before_pause = loudness.silent(at + hold) && loudness.silent(at + hold + 1);
-    let at_edge = tenth.is_some() && (edge || last_before_pause);
-    let previous = steps.last().map(|step| (step.family, step.mouth));
-    if let Some((family, mouth)) = pick(set, Call { voice, tenth }, at_edge, previous, &mut random) {
-      steps.push(Step {
-        at,
-        hold,
-        family,
-        mouth,
-      });
+    Scale {
+      quiet: tuning.floor.max(loud - tuning.range),
+      loud,
     }
-    edge = tenth.is_none();
-    at += hold;
   }
-  let previous = steps.last().map(|step| (step.family, step.mouth));
-  if let Some((family, mouth)) = pick(
-    set,
-    Call {
-      voice: Voice::Silence,
-      tenth: None,
-    },
-    false,
-    previous,
-    &mut random,
-  ) {
-    steps.push(Step {
-      at,
-      hold: ON_TWOS,
-      family,
-      mouth,
-    });
+
+  /// A level's place between quiet and loud, from nought to one.
+  fn of_level(&self, level: f64) -> f64 {
+    if self.loud <= self.quiet { 0.0 } else { ((level - self.quiet) / (self.loud - self.quiet)).clamp(0.0, 1.0) }
   }
-  steps
 }
 
-/// The mouth one drawing shows: its family by the call, its size by the loudness, by chance among what
-/// is left, never the mouth shown just before.
-fn pick(
-  set: &[TalkFamily],
-  call: Call,
-  at_edge: bool,
-  previous: Option<(usize, usize)>,
-  random: &mut Random,
-) -> Option<(usize, usize)> {
-  let (aim, closed) = match call.tenth {
-    None => (Size::Small.openness(), 1.0),
-    Some(tenth) => BY_LOUDNESS[tenth],
-  };
-  let voice = match call.voice {
-    Voice::Silence => Voice::Silence,
-    Voice::Closing if random.chance(CLOSING_SHARE) => Voice::Closing,
-    _ if random.chance(closed) => Voice::Closing,
-    Voice::Closing => Voice::Other,
-    other => other,
-  };
-  let aim = match voice {
-    Voice::Open => aim.max(Size::Large.openness() - 0.03),
-    _ => aim,
-  };
-  let aim = if at_edge { aim.min(EDGE_OPENNESS) } else { aim };
-  let spread = if at_edge {
-    EDGE_SPREAD
-  } else if voice == Voice::Open {
-    OPEN_SPREAD
+/// What one frame calls for, before it is smoothed.
+#[derive(Clone, Copy, Debug, Default)]
+struct Aim {
+  voice: f64,
+  level: f64,
+  shape: Shape,
+  onset: f64,
+}
+
+/// What a frame calls for: the mouth's openness from its level and its first formant, its roundness from
+/// its second formant — held from the frame before where it is not voiced — its teeth from the hiss
+/// band standing over the voiced ones, its tongue from an open voiced sound, all bent by a timed text's
+/// sound where one is given.
+fn aim(heard: &Heard, scale: &Scale, tuning: &Tuning, held_round: f64, voice: Option<Voice>) -> Aim {
+  let level = scale.of_level(heard.level);
+  let low = heard.power_between(tuning.low_hz[0], tuning.low_hz[1]);
+  let mid = heard.power_between(tuning.mid_hz[0], tuning.mid_hz[1]);
+  let high = heard.power_between(tuning.high_hz[0], tuning.high_hz[1]);
+  let jaw = heard
+    .centre_between(tuning.low_hz[0], tuning.low_hz[1])
+    .map_or(0.5, |first| between(first, tuning.jaw_hz));
+  let round = if heard.voiced {
+    let lips = heard
+      .centre_between(tuning.mid_hz[0], tuning.mid_hz[1])
+      .map_or(0.0, |second| 1.0 - between(second, tuning.round_hz));
+    (tuning.round * lips * (1.0 - jaw * jaw)).clamp(0.0, 1.0)
   } else {
-    SIZE_SPREAD
+    held_round
   };
-  let candidates = |voiced: &dyn Fn(&TalkFamily) -> bool| -> Vec<((usize, usize), f64)> {
-    set
-      .iter()
-      .enumerate()
-      .filter(|(_, family)| voiced(family))
-      .flat_map(|(index, family)| {
-        let sizes = |size: Size| family.mouths.iter().filter(|mouth| mouth.size == size).count() as f64;
-        family.mouths.iter().enumerate().map(move |(place, mouth)| {
-          let near = ((mouth.size.openness() - aim) / spread).powi(2);
-          ((index, place), family.weight * (-near).exp() / sizes(mouth.size))
-        })
-      })
-      .filter(|(which, _)| Some(*which) != previous)
-      .collect()
+  let hiss = if high > 0.0 {
+    ((decibels(high) - decibels(low.max(mid))) / HISS_SPAN * tuning.teeth).clamp(0.0, 1.0)
+  } else {
+    0.0
   };
-  // A sound no text names is any voiced sound: every family drawn for one may draw it.
-  let drawn_for = |family: &TalkFamily| match voice {
-    Voice::Other => family.voices.iter().any(|own| !matches!(own, Voice::Silence | Voice::Closing)),
-    named => family.voices(named),
-  };
-  let mut found = candidates(&drawn_for);
-  if found.is_empty() {
-    found = candidates(&|_: &TalkFamily| true);
+  let mut open = tuning.open * level * (1.0 - tuning.jaw + tuning.jaw * jaw) * (1.0 - HISS_CLOSES * hiss);
+  let mut round = round;
+  match voice {
+    Some(Voice::Rounded) => round += (1.0 - round) * tuning.cues,
+    Some(Voice::Open) => round -= round * tuning.cues,
+    Some(Voice::Closing) => open -= open * tuning.cues,
+    _ => {}
   }
-  let weights: Vec<f64> = found.iter().map(|(_, weight)| *weight).collect();
-  random.weighted(&weights).map(|index| found[index].0)
+  let open = open.clamp(0.0, 1.0);
+  let tongue = if heard.voiced { ((open - TONGUE_FROM) / TONGUE_SPAN * tuning.tongue).clamp(0.0, 1.0) } else { 0.0 };
+  Aim {
+    voice: if heard.level > scale.quiet { 1.0 } else { 0.0 },
+    level,
+    shape: Shape {
+      open,
+      round,
+      teeth: hiss,
+      tongue,
+    },
+    onset: if level > 0.0 { heard.flux } else { 0.0 },
+  }
 }
 
-/// The plan's step showing at a frame of the sound, counted from its first frame: the drawing a frame
-/// shows is the one drawn for the sound `LEAD` frames later.
-pub fn step_at(steps: &[Step], frame: i64) -> Option<&Step> {
+/// One step of a value following its aim: rising over `rise` milliseconds and falling over `fall`, as a
+/// one-pole filter a frame long; at nought it stands on its aim at once.
+fn follow(value: f64, aim: f64, rise: f64, fall: f64) -> f64 {
+  let span = if aim > value { rise } else { fall };
+  if span <= 0.0 {
+    return aim;
+  }
+  let frame = 1_000.0 / FPS;
+  value + (aim - value) * (1.0 - libm::exp(-frame / span))
+}
+
+/// The poses of a whole sound, one a frame from its first.
+pub fn plan(speech: &Speech, tuning: &Tuning) -> Vec<Pose> {
+  let scale = Scale::of(&speech.heard, tuning);
+  let mut now = Pose::default();
+  let (mut level, mut onset, mut sustain, mut hiss, mut held_round) = (0.0, 0.0, 0.0, 0.0, 0.0);
+  speech
+    .heard
+    .iter()
+    .enumerate()
+    .map(|(frame, heard)| {
+      let wanted = aim(heard, &scale, tuning, held_round, voice_at(&speech.cues, frame as i64));
+      held_round = wanted.shape.round;
+      level = follow(level, wanted.level, tuning.attack, tuning.release);
+      onset = follow(onset, wanted.onset, 0.0, ONSET_FALL);
+      sustain = follow(sustain, wanted.level, SUSTAIN, SUSTAIN);
+      hiss = follow(hiss, wanted.shape.teeth, tuning.glide, tuning.glide);
+      now = Pose {
+        voice: follow(now.voice, wanted.voice, tuning.glide, tuning.rest),
+        shape: Shape {
+          open: follow(now.shape.open, wanted.shape.open, tuning.attack, tuning.release),
+          round: follow(now.shape.round, wanted.shape.round, tuning.glide, tuning.glide),
+          teeth: follow(now.shape.teeth, wanted.shape.teeth, tuning.glide, tuning.glide),
+          tongue: follow(now.shape.tongue, wanted.shape.tongue, tuning.glide, tuning.glide),
+        },
+        grow: tuning.eye_pulse * level + tuning.eye_onset * onset,
+        squint: tuning.eye_squint * ((sustain - SQUINT_FROM) / (1.0 - SQUINT_FROM)).max(0.0),
+        shine: tuning.eye_shine * hiss,
+      };
+      now.settled()
+    })
+    .collect()
+}
+
+/// The frame of the sound whose pose a frame shows, counted from the sound's first frame: the one `LEAD`
+/// frames later, or on twos the first of the pair it falls in.
+pub fn shown_at(frame: i64, on_twos: bool) -> i64 {
   let sound = frame + LEAD;
-  let index = steps.partition_point(|step| step.at <= sound);
-  steps
-    .get(index.checked_sub(1)?)
-    .filter(|step| sound < step.at + step.hold || index == steps.len())
+  if on_twos { sound - sound.rem_euclid(ON_TWOS) } else { sound }
 }
 
-/// A sound's loudness sampled for a preview, `frames` long: words of a few syllables, each syllable a
-/// rise and fall, with pauses between, as a voice moves.
-pub fn sample_loudness(seed: u64, frames: usize) -> Vec<f64> {
-  let mut random = Random::for_use(seed, 2);
-  let mut loudness = Vec::with_capacity(frames);
-  while loudness.len() < frames {
-    for _ in 0..random.between(1, 4) {
-      let syllable = random.between(4, 7);
-      let peak = -32.0 + random.unit() * 18.0;
-      for step in 0..syllable {
-        let rise = (std::f64::consts::PI * (step as f64 + 0.5) / syllable as f64).sin();
-        loudness.push(peak - 18.0 * (1.0 - rise));
-      }
-    }
-    for _ in 0..random.between(4, 12) {
-      loudness.push(-90.0);
-    }
-  }
-  loudness.truncate(frames);
-  loudness
+/// The pose a frame shows, counted from the sound's first frame; the last one past the sound's end, none
+/// before its first drawing.
+pub fn pose_at(poses: &[Pose], frame: i64, on_twos: bool) -> Option<&Pose> {
+  let sound = usize::try_from(shown_at(frame, on_twos)).ok()?;
+  poses.get(sound).or(poses.last())
 }

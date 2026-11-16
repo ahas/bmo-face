@@ -17,6 +17,13 @@ autotests = false
 # The document keeps its keys in the order they were written, as the screen and the file read it, and
 # every number exactly as written, as JavaScript reads it.
 serde_json = { version = "1.0.138", features = ["float_roundtrip", "preserve_order"] }
+# The sound's spectrum, by rustfft's radix-4 transform built alone and without its SIMD paths: pure Rust
+# on every target, no system library, a few kilobytes in the WebAssembly build, and the same sums in the
+# same order natively and there.
+rustfft = { version = "6.4.1", default-features = false }
+# The analysis' logarithms and cosines from the one pure-Rust implementation on every target, where the
+# platform's own differ in their last bit between the native and the WebAssembly builds.
+libm = "0.2.16"
 # Held to the version of the `wasm-bindgen` command the build runs, which must be the same.
 wasm-bindgen = { version = "=0.2.126", optional = true }
 

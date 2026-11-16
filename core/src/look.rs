@@ -1,10 +1,10 @@
 //! One drawing of the face in the document's terms (docs/face.md, 「The faces」): every element's parts
 //! with both sides of a pair drawn out, in drawing order, and how far its eyes move with the gaze. A face
-//! is shown as a look; an in-between is the blend of two looks; the blink, the gaze and the talking mouth
-//! each change a look before it is drawn.
+//! is shown as a look; an in-between is the blend of two looks; the blink, the gaze, the talking mouth
+//! and the eyes' answer to the voice each change a look before it is drawn.
 
 use crate::blend::blend_lists;
-use crate::document::{Face, Part};
+use crate::document::{EyeVoice, Face, Part};
 use crate::geometry::{Point, mix};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -15,6 +15,9 @@ pub struct Look {
   pub mouth: Vec<Part>,
   pub marks: Vec<Part>,
   pub reach: Point,
+  /// How far the eyes answer the voice, and how far the talking mouth's corners lift.
+  pub voice: EyeVoice,
+  pub corners: f64,
 }
 
 fn both(a: &[Vec<Part>; 2], b: &[Vec<Part>; 2], t: f64) -> [Vec<Part>; 2] {
@@ -30,6 +33,8 @@ impl Look {
       mouth: face.mouth.clone(),
       marks: face.marks.clone(),
       reach: face.eyes.reach,
+      voice: face.eyes.voice,
+      corners: face.corners,
     }
   }
 
@@ -42,6 +47,8 @@ impl Look {
       mouth: blend_lists(&self.mouth, &other.mouth, t),
       marks: blend_lists(&self.marks, &other.marks, t),
       reach: mix(self.reach, other.reach, t),
+      voice: self.voice.mixed(&other.voice, t),
+      corners: self.corners + (other.corners - self.corners) * t,
     }
   }
 
@@ -61,7 +68,7 @@ impl Look {
       brows: both(&self.brows),
       mouth: squash(&self.mouth),
       marks: squash(&self.marks),
-      reach: self.reach,
+      ..self.clone()
     }
   }
 

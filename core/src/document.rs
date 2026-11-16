@@ -1,14 +1,15 @@
 //! The expression document as the core holds it (docs/face.md, 「The expression document」): its colours,
-//! its faces element by element, and the talking mouth set, with the form the document is written in.
+//! its faces element by element, and the talking set, with the form the document is written in.
 
 use serde_json::{Map, Value, json};
 
 use crate::geometry::{Cubic, Path, Point, add, sub};
 use crate::json::number;
 use crate::names::FALLBACK;
+use crate::tuning::Tuning;
 
 /// The form of the document this core reads and writes.
-pub const FORM: u64 = 2;
+pub const FORM: u64 = 3;
 
 /// The screen's own coordinates: every anchor and every handle end stands inside this box.
 pub const SCREEN: Point = [100.0, 75.0];
@@ -22,8 +23,9 @@ pub mod limits {
   pub const MIN_WIDTH: f64 = 0.2;
   pub const MAX_WIDTH: f64 = 10.0;
   pub const MAX_REACH: f64 = 6.0;
-  pub const FAMILIES: usize = 12;
-  pub const MOUTHS: usize = 12;
+  pub const ANCHORS: usize = 32;
+  /// The most of its own size an eye may grow, squint or shimmer with the voice.
+  pub const MAX_EYE_VOICE: f64 = 0.5;
 }
 
 /// Whether a node's two handles stand on one line through its anchor, which the editor keeps, or move
@@ -274,7 +276,7 @@ fn kind_of(coming: Point, leaving: Point) -> Kind {
   }
 }
 
-fn point_json([x, y]: Point) -> Value {
+pub fn point_json([x, y]: Point) -> Value {
   json!([number(x), number(y)])
 }
 
@@ -324,14 +326,17 @@ impl Pair {
   }
 }
 
-/// The eyes: a pair, and how far each eye moves each way as the gaze turns, as its shape allows.
+/// The eyes: a pair, how far each eye moves each way as the gaze turns, and how far it answers the
+/// voice, as its shape allows.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Eyes {
   pub pair: Pair,
   pub reach: Point,
+  pub voice: EyeVoice,
 }
 
-/// One face: its elements, drawn in this order, each over the ones before it.
+/// One face: its elements, drawn in this order, each over the ones before it, and how far the talking
+/// mouth's corners lift while it speaks, from −1 (dropped) to 1 (lifted).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Face {
   pub blush: Pair,
@@ -339,116 +344,87 @@ pub struct Face {
   pub brows: Pair,
   pub mouth: Vec<Part>,
   pub marks: Vec<Part>,
+  pub corners: f64,
 }
 
 impl Face {
   pub fn to_json(&self) -> Value {
     let mut eyes = self.eyes.pair.to_json();
     eyes.insert("reach".into(), point_json(self.eyes.reach));
+    eyes.insert("voice".into(), self.eyes.voice.to_json());
     json!({
       "eyes": eyes,
       "brows": self.brows.to_json(),
       "blush": self.blush.to_json(),
       "mouth": parts_json(&self.mouth),
       "marks": parts_json(&self.marks),
+      "corners": number(self.corners),
     })
   }
 }
 
-/// The sound a talking mouth is drawn for, as a family of mouths names it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum Voice {
-  /// A pause, between words or before and after a line.
-  Silence,
-  /// The lips meeting, as on P, B and M.
-  Closing,
-  /// A rounded vowel, as on O and U.
-  Rounded,
-  /// An open vowel, as on A.
-  Open,
-  /// Any other voiced sound.
-  Other,
+/// How far each eye answers the voice while BMO speaks, as its own shape allows (「The eyes while
+/// speaking」): how much taller it may grow, how much shorter it may squint, and how much larger its shine
+/// may shimmer, each a share of its own size.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct EyeVoice {
+  pub grow: f64,
+  pub squint: f64,
+  pub shine: f64,
 }
 
-impl Voice {
-  pub const ALL: [Voice; 5] = [Voice::Silence, Voice::Closing, Voice::Rounded, Voice::Open, Voice::Other];
+impl EyeVoice {
+  /// The eyes of a stroke, already closed: they do not answer.
+  pub const STILL: EyeVoice = EyeVoice {
+    grow: 0.0,
+    squint: 0.0,
+    shine: 0.0,
+  };
 
-  pub fn name(self) -> &'static str {
-    match self {
-      Voice::Silence => "silence",
-      Voice::Closing => "closing",
-      Voice::Rounded => "rounded",
-      Voice::Open => "open",
-      Voice::Other => "other",
+  /// The shares, in the order the document writes them.
+  pub const KEYS: [&'static str; 3] = ["grow", "squint", "shine"];
+
+  pub fn mixed(&self, other: &EyeVoice, t: f64) -> EyeVoice {
+    let mix = |a: f64, b: f64| a + (b - a) * t;
+    EyeVoice {
+      grow: mix(self.grow, other.grow),
+      squint: mix(self.squint, other.squint),
+      shine: mix(self.shine, other.shine),
     }
-  }
-
-  pub fn named(name: &str) -> Option<Voice> {
-    Voice::ALL.into_iter().find(|voice| voice.name() == name)
-  }
-}
-
-/// How open a talking mouth is, among the mouths of its family.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Size {
-  Small,
-  Medium,
-  Large,
-}
-
-impl Size {
-  pub const ALL: [Size; 3] = [Size::Small, Size::Medium, Size::Large];
-
-  pub fn name(self) -> &'static str {
-    match self {
-      Size::Small => "small",
-      Size::Medium => "medium",
-      Size::Large => "large",
-    }
-  }
-
-  pub fn named(name: &str) -> Option<Size> {
-    Size::ALL.into_iter().find(|size| size.name() == name)
-  }
-
-  /// The openness this size stands for, on the scale the speaking driver aims the loudness at.
-  pub const fn openness(self) -> f64 {
-    match self {
-      Size::Small => 0.45,
-      Size::Medium => 0.6,
-      Size::Large => 0.75,
-    }
-  }
-}
-
-/// One drawing of the talking mouth set.
-#[derive(Clone, Debug, PartialEq)]
-pub struct TalkMouth {
-  pub size: Size,
-  pub parts: Vec<Part>,
-}
-
-/// A family of talking mouths: its name, the sounds it is drawn for, how often it is drawn while
-/// talking, and its drawings.
-#[derive(Clone, Debug, PartialEq)]
-pub struct TalkFamily {
-  pub name: String,
-  pub voices: Vec<Voice>,
-  pub weight: f64,
-  pub mouths: Vec<TalkMouth>,
-}
-
-impl TalkFamily {
-  pub fn voices(&self, voice: Voice) -> bool {
-    self.voices.contains(&voice)
   }
 
   pub fn to_json(&self) -> Value {
+    json!({ "grow": number(self.grow), "squint": number(self.squint), "shine": number(self.shine) })
+  }
+}
+
+/// One drawing of the talking set: where it stands among the others — how open it is and how wide,
+/// each from nought to one — whether it shows the teeth together, and its parts.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Anchor {
+  pub at: Point,
+  pub teeth: bool,
+  pub parts: Vec<Part>,
+}
+
+impl Anchor {
+  pub fn to_json(&self) -> Value {
+    json!({ "at": point_json(self.at), "teeth": self.teeth, "parts": parts_json(&self.parts) })
+  }
+}
+
+/// The talking set: the drawings the talking mouth passes through, and how the sound moves it.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Talk {
+  pub anchors: Vec<Anchor>,
+  pub tuning: Tuning,
+}
+
+impl Talk {
+  pub fn to_json(&self) -> Value {
     json!({
-      "name": self.name,
-      "voices": self.voices.iter().map(|voice| voice.name()).collect::<Vec<_>>(),
-      "weight": number(self.weight),
-      "mouths": self.mouths.iter().map(|mouth| json!({ "size": mouth.size.name(), "parts": parts_json(&mouth.parts) })).collect::<Vec<_>>(),
+      "anchors": self.anchors.iter().map(Anchor::to_json).collect::<Vec<_>>(),
+      "tuning": self.tuning.to_json(),
     })
   }
 }
@@ -486,7 +462,7 @@ impl Colors {
 pub struct Document {
   pub colors: Colors,
   pub faces: Vec<(String, Face)>,
-  pub talk: Vec<TalkFamily>,
+  pub talk: Talk,
 }
 
 impl Document {
@@ -508,7 +484,7 @@ impl Document {
       "form": FORM,
       "colors": self.colors.to_json(),
       "faces": faces,
-      "talk": self.talk.iter().map(TalkFamily::to_json).collect::<Vec<_>>(),
+      "talk": self.talk.to_json(),
     })
   }
 }
