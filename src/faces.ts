@@ -33,12 +33,10 @@ export type Side = (typeof SIDES)[number];
 export const PAINTS = ["ink", "light", "mouth", "tongue", "tongueLight", "cheek", "tear"] as const;
 export type Paint = (typeof PAINTS)[number];
 
-/** How open a talking mouth is, among the mouths of its family. */
-export const SIZES = ["small", "medium", "large"] as const;
-export type Size = (typeof SIZES)[number];
-
-/** The sounds a family of talking mouths is drawn for. */
-export type Voice = "silence" | "closing" | "rounded" | "open" | "other";
+/** How far an eye answers the voice, each a share of its own size (docs/face.md, 「The eyes while speaking」). */
+export const EYE_VOICE = ["grow", "squint", "shine"] as const;
+export type EyeVoiceKey = (typeof EYE_VOICE)[number];
+export type EyeVoice = Record<EyeVoiceKey, number>;
 
 /** The screen's own coordinates: every anchor and every handle end stands inside this box. */
 export const SCREEN = FACTS.screen;
@@ -80,9 +78,10 @@ export interface Pair {
   right: Part[] | null;
 }
 
-/** The eyes, and how far each moves each way as the gaze turns. */
+/** The eyes, how far each moves each way as the gaze turns, and how far each answers the voice. */
 export interface Eyes extends Pair {
   reach: Point;
+  voice: EyeVoice;
 }
 
 export interface Face {
@@ -91,19 +90,27 @@ export interface Face {
   blush: Pair;
   mouth: Part[];
   marks: Part[];
+  /** How far the talking mouth's corners lift while this face speaks, from −1, dropped, to 1, lifted. */
+  corners: number;
 }
 
-export interface TalkMouth {
-  size: Size;
+/** One drawing the talking mouth passes through: where it stands, how open and how wide, whether its teeth stand together, and its parts. */
+export interface Anchor {
+  at: Point;
+  teeth: boolean;
   parts: Part[];
 }
 
-/** A family of talking mouths: its name, the sounds it is drawn for, how often it is drawn, its drawings. */
-export interface TalkFamily {
-  name: string;
-  voices: Voice[];
-  weight: number;
-  mouths: TalkMouth[];
+/**
+ * How the sound moves the face (docs/face.md, 「The talking set」): numbers and spans of two hertz by the
+ * keys the core declares in its facts, and the switch for drawing on twos under the key it names.
+ */
+export type Tuning = Record<string, number | [number, number] | boolean>;
+
+/** The talking set: its anchors and its tuning. */
+export interface TalkSet {
+  anchors: Anchor[];
+  tuning: Tuning;
 }
 
 export type FaceColors = { body: string; screen: string } & Record<Paint, string>;
@@ -112,8 +119,8 @@ export interface FaceDocument {
   form: number;
   colors: FaceColors;
   faces: Partial<Record<FaceName, Face>>;
-  /** The talking mouth set. */
-  talk: TalkFamily[];
+  /** The talking set. */
+  talk: TalkSet;
   /** When it was last saved, in epoch milliseconds; also its version. */
   savedAt: number;
 }
@@ -127,8 +134,8 @@ export type RefusalPlace =
   | { part: number }
   | { inside: number }
   | { node: number }
-  | { family: number }
-  | { mouth: number };
+  | { anchor: number }
+  | { tuning: string };
 
 /** Why a document is refused, as a code the screen words from its language pack, and where. */
 export interface Refusal {

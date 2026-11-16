@@ -6,7 +6,7 @@
 import * as glue from "./wasm/bmo_face_core.js";
 import { bytes } from "./wasm/bytes.js";
 
-import type { FaceColors, FaceDocument, Part, Point, Refusal } from "./faces";
+import type { FaceColors, FaceDocument, Part, Point, Refusal, Tuning } from "./faces";
 
 function decoded(base64: string): Uint8Array {
   const binary = atob(base64);
@@ -33,19 +33,27 @@ export interface Facts {
     minWidth: number;
     maxWidth: number;
     maxReach: number;
-    families: number;
-    mouths: number;
+    anchors: number;
+    maxEyeVoice: number;
   };
   emotions: string[];
   states: string[];
   fallback: string;
   paints: string[];
-  sizes: string[];
-  voices: string[];
+  /** The keys of an eye's answer to the voice. */
+  eyeVoice: string[];
+  /** The tuning's values: each number and each span of two with its bounds and default, and the switch's key. */
+  tuning: {
+    numbers: { key: string; least: number; most: number; default: number }[];
+    spans: { key: string; least: number; most: number; default: [number, number] }[];
+    switch: string;
+  };
   /** Frames a second on the held clock. */
   fps: number;
   /** How many frames a talking mouth shows before the sound it is drawn for. */
   lead: number;
+  /** The edges of the spectrum's bands, in hertz, lowest first. */
+  bands: number[];
 }
 
 export const FACTS: Facts = JSON.parse(glue.facts());
@@ -112,16 +120,55 @@ export function mirrorParts(parts: Part[]): Part[] {
   return JSON.parse(glue.mirrorParts(JSON.stringify(parts)));
 }
 
-/** A sound's loudness sampled for a preview, in dBFS a frame. */
-export function sampleLoudness(seed: number, frames: number): number[] {
-  return Array.from(glue.sampleLoudness(seed, frames));
+/** Where a drawing stands among the talking set's, measured from itself; null for a drawing of nothing. */
+export function measureAnchor(parts: Part[]): { at: Point; teeth: boolean } | null {
+  return JSON.parse(glue.measureAnchor(JSON.stringify(parts)));
 }
 
-/** A sound to speak: its loudness in dBFS a frame, the timed text it says where known, its seed, and the faces it moves to at frames of the sound. */
+/** What the face hears at one frame of the held clock (docs/face.md, 「Hearing the sound」). */
+export interface Heard {
+  /** The frame's level, in dBFS. */
+  level: number;
+  /** The energy of each band of the spectrum, in dBFS, lowest first. */
+  bands: number[];
+  /** The frequency the frame's energy centres on, in hertz; nought for silence. */
+  centroid: number;
+  /** How much the spectrum rose since the frame before, from nought to one. */
+  flux: number;
+  voiced: boolean;
+}
+
+/** What the face hears of a sound, one channel of samples at `rate` a second: a reading a frame from its first sample. */
+export function hear(samples: Float32Array, rate: number): Heard[] {
+  return JSON.parse(glue.hear(samples, rate));
+}
+
+/** The core's own voice to try the face on, at `rate` samples a second. */
+export function sampleVoice(rate: number): Float32Array {
+  return glue.sampleVoice(rate);
+}
+
+/** What the face does at a frame of a sound: how far the talking mouth stands in, its shape, and the eyes' answer. */
+export interface Pose {
+  voice: number;
+  open: number;
+  round: number;
+  teeth: number;
+  tongue: number;
+  grow: number;
+  squint: number;
+  shine: number;
+}
+
+/** What the face does at each frame of a sound under a tuning, a pose a frame from its first. */
+export function poses(heard: Heard[], tuning: Tuning): Pose[] {
+  return JSON.parse(glue.poses(JSON.stringify(heard), JSON.stringify(tuning)));
+}
+
+/** A sound to speak: what is heard of it a frame, the timed text it says where known, and the faces it moves to at frames of the sound. */
 export interface Speech {
-  loudness: number[];
+  heard: Heard[];
   cues?: { from: number; to: number; text: string }[];
-  seed: number;
   faces?: { at: number; face: string }[];
 }
 

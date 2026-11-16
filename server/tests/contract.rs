@@ -568,9 +568,9 @@ async fn a_save_needs_a_session_this_site_and_the_version_it_was_edited_from() {
   let refused: Value = serde_json::from_str(&body).unwrap();
   assert_eq!(
     (status, &refused["refusal"]),
-    (400, &json!({ "code": "families", "at": [], "least": 1, "most": 12 }))
+    (400, &json!({ "code": "anchors", "at": [], "least": 1, "most": 32 }))
   );
-  assert_eq!(refused["error"], "The document is refused: families");
+  assert_eq!(refused["error"], "The document is refused: anchors");
   assert_eq!(face.document().await, saved);
 
   // Nothing larger than the server takes is read: a body declared past the limit is answered before

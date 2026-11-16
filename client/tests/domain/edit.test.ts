@@ -4,8 +4,8 @@ import { partsDrawing } from "#core";
 import { DEFAULT_FACES, EMOTIONS, FACE_NAMES, FALLBACK_FACE, LIMITS } from "#faces";
 
 import {
+  addAnchor,
   addInside,
-  addMouth,
   addNode,
   changed,
   faceParts,
@@ -18,18 +18,23 @@ import {
   onScreen,
   partAt,
   partsOf,
+  placeMeasured,
   reachOf,
   refusalOf,
   refusalWords,
+  removeAnchor,
   removeInside,
-  removeMouth,
   removeNode,
   saveBody,
+  setAnchorPlace,
+  setAnchorTeeth,
   setClosed,
+  setCorners,
+  setEyeVoice,
   setMirrored,
   setReach,
-  setSize,
   setSmooth,
+  setTuning,
   withPart,
   withParts,
 } from "../../app/domain/edit";
@@ -57,16 +62,17 @@ const samples = (part: Part): Point[] =>
 
 // The editor's logic (docs/face.md, 「The editor」).
 describe("what is being edited", () => {
-  test("one side of a face's paired element, another element and a talking mouth are read and replaced apart", () => {
+  test("one side of a face's paired element, another element and an anchor are read and replaced apart", () => {
     const brows = { tab: "faces", face: sad, element: "brows", side: "left" } as const;
     const marks = { tab: "faces", face: sad, element: "marks", side: "left" } as const;
-    const talk = { tab: "talk", family: 0, mouth: 2 } as const;
+    const talk = { tab: "talk", anchor: 2 } as const;
     const edited = withParts(withParts(withParts(doc(), brows, [line]), marks, [dot]), talk, [mouth]);
 
     expect(partsOf(edited, brows)).toEqual([line]);
     expect(partsOf(edited, marks)).toEqual([dot]);
     expect(partsOf(edited, talk)).toEqual([mouth]);
-    expect(edited.talk[0]!.mouths[1]).toEqual(DEFAULT_FACES.talk[0]!.mouths[1]!);
+    expect(edited.talk.anchors[1]).toEqual(DEFAULT_FACES.talk.anchors[1]!);
+    expect(edited.talk.anchors[2]!.at).toEqual(DEFAULT_FACES.talk.anchors[2]!.at);
     expect(partsOf(edited, { ...brows, element: "eyes" })).toEqual(DEFAULT_FACES.faces[sad]!.eyes.left);
   });
 
@@ -288,10 +294,10 @@ describe("new parts", () => {
     expect(newInside("shine", dot).fill).toBe("light");
   });
 
-  test("every new part is one the check takes, in any element or talking mouth", () => {
+  test("every new part is one the check takes, in any element or anchor", () => {
     const opening = (["teeth", "lowerTeeth", "tongueLight", "tongue"] as const).reduce(addInside, mouth);
 
-    for (const target of [{ tab: "talk", family: 1, mouth: 0 }, { tab: "faces", face: joy, element: "blush", side: "left" }] as const) {
+    for (const target of [{ tab: "talk", anchor: 1 }, { tab: "faces", face: joy, element: "blush", side: "left" }] as const) {
       expect(refusalOf(withParts(doc(), target, [newPart("oval"), newPart("line"), opening]))).toBeNull();
     }
   });
@@ -307,18 +313,57 @@ describe("new parts", () => {
   });
 });
 
-describe("the talking mouth set", () => {
-  test("a mouth is added to a family as a copy after the one chosen, and removed down to one", () => {
-    const added = addMouth(doc(), 1, 0);
+describe("the talking set", () => {
+  test("an anchor is added after the one chosen as a copy standing a twentieth more open, less at the top, and removed down to one", () => {
+    const count = DEFAULT_FACES.talk.anchors.length;
+    const added = addAnchor(doc(), 0);
+    const first = DEFAULT_FACES.talk.anchors[0]!;
 
-    expect(added.talk[1]!.mouths).toHaveLength(4);
-    expect(added.talk[1]!.mouths[1]).toEqual(DEFAULT_FACES.talk[1]!.mouths[0]!);
+    expect(added.talk.anchors).toHaveLength(count + 1);
+    expect(added.talk.anchors[1]).toEqual({ ...first, at: [Math.round((first.at[0] + 0.05) * 1000) / 1000, first.at[1]] });
+    expect(refusalOf(added)).toBeNull();
+
+    const top = setAnchorPlace(doc(), 0, [0.98, 0.2]);
+
+    expect(addAnchor(top, 0).talk.anchors[1]!.at).toEqual([0.93, 0.2]);
 
     let fewer = doc();
 
-    for (let i = 0; i < 20; i++) fewer = removeMouth(fewer, 1, 0);
-    expect(fewer.talk[1]!.mouths).toHaveLength(1);
-    expect(setSize(doc(), 1, 0, "large").talk[1]!.mouths[0]!.size).toBe("large");
+    for (let i = 0; i < count + 5; i++) fewer = removeAnchor(fewer, 0);
+    expect(fewer.talk.anchors).toHaveLength(1);
+
+    let full = doc();
+
+    for (let i = 0; i < 20; i++) full = addAnchor(full, full.talk.anchors.length - 1);
+    expect(full.talk.anchors).toHaveLength(LIMITS.anchors);
+  });
+
+  test("an anchor's place is held to the plane, its teeth set, and placed where its drawing measures", () => {
+    expect(setAnchorPlace(doc(), 3, [1.4, -0.2]).talk.anchors[3]!.at).toEqual([1, 0]);
+    expect(setAnchorTeeth(doc(), 3, true).talk.anchors[3]!.teeth).toBe(true);
+
+    const moved = setAnchorTeeth(setAnchorPlace(doc(), 5, [0.1, 0.9]), 5, true);
+
+    expect(placeMeasured(moved, 5).talk.anchors[5]).toEqual(DEFAULT_FACES.talk.anchors[5]!);
+    expect(placeMeasured(withParts(doc(), { tab: "talk", anchor: 5 }, []), 5).talk.anchors[5]!.at).toEqual(DEFAULT_FACES.talk.anchors[5]!.at);
+  });
+
+  test("a tuning value is set by its key, and one past its bounds is refused at its key", () => {
+    expect(setTuning(doc(), "onTwos", true).talk.tuning.onTwos).toBe(true);
+    expect(setTuning(doc(), "lowHz", [200, 900]).talk.tuning.lowHz).toEqual([200, 900]);
+    expect(refusalOf(setTuning(doc(), "open", 9))).toEqual({ code: "tuning", at: [{ tuning: "open" }], least: 0, most: 2 });
+
+    const t = (key: string) => key;
+
+    expect(refusalWords({ code: "tuning", at: [{ tuning: "open" }], least: 0, most: 2 }, t)).toBe("face.edit.tuning.key.open: face.edit.refusal.tuning");
+  });
+
+  test("a face's eyes answer the voice and its corners lift within their bounds", () => {
+    const voiced = setEyeVoice(doc(), joy, { grow: 0.9, squint: -1, shine: 0.2 });
+
+    expect(voiced.faces[joy]!.eyes.voice).toEqual({ grow: LIMITS.maxEyeVoice, squint: 0, shine: 0.2 });
+    expect(setCorners(doc(), joy, -3).faces[joy]!.corners).toBe(-1);
+    expect(refusalOf(setCorners(voiced, joy, 0.5))).toBeNull();
   });
 });
 
@@ -332,7 +377,7 @@ describe("saving", () => {
 
   test("a document is changed only where what it draws differs, not its version", () => {
     expect(changed({ ...doc(), savedAt: 5 }, doc())).toBe(false);
-    expect(changed(withParts(doc(), { tab: "talk", family: 0, mouth: 0 }, [dot]), doc())).toBe(true);
+    expect(changed(withParts(doc(), { tab: "talk", anchor: 0 }, [dot]), doc())).toBe(true);
   });
 
   test("a document is not changed by the order its keys were written in", () => {
@@ -341,7 +386,7 @@ describe("saving", () => {
     const face = saved.faces[name]!;
     const reordered: FaceDocument = {
       ...saved,
-      faces: { ...saved.faces, [name]: { mouth: face.mouth, marks: face.marks, blush: face.blush, eyes: face.eyes, brows: face.brows } },
+      faces: { ...saved.faces, [name]: { corners: face.corners, mouth: face.mouth, marks: face.marks, blush: face.blush, eyes: face.eyes, brows: face.brows } },
     };
 
     expect(changed(reordered, saved)).toBe(false);

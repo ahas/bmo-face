@@ -1,17 +1,27 @@
 //! The face from frame to frame (docs/face.md, 「The face's core」): which face shows, the talking mouth
-//! cut on the held clock, the blink, the change between faces and the gaze, and the frames a caller is
-//! told to wake at.
+//! following its sound every frame or on twos, the blink, the change between faces and the gaze, and the
+//! frames a caller is told to wake at.
 
 use bmo_face_core::drawing::Drawing;
+use bmo_face_core::hearing::{Heard, hear};
 use bmo_face_core::look::Look;
 use bmo_face_core::names::EMOTIONS;
 use bmo_face_core::scene::Scene;
-use bmo_face_core::talk::{LEAD, Speech, sample_loudness};
+use bmo_face_core::talk::{LEAD, Speech};
+use bmo_face_core::voice::sample_voice;
 
 use crate::support::document;
 
 fn scene() -> Scene {
   Scene::new(document(), 21, 0)
+}
+
+/// The sampled voice as the face hears it.
+fn voice() -> Speech {
+  Speech {
+    heard: hear(&sample_voice(48_000), 48_000),
+    cues: Vec::new(),
+  }
 }
 
 /// The frames the drawing changes at, over a span, with whether each was announced by the frame before.
@@ -35,16 +45,7 @@ fn changes(scene: &mut Scene, from: i64, to: i64) -> Vec<(i64, bool)> {
 #[test]
 fn every_change_of_the_drawing_is_announced_and_nothing_moves_between() {
   let mut scene = scene();
-  scene.speak(
-    &Speech {
-      loudness: sample_loudness(4, 600),
-      cues: Vec::new(),
-      seed: 4,
-    },
-    EMOTIONS[1],
-    Vec::new(),
-    300,
-  );
+  scene.speak(&voice(), EMOTIONS[1], Vec::new(), 300);
   scene.gaze([0.6, -0.3], 1_001);
   for (frame, announced) in changes(&mut scene, 0, 1_400) {
     assert!(announced, "the drawing changed unannounced at {frame}");
@@ -52,51 +53,66 @@ fn every_change_of_the_drawing_is_announced_and_nothing_moves_between() {
 }
 
 #[test]
-fn a_briefing_shows_its_face_and_cuts_its_mouth_on_the_held_clock() {
+fn a_briefing_shows_its_face_and_its_mouth_follows_the_sound_every_frame() {
   let mut scene = scene();
-  let loudness = sample_loudness(8, 480);
-  scene.speak(
-    &Speech {
-      loudness,
-      cues: Vec::new(),
-      seed: 8,
-    },
-    EMOTIONS[1],
-    Vec::new(),
-    100,
-  );
+  scene.set_blinking(false);
+  let speech = voice();
+  let end = 100 + speech.heard.len() as i64;
+  scene.speak(&speech, EMOTIONS[1], Vec::new(), 100);
   let joy = Look::of(document().face(EMOTIONS[1]));
-  // Past the change into the briefing's face, the eyes are joy's and the mouth one of the talking set.
-  let talking: Vec<_> = document()
-    .talk
-    .iter()
-    .flat_map(|family| family.mouths.iter().map(|mouth| mouth.parts.clone()))
-    .collect();
-  for frame in 120..560 {
+  let mut changed = 0;
+  let mut last = scene.look(120).mouth;
+  for frame in 121..end {
     let look = scene.look(frame);
-    assert!(talking.contains(&look.mouth), "frame {frame}");
     assert_eq!(scene.face_at(frame), EMOTIONS[1]);
-    if look.eyes == joy.eyes {
-      continue;
-    }
-    // A blink or the gaze moves the eyes; their count of parts stays joy's.
     assert_eq!(look.eyes[0].len(), joy.eyes[0].len(), "frame {frame}");
+    changed += usize::from(look.mouth != last);
+    last = look.mouth;
   }
-  // The mouth changes only at a step: never at an odd frame where the hold was two.
-  let mut changed = Vec::new();
+  assert!(changed * 2 > (end - 121) as usize, "{changed}");
+  // After the sound and the linger, the face of the presence shows again with its own mouth.
+  let idle = Look::of(document().face("idle"));
+  assert_eq!(scene.look(end + 96 + 20).mouth, idle.mouth);
+}
+
+#[test]
+fn on_twos_the_mouth_holds_each_drawing_two_frames() {
+  let mut on_twos = document();
+  on_twos.talk.tuning.on_twos = true;
+  let mut scene = Scene::new(on_twos, 21, 0);
+  scene.set_blinking(false);
+  scene.pin(Some(EMOTIONS[1]));
+  scene.speak(&voice(), EMOTIONS[1], Vec::new(), 101);
   let mut last = scene.look(100 - LEAD).mouth;
-  for frame in 100 - LEAD + 1..580 {
+  for frame in 100 - LEAD + 1..200 {
     let mouth = scene.look(frame).mouth;
     if mouth != last {
-      changed.push(frame);
+      assert_eq!((frame - 101 + LEAD).rem_euclid(2), 0, "frame {frame}");
     }
     last = mouth;
   }
-  let holds: Vec<i64> = changed.windows(2).map(|pair| pair[1] - pair[0]).collect();
-  assert!(holds.iter().all(|hold| [1, 2, 3, 4, 5, 6, 8].contains(hold)), "{holds:?}");
-  // After the sound and the linger, the face of the presence shows again with its own mouth.
-  let idle = Look::of(document().face("idle"));
-  assert_eq!(scene.look(580 + 96 + 20).mouth, idle.mouth);
+}
+
+#[test]
+fn silence_shows_the_face_its_own_mouth_and_the_same_sound_the_same_face_whatever_the_seed() {
+  let silent = Speech {
+    heard: vec![Heard::silent(); 48],
+    cues: Vec::new(),
+  };
+  let mut scene = scene();
+  scene.pin(Some(EMOTIONS[1]));
+  scene.speak(&silent, EMOTIONS[1], Vec::new(), 10);
+  let own = Look::of(document().face(EMOTIONS[1])).mouth;
+  for frame in 8..58 {
+    assert_eq!(scene.look(frame).mouth, own, "frame {frame}");
+  }
+  let mouths = |seed: u64| {
+    let mut scene = Scene::new(document(), seed, 0);
+    scene.pin(Some(EMOTIONS[0]));
+    scene.speak(&voice(), EMOTIONS[0], Vec::new(), 4);
+    (0..120).map(|frame| scene.look(frame).mouth).collect::<Vec<_>>()
+  };
+  assert_eq!(mouths(1), mouths(99));
 }
 
 #[test]

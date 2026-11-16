@@ -1,7 +1,6 @@
-import { FACTS } from "#core";
+import { FACTS, hear } from "#core";
 
 import { isFresh } from "~/domain/listener";
-import { loudnessByFrame } from "~/domain/mouth";
 
 import type { FaceScene } from "#core";
 import type { HeldClock } from "~/composables/useFaceScene";
@@ -9,8 +8,8 @@ import type { HeardBriefing } from "~/domain/listener";
 
 // Plays a briefing and hands the face's core what it needs to move the mouth with it (docs/face.md,
 // 「The mouth while speaking」). The sound is fetched with the screen's token and decoded whole into the
-// page's own audio graph before it plays, its loudness read once a frame of the held clock, and the
-// core plans every drawing over it at once. The sound is started on the audio clock so that it is heard
+// page's own audio graph at the voice's own 48 kHz before it plays, its first channel heard by the core
+// (「Hearing the sound」), and the core plans every drawing over it at once. The sound is started on the audio clock so that it is heard
 // the core's lead after the first drawing shows, the output latency the browser reports taken off; with
 // `?sound=off` nothing plays and the mouth runs on the frame clock alone.
 
@@ -21,6 +20,8 @@ export interface SceneTeller {
 
 /** How many frames the first drawing waits after a sound is decoded, so its own frame is not already past. */
 const SETTLE_FRAMES = 1;
+/** The rate the page's audio is opened at: the voice's Opus is coded at it, so every display hears the same samples. */
+export const AUDIO_RATE = 48_000;
 
 export function useSpeaker(options: { token: Ref<string | null>; silent: boolean; face: SceneTeller }) {
   const speaking = ref<HeardBriefing | null>(null);
@@ -35,7 +36,7 @@ export function useSpeaker(options: { token: Ref<string | null>; silent: boolean
   let playing = 0;
 
   function audio(): AudioContext {
-    context ??= new AudioContext();
+    context ??= new AudioContext({ sampleRate: AUDIO_RATE });
     suspended.value = !options.silent && context.state === "suspended";
 
     return context;
@@ -90,14 +91,14 @@ export function useSpeaker(options: { token: Ref<string | null>; silent: boolean
       return;
     }
 
-    const loudness = loudnessByFrame(buffer.getChannelData(0), buffer.sampleRate, FACTS.fps);
+    const heardFrames = hear(buffer.getChannelData(0), buffer.sampleRate);
     const { clock } = options.face;
     // The first drawing shows a frame from now; the sound is heard the lead after it.
     const heard = clock.frame() + SETTLE_FRAMES + FACTS.lead;
     const heardIn = (clock.timeOf(heard) - performance.now()) / 1000;
 
     speaking.value = briefing;
-    options.face.tell((scene) => scene.speak({ loudness, seed: briefing.messageId }, briefing.emotion, heard));
+    options.face.tell((scene) => scene.speak({ heard: heardFrames }, briefing.emotion, heard));
 
     if (options.silent) {
       ending = setTimeout(() => finish(which), heardIn * 1000 + buffer.duration * 1000);

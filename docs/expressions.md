@@ -73,51 +73,55 @@ official figure the face drew before.
 ## The eye set
 
 The eyes the animation draws, each redrawn as the left eye around its centre, the right its
-reflection. The reach is how far each moves with the gaze; a closed eye has none.
+reflection. The reach is how far each moves with the gaze; the voice how far it may grow, squint and
+shimmer its shine while BMO speaks, each a share of its own size, a larger eye less so that it stays
+the eye it is (`docs/face.md`, 「The eyes while speaking」). A closed eye has neither.
 
-| Name | Shape | Size (wide × high) | Reach |
-| --- | --- | --- | --- |
-| `dot` | filled oval | 6 × 6.5 | 2.2 × 1.6 |
-| `dot-small` | filled oval | 4.8 × 6.2 | 2.2 × 1.6 |
-| `oval` | tall oval | 5.8 × 9.6 | 1.8 × 1.2 |
-| `oval-tall` | taller oval | 6.8 × 13 | 1.6 × 1.0 |
-| `oval-wide` | large oval | 8.2 × 11.2 | 1.6 × 1.0 |
-| `surprise` | surprise oval | 8 × 17.2 | 1.4 × 0.8 |
-| `shining` | big eye, two white shines inside | 10.2 × 9.8 | 1.6 × 1.2 |
-| `half-lid-small` | lid half down | 5.2 × 3.75 | 1.6 × 0.6 |
-| `half-lid` | lid half down | 6.2 × 5 | 1.8 × 0.6 |
-| `half-lid-wide` | lid half down | 10 × 5.5 | 1.2 × 0.4 |
-| `closed-arc` | shallow arc ‿ | 10 × 1.9 | — |
-| `closed-cap` | arc ⌒ | 9 × 3.4 | — |
-| `closed-u` | shallow U | 11 × 4.5 | — |
-| `closed-u-deep` | deep U | 6.8 × 7.8 | — |
-| `squeezed` | `>` of two straight strokes | 5.8 × 5.6 | — |
+| Name | Shape | Size (wide × high) | Reach | Voice (grow, squint, shine) |
+| --- | --- | --- | --- | --- |
+| `dot` | filled oval | 6 × 6.5 | 2.2 × 1.6 | 0.1, 0.15, 0 |
+| `dot-small` | filled oval | 4.8 × 6.2 | 2.2 × 1.6 | 0.1, 0.15, 0 |
+| `oval` | tall oval | 5.8 × 9.6 | 1.8 × 1.2 | 0.08, 0.12, 0 |
+| `oval-tall` | taller oval | 6.8 × 13 | 1.6 × 1.0 | 0.06, 0.1, 0 |
+| `oval-wide` | large oval | 8.2 × 11.2 | 1.6 × 1.0 | 0.06, 0.1, 0 |
+| `surprise` | surprise oval | 8 × 17.2 | 1.4 × 0.8 | 0.05, 0.08, 0 |
+| `shining` | big eye, two white shines inside | 10.2 × 9.8 | 1.6 × 1.2 | 0.06, 0.1, 0.25 |
+| `half-lid-small` | lid half down | 5.2 × 3.75 | 1.6 × 0.6 | 0.04, 0.1, 0 |
+| `half-lid` | lid half down | 6.2 × 5 | 1.8 × 0.6 | 0.04, 0.1, 0 |
+| `half-lid-wide` | lid half down | 10 × 5.5 | 1.2 × 0.4 | 0.04, 0.1, 0 |
+| `closed-arc` | shallow arc ‿ | 10 × 1.9 | — | — |
+| `closed-cap` | arc ⌒ | 9 × 3.4 | — | — |
+| `closed-u` | shallow U | 11 × 4.5 | — | — |
+| `closed-u-deep` | deep U | 6.8 × 7.8 | — | — |
+| `squeezed` | `>` of two straight strokes | 5.8 × 5.6 | — | — |
 
-## The talking mouth set
+## The talking set
 
 The 23 mouth drawings that occur twenty times or more inside the studied lines, in the animation's
-eight families folded into six — its small, medium and large beans are one family of three sizes.
-Each family's weight is its share of the talking frames; its voices are the sounds it is drawn for.
-Sizes are wide × high; inside, the upper teeth band's depth (T), the lower band's (L) and the tongue's
-rise (G), each as a share of the height.
+families, are the talking set's anchors (`docs/face.md`, 「The talking set」). Sizes are wide × high;
+inside, the upper teeth band's depth (T), the lower band's (L) and the tongue's rise (G), each as a share
+of the height. Each stands where its own size measures it, how open and how wide; the slit of clenched
+teeth and the grimace stand on the plane of the teeth together.
 
-| Family | Voices | Weight | Mouths |
-| --- | --- | --- | --- |
-| `bean` | open, other | 0.528 | small: 14.9 × 7.2 G .38; 20.5 × 7.8 T .22 G .34; 21.8 × 9.8 T .24 G .36 — medium: 28.2 × 8.5 T .3, top bowed up; 22 × 11.2 G .55; 27 × 12.2 T .24 G .4; 23.8 × 13.8 T .24 G .36; 32.2 × 12.2 T .22 G .4 — large: 28.8 × 15.8 T .22 G .38; 35.2 × 14.2 T .24 G .4; 32.5 × 15.5 T .2 G .42; 42.1 × 18.2 T .2 G .38 |
-| `line` | silence, closing | 0.139 | small 16.8 wide, bowed 0.5; medium 27.5, bowed 0.9; large 30.2, bowed 3.2 |
-| `slit` | silence, closing, other | 0.110 | small 15.5 × 4.8 G .4; medium 21.1 × 5.8 T .45 |
-| `round` | rounded, open | 0.085 | small 15.5 × 10.5 G .34; medium 17.2 × 13.8 T .16 G .32; large 19.8 × 17.8 T .16 G .3; large 26.5 × 20.2 T .18 G .28 |
-| `grimace` | other | 0.068 | large 34.8 × 10.5 T .44 L .44 |
-| `small-o` | rounded | 0.051 | small 7.2 × 8, a dark oval with nothing inside |
+| Family | Share of the talking frames | Drawings, at their places (open, wide) |
+| --- | --- | --- |
+| bean | 0.528 | small: 14.9 × 7.2 G .38 (.357, .234); 20.5 × 7.8 T .22 G .34 (.387, .382); 21.8 × 9.8 T .24 G .36 (.486, .416) — medium: 28.2 × 8.5 T .3, top bowed up (.454, .584); 22 × 11.2 G .55 (.559, .421); 27 × 12.2 T .24 G .4 (.605, .553); 23.8 × 13.8 T .24 G .36 (.688, .468); 32.2 × 12.2 T .22 G .4 (.605, .689) — large: 28.8 × 15.8 T .22 G .38 (.787, .6); 35.2 × 14.2 T .24 G .4 (.704, .768); 32.5 × 15.5 T .2 G .42 (.772, .697); 42.1 × 18.2 T .2 G .38 (.905, .95) |
+| line | 0.139 | 16.8 wide, bowed 0.5 (0, .284); 27.5, bowed 0.9 (0, .566); 30.2, bowed 3.2 (0, .637) |
+| slit | 0.110 | 15.5 × 4.8 G .4 (.238, .25); 21.1 × 5.8 T .45, teeth together (.287, .397) |
+| round | 0.085 | 15.5 × 10.5 G .34 (.52, .25); 17.2 × 13.8 T .16 G .32 (.683, .295); 19.8 × 17.8 T .16 G .3 (.881, .363); 26.5 × 20.2 T .18 G .28 (1, .539) |
+| grimace | 0.068 | 34.8 × 10.5 T .44 L .44, teeth together (.52, .758) |
+| small-o | 0.051 | 7.2 × 8, a dark oval with nothing inside (.396, .032) |
 
 ## How the animation moves
 
 - **The talking mouth is drawn on twos:** a new drawing every two frames at 23.976 a second in 72 %
   of holds, four frames in 11 %, one frame in 10 %. Drawings cut from one to the next; the same
-  drawing follows itself in 11 % of steps.
+  drawing follows itself in 11 % of steps. The face follows its sound every frame by default, and on
+  twos where its talking set asks for this look.
 - **The mouth leads the sound by two frames:** its openness follows the loudness best two frames
   ahead.
-- **Loudness opens the mouth, weakly** (Spearman's ρ 0.21). By tenths of the loudness, quietest first:
+- **Loudness opens the mouth, weakly** (Spearman's ρ 0.21): the animation's mouth is drawn, not
+  read off the sound, and the face reads it off the sound more closely than the animation does. By tenths of the loudness, quietest first:
 
   | Tenth | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
   | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -159,12 +163,12 @@ No default face draws blush, tears or a shine; the set holds them for the editor
 
 ## Where the face still differs from the animation
 
-- **The animation draws its mouth fresh each time;** the face draws 23 drawings, so a long briefing
-  repeats them, though never twice running.
+- **The animation draws its mouth fresh each time;** the face blends its 23 drawings into the mouth
+  each moment of the sound calls for, so it passes through every one of them and through every mouth
+  between, and repeats a mouth only where the sound repeats itself.
 - **Expressions in the animation change with the scene;** the face's expressions are its thirteen
   faces, chosen by BMO's emotion and presence.
 - **The talking mouth does not lean, squash or tilt** with the head, as the animation's does when BMO
   moves; the face has no head to move.
-- **The loudness relation was measured on English voices.** Korean's sounds are mapped by
-  extrapolation (`docs/face.md`, 「The mouth while speaking」), and BMO's briefings carry no timed text
-  today.
+- **The animation's sound was measured on English voices,** and its mouth by loudness alone; the face
+  reads the formants of any voice, Korean's as well, and BMO's briefings carry no timed text today.

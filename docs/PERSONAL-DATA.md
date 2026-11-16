@@ -25,7 +25,9 @@ of them stands in code, a comment, a document, a test fixture or a commit messag
 The repository's check holds it (`tests/personal-data.test.ts`): a pattern check over every file git
 tracks, or would track, for mail addresses, home paths, telephone numbers, tokens and private network
 addresses. A mailbox in a reserved example domain, the development address and a home path naming a
-neutral folder are not findings.
+neutral folder are not findings. The core's WebAssembly module, `src/wasm/bytes.js`, is not read: it is
+the compiled module's bytes written as base64, where a run of letters can take any pattern's shape and
+nobody writes a word.
 
 The repository holds the patterns, not a list of terms: a term a scan looks for stands outside the
 repository, so the repository names nobody.

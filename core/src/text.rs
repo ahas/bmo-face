@@ -1,6 +1,6 @@
 //! The sound a timed text says at each frame (docs/face.md, 「The mouth while speaking」), for the
-//! speaking driver to steer the family of the coming mouth by: the lips meeting, a rounded vowel, an open
-//! vowel, a pause.
+//! speaking driver to bend the mouth by where a briefing carries one: the lips meeting, a rounded vowel,
+//! an open vowel, a pause.
 //!
 //! A cue is a run of text and the frames of the sound it is spoken over; its sounds are spread evenly
 //! across them, one unit a syllable of Korean or a letter of English, a space a pause. English is read
@@ -9,7 +9,20 @@
 //! bieup, ssangbieup or pieup starts closed, one whose last consonant is mieum, bieup or pieup ends
 //! closed, the vowels o, u and their compounds are rounded, and a and ya are open.
 
-use crate::document::Voice;
+/// The sound a unit of text says.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Voice {
+  /// A pause, between words or before and after a line.
+  Silence,
+  /// The lips meeting, as on P, B and M.
+  Closing,
+  /// A rounded vowel, as on O and U.
+  Rounded,
+  /// An open vowel, as on A.
+  Open,
+  /// Any other voiced sound.
+  Other,
+}
 
 /// A run of text and the frames of the sound it is spoken over, from the sound's first frame.
 #[derive(Clone, Debug, PartialEq)]

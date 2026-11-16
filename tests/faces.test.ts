@@ -2,13 +2,16 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { FaceScene, FACTS } from "../src/core";
-import { checkFaceDocument, DEFAULT_FACES, EMOTIONS, FACE_NAMES, faceFor, FALLBACK_FACE, PAINTS, SIZES, STATES } from "../src/faces";
+import { FaceScene, FACTS, hear, sampleVoice } from "../src/core";
+import { checkFaceDocument, DEFAULT_FACES, EMOTIONS, EYE_VOICE, FACE_NAMES, faceFor, FALLBACK_FACE, PAINTS, STATES } from "../src/faces";
+
+import type { Heard } from "../src/core";
 import { sourceHash } from "../scripts/core";
 
 // The expression document as the screen holds it, and the core it hands on (docs/face.md, 「The face's
 // core」). What the core answers is held by the core's own tests; these hold the screen's statement of the
-// document to the core's, and the core's WebAssembly build to the sources it was made from.
+// document to the core's, the core's WebAssembly build to the sources it was made from, and its hearing to
+// the native build's (「Hearing the sound」).
 
 describe("the core's WebAssembly build", () => {
   test("is made from the core's sources as they stand", () => {
@@ -19,12 +22,12 @@ describe("the core's WebAssembly build", () => {
 });
 
 describe("the document's names", () => {
-  test("are the core's: the faces, the fallback, the paints and the sizes", () => {
+  test("are the core's: the faces, the fallback, the paints and the eyes' answer to the voice", () => {
     expect<string[]>([...EMOTIONS]).toEqual(FACTS.emotions);
     expect<string[]>([...STATES]).toEqual(FACTS.states);
     expect<string>(FALLBACK_FACE).toBe(FACTS.fallback);
     expect<string[]>([...PAINTS]).toEqual(FACTS.paints);
-    expect<string[]>([...SIZES]).toEqual(FACTS.sizes);
+    expect<string[]>([...EYE_VOICE]).toEqual(FACTS.eyeVoice);
   });
 });
 
@@ -57,12 +60,29 @@ describe("a refusal", () => {
   });
 });
 
+describe("the hearing", () => {
+  test("of the fixture is the native build's within a thousandth of a decibel", () => {
+    const fixture = JSON.parse(readFileSync(join(import.meta.dir, "..", "core", "tests", "fixtures", "heard.json"), "utf8")) as {
+      rate: number;
+      samples: number[];
+      heard: Heard[];
+    };
+    const heard = hear(Float32Array.from(fixture.samples, (sample) => sample / 32_768), fixture.rate);
+    const apart = (one: Heard, other: Heard) =>
+      Math.max(Math.abs(one.level - other.level), Math.abs(one.flux - other.flux), ...one.bands.map((band, index) => Math.abs(band - other.bands[index]!)));
+
+    expect(heard).toHaveLength(fixture.heard.length);
+    expect(heard.map((frame) => frame.voiced)).toEqual(fixture.heard.map((frame) => frame.voiced));
+    expect(Math.max(...heard.map((frame, index) => apart(frame, fixture.heard[index]!)))).toBeLessThanOrEqual(0.001);
+  });
+});
+
 describe("the scene", () => {
   test("hands the same drawings to the same seed and events, held between the frames it names", () => {
     const run = () => {
       const scene = new FaceScene(DEFAULT_FACES, 5, 0);
 
-      scene.speak({ loudness: Array.from({ length: 96 }, (_, frame) => (frame % 12 < 6 ? -30 : -80)), seed: 5 }, EMOTIONS[1], 10);
+      scene.speak({ heard: hear(sampleVoice(16_000), 16_000) }, EMOTIONS[1], 10);
 
       return Array.from({ length: 140 }, (_, frame) => scene.drawingText(frame));
     };

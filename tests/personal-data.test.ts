@@ -17,6 +17,10 @@ const NEUTRAL_HOME = ["user", "tester", "qa-admin", "placeholder", "example", "a
 // The mail addresses the repository allows by name (docs/PERSONAL-DATA.md, 「Allowed values」).
 const ALLOWED_MAIL = ["dev@ahas.io"];
 
+// The compiled core's bytes written as base64, where a run of letters can take any pattern's shape
+// (docs/PERSONAL-DATA.md, 「The check」).
+const ENCODED_BYTES = ["src/wasm/bytes.js"];
+
 // Every file git tracks or would track: the committed ones and the new ones it does not ignore.
 function tracked(): string[] {
   const output = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard", "-z"], {
@@ -32,7 +36,7 @@ function tracked(): string[] {
 function trackedTexts(): [string, string][] {
   const texts: [string, string][] = [];
 
-  for (const path of tracked()) {
+  for (const path of tracked().filter((path) => !ENCODED_BYTES.includes(path))) {
     const bytes = readFileSync(join(ROOT, path));
 
     if (!bytes.includes(0)) texts.push([path, bytes.toString("utf8")]);

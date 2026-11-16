@@ -1,8 +1,8 @@
-import { addNode as coreAddNode, mirrorParts, newInside as coreNewInside, newPart as coreNewPart, smoothHandles } from "#core";
+import { addNode as coreAddNode, measureAnchor, mirrorParts, newInside as coreNewInside, newPart as coreNewPart, smoothHandles } from "#core";
 import { checkFaceDocument, FALLBACK_FACE, LIMITS, PAIR_ELEMENTS, SCREEN } from "#faces";
 
 import type { NewInside, NewPart } from "#core";
-import type { Element, Face, FaceDocument, FaceName, Pair, PairElement, Part, PathNode, Point, Refusal, Side, Size } from "#faces";
+import type { Anchor, Element, EyeVoice, Face, FaceDocument, FaceName, Pair, PairElement, Part, PathNode, Point, Refusal, Side, Tuning } from "#faces";
 
 // The editor's own logic, kept apart from its screen (docs/face.md, 「The editor」): which parts are
 // being edited, the handles each part is dragged by, and every change as a new part or a new
@@ -11,8 +11,8 @@ import type { Element, Face, FaceDocument, FaceName, Pair, PairElement, Part, Pa
 
 export type { NewInside, NewPart };
 
-/** What is being edited: one side of a face's paired element or its other element, or one talking mouth. */
-export type EditTarget = { tab: "faces"; face: FaceName; element: Element; side: Side } | { tab: "talk"; family: number; mouth: number };
+/** What is being edited: one side of a face's paired element or its other element, or one anchor of the talking set. */
+export type EditTarget = { tab: "faces"; face: FaceName; element: Element; side: Side } | { tab: "talk"; anchor: number };
 
 /** A part among the target's parts: one of them, or one standing inside one of them. */
 export interface PartAt {
@@ -49,7 +49,7 @@ export function isMirrored(document: FaceDocument, target: EditTarget): boolean 
 
 export function partsOf(document: FaceDocument, target: EditTarget): Part[] {
   if (target.tab === "talk") {
-    return document.talk[target.family]?.mouths[target.mouth]?.parts ?? [];
+    return document.talk.anchors[target.anchor]?.parts ?? [];
   }
 
   const face = document.faces[target.face];
@@ -70,12 +70,7 @@ export function partsOf(document: FaceDocument, target: EditTarget): Part[] {
 /** The document with the target's parts replaced. A face the document lacks is made from the fallback first. */
 export function withParts(document: FaceDocument, target: EditTarget, parts: Part[]): FaceDocument {
   if (target.tab === "talk") {
-    return {
-      ...document,
-      talk: document.talk.map((family, index) =>
-        index !== target.family ? family : { ...family, mouths: family.mouths.map((mouth, place) => (place === target.mouth ? { ...mouth, parts } : mouth)) },
-      ),
-    };
+    return withAnchor(document, target.anchor, (anchor) => ({ ...anchor, parts }));
   }
 
   const face = faceOf(document, target.face);
@@ -96,9 +91,26 @@ export function setMirrored(document: FaceDocument, name: FaceName, element: Pai
 /** The document with how far a face's eyes move with the gaze set, each way held to the limit. */
 export function setReach(document: FaceDocument, name: FaceName, reach: Point): FaceDocument {
   const face = faceOf(document, name);
-  const held = reach.map((value) => Math.min(LIMITS.maxReach, Math.max(0, value))) as Point;
+  const held = reach.map((value) => within(value, 0, LIMITS.maxReach)) as Point;
 
   return { ...document, faces: { ...document.faces, [name]: { ...face, eyes: { ...face.eyes, reach: held } } } };
+}
+
+/** The document with how far a face's eyes answer the voice set, each held between nought and the most an eye may. */
+export function setEyeVoice(document: FaceDocument, name: FaceName, voice: EyeVoice): FaceDocument {
+  const face = faceOf(document, name);
+  const held = Object.fromEntries(Object.entries(voice).map(([key, value]) => [key, within(value, 0, LIMITS.maxEyeVoice)])) as EyeVoice;
+
+  return { ...document, faces: { ...document.faces, [name]: { ...face, eyes: { ...face.eyes, voice: held } } } };
+}
+
+/** The document with how far a face's talking mouth lifts its corners set, held from −1 to 1. */
+export function setCorners(document: FaceDocument, name: FaceName, corners: number): FaceDocument {
+  return { ...document, faces: { ...document.faces, [name]: { ...faceOf(document, name), corners: within(corners, -1, 1) } } };
+}
+
+function within(value: number, least: number, most: number): number {
+  return Math.min(most, Math.max(least, value));
 }
 
 /** A face's parts in the order they are drawn, both sides of a pair drawn out, leaving out one element's side or a whole element. */
@@ -413,40 +425,64 @@ export function removeInside(part: Part, index: number): Part {
 // ---------------------------------------------------------------------------------------------
 // The talking mouth set and saving.
 
-/** The talking mouth set with a mouth added to a family after the given one, a copy of it; none past the limit. */
-export function addMouth(document: FaceDocument, family: number, after: number): FaceDocument {
-  return {
-    ...document,
-    talk: document.talk.map((own, index) => {
-      if (index !== family || own.mouths.length >= LIMITS.mouths) {
-        return own;
-      }
-
-      const mouths = [...own.mouths];
-
-      mouths.splice(after + 1, 0, structuredClone(mouths[after] ?? { size: "small", parts: [] }));
-
-      return { ...own, mouths };
-    }),
-  };
+/** The document with one anchor of the talking set changed. */
+function withAnchor(document: FaceDocument, index: number, change: (anchor: Anchor) => Anchor): FaceDocument {
+  return { ...document, talk: { ...document.talk, anchors: document.talk.anchors.map((anchor, place) => (place === index ? change(anchor) : anchor)) } };
 }
 
-/** The talking mouth set with a mouth removed from a family; never its last. */
-export function removeMouth(document: FaceDocument, family: number, mouth: number): FaceDocument {
-  return {
-    ...document,
-    talk: document.talk.map((own, index) => (index !== family || own.mouths.length <= 1 ? own : { ...own, mouths: own.mouths.filter((_, place) => place !== mouth) })),
-  };
+/** How much more open a copy of an anchor stands than the anchor it copies. */
+const COPY_STEP = 0.05;
+
+/** A place on the talking set's plane held to its square and to a thousandth. */
+function placeOf(at: Point): Point {
+  return at.map((value) => Math.round(within(value, 0, 1) * 1000) / 1000) as Point;
 }
 
-/** The talking mouth set with a mouth's size class set. */
-export function setSize(document: FaceDocument, family: number, mouth: number, size: Size): FaceDocument {
-  return {
-    ...document,
-    talk: document.talk.map((own, index) =>
-      index !== family ? own : { ...own, mouths: own.mouths.map((each, place) => (place === mouth ? { ...each, size } : each)) },
-    ),
-  };
+/**
+ * The talking set with an anchor added after the given one: a copy of it standing a twentieth more open,
+ * or less where that would pass the top (docs/face.md, 「The editor」); none past the limit.
+ */
+export function addAnchor(document: FaceDocument, after: number): FaceDocument {
+  const { anchors } = document.talk;
+  const copied = anchors[after];
+
+  if (copied === undefined || anchors.length >= LIMITS.anchors) {
+    return document;
+  }
+
+  const open = copied.at[0] + COPY_STEP > 1 ? copied.at[0] - COPY_STEP : copied.at[0] + COPY_STEP;
+  const added: Anchor = { ...structuredClone(copied), at: placeOf([open, copied.at[1]]) };
+
+  return { ...document, talk: { ...document.talk, anchors: anchors.toSpliced(after + 1, 0, added) } };
+}
+
+/** The talking set with an anchor removed; never its last. */
+export function removeAnchor(document: FaceDocument, index: number): FaceDocument {
+  const { anchors } = document.talk;
+
+  return anchors.length <= 1 ? document : { ...document, talk: { ...document.talk, anchors: anchors.filter((_, place) => place !== index) } };
+}
+
+/** The talking set with where an anchor stands set, how open and how wide, each held from nought to one. */
+export function setAnchorPlace(document: FaceDocument, index: number, at: Point): FaceDocument {
+  return withAnchor(document, index, (anchor) => ({ ...anchor, at: placeOf(at) }));
+}
+
+/** The talking set with whether an anchor's teeth stand together set. */
+export function setAnchorTeeth(document: FaceDocument, index: number, teeth: boolean): FaceDocument {
+  return withAnchor(document, index, (anchor) => ({ ...anchor, teeth }));
+}
+
+/** The talking set with an anchor placed where its drawing measures (docs/face.md, 「The talking set」); unchanged for a drawing of nothing. */
+export function placeMeasured(document: FaceDocument, index: number): FaceDocument {
+  const measured = measureAnchor(document.talk.anchors[index]?.parts ?? []);
+
+  return measured === null ? document : withAnchor(document, index, (anchor) => ({ ...anchor, at: measured.at, teeth: measured.teeth }));
+}
+
+/** The talking set with one tuning value set: a number, a span of two, or the switch. */
+export function setTuning(document: FaceDocument, key: string, value: Tuning[string]): FaceDocument {
+  return { ...document, talk: { ...document.talk, tuning: { ...document.talk.tuning, [key]: value } } };
 }
 
 /** What a save sends: the document without its version, and the version it was edited from. */
@@ -496,6 +532,7 @@ export function refusalWords(refusal: Refusal, t: (key: string, values?: Record<
     if ("element" in at) return t(`face.edit.element.${at.element}`);
     if ("side" in at) return t(`face.edit.side.${at.side}`);
     if ("color" in at) return t("face.edit.place.color", { name: at.color });
+    if ("tuning" in at) return t(`face.edit.tuning.key.${at.tuning}`);
 
     const [kind, n] = Object.entries(at)[0] as [string, number];
 

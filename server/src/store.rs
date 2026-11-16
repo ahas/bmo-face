@@ -184,7 +184,7 @@ mod tests {
     assert_eq!(store.prepare().unwrap(), Preparation::Upgraded);
     let written = stored(&dir);
     assert_eq!(written["savedAt"], 1700);
-    assert_eq!(written["form"], 2);
+    assert_eq!(written["form"], 3);
     assert_eq!(written["colors"]["ink"], "#1f3b35");
     assert_eq!(written["faces"]["idle"]["eyes"]["left"][0]["nodes"].as_array().unwrap().len(), 4);
     assert_eq!(written["talk"], default_document()["talk"]);
@@ -200,7 +200,7 @@ mod tests {
     assert_eq!(
       store.prepare().unwrap(),
       Preparation::Broken {
-        reason: "families".into(),
+        reason: "anchors".into(),
         moved_to: dir.path().join(format!("{FACES_FILE}.broken-42"))
       }
     );

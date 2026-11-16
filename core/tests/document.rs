@@ -32,12 +32,7 @@ fn every_anchor_and_handle_of_the_default_stands_on_the_screen() {
     .faces
     .iter()
     .flat_map(|(_, face)| bmo_face_core::look::Look::of(face).parts().cloned().collect::<Vec<_>>())
-    .chain(
-      default
-        .talk
-        .iter()
-        .flat_map(|family| family.mouths.iter().flat_map(|mouth| mouth.parts.clone())),
-    );
+    .chain(default.talk.anchors.iter().flat_map(|anchor| anchor.parts.clone()));
   for part in parts.flat_map(|part| std::iter::once(part.clone()).chain(part.inside.clone())) {
     for node in &part.nodes {
       for [x, y] in [
@@ -92,22 +87,54 @@ fn the_check_refuses_a_document_whole_for_each_fault() {
     (
       "nested-inside",
       Box::new(|doc| {
-        let mouth = doc["talk"][0]["mouths"][0]["parts"][0].clone();
-        doc["talk"][0]["mouths"][0]["parts"][0]["inside"][0]["inside"] = json!([mouth]);
+        let mouth = doc["talk"]["anchors"][0]["parts"][0].clone();
+        doc["talk"]["anchors"][0]["parts"][0]["inside"][0]["inside"] = json!([mouth]);
       }),
     ),
-    ("families", Box::new(|doc| doc["talk"] = json!([]))),
-    ("family-name", Box::new(|doc| doc["talk"][0]["name"] = json!("Bean"))),
-    ("voices", Box::new(|doc| doc["talk"][0]["voices"] = json!(["open", "open"]))),
-    ("weight", Box::new(|doc| doc["talk"][0]["weight"] = json!(0))),
-    ("mouths", Box::new(|doc| doc["talk"][0]["mouths"] = json!([]))),
-    ("size", Box::new(|doc| doc["talk"][0]["mouths"][0]["size"] = json!("huge"))),
+    (
+      "eye-voice",
+      Box::new(|doc| doc["faces"][FALLBACK]["eyes"]["voice"]["grow"] = json!(0.6)),
+    ),
+    ("corners", Box::new(|doc| doc["faces"][FALLBACK]["corners"] = json!(2))),
+    ("anchors", Box::new(|doc| doc["talk"]["anchors"] = json!([]))),
+    ("anchors", Box::new(|doc| doc["talk"] = json!([]))),
+    ("anchor-value", Box::new(|doc| doc["talk"]["anchors"][1]["at"] = json!([1.2, 0]))),
+    ("anchor-value", Box::new(|doc| doc["talk"]["anchors"][1]["teeth"] = json!("no"))),
+    (
+      "anchor-place",
+      Box::new(|doc| doc["talk"]["anchors"][2]["at"] = doc["talk"]["anchors"][0]["at"].clone()),
+    ),
+    ("tuning", Box::new(|doc| doc["talk"]["tuning"]["attack"] = json!(900))),
+    ("tuning", Box::new(|doc| doc["talk"]["tuning"]["midHz"] = json!([2_000, 1_000]))),
+    ("tuning", Box::new(|doc| doc["talk"]["tuning"]["onTwos"] = json!(1))),
   ];
   for (code, change) in cases {
     let mut document = default_json();
     change(&mut document);
     assert_eq!(refusal(&document)["code"], json!(code), "{code}");
   }
+}
+
+#[test]
+fn a_refusal_in_the_talking_set_names_the_anchor_or_the_tuning_value() {
+  let mut crowded = default_json();
+  crowded["talk"]["anchors"][3]["at"] = crowded["talk"]["anchors"][1]["at"].clone();
+  assert_eq!(refusal(&crowded), json!({ "code": "anchor-place", "at": [{ "anchor": 4 }] }));
+  // The same place on the other plane is no crowding.
+  let mut apart = default_json();
+  apart["talk"]["anchors"][16]["at"] = apart["talk"]["anchors"][1]["at"].clone();
+  assert!(check(&apart).is_ok());
+
+  let mut slow = default_json();
+  slow["talk"]["tuning"]["rest"] = json!(-1);
+  assert_eq!(
+    refusal(&slow),
+    json!({ "code": "tuning", "at": [{ "tuning": "rest" }], "least": 0, "most": 2000 })
+  );
+
+  let mut wide = default_json();
+  wide["talk"]["anchors"][0]["parts"][0]["line"]["width"] = json!(12);
+  assert_eq!(refusal(&wide)["at"], json!([{ "anchor": 1 }, { "part": 1 }]));
 }
 
 #[test]

@@ -33,8 +33,8 @@ export class FaceScene {
     setCalm(calm: boolean): void;
     setDocument(document: string): void;
     /**
-     * A sound to speak, first heard at `start`: `{ "loudness": [dBFS a frame], "cues": [{ "from", "to",
-     * "text" }], "seed", "faces": [{ "at", "face" }] }`, showing `face`.
+     * A sound to speak, first heard at `start`: `{ "heard": [what `hear` answers], "cues": [{ "from",
+     * "to", "text" }], "faces": [{ "at", "face" }] }`, showing `face`.
      */
     speak(speech: string, face: string, start: number): void;
     stop(frame: number): void;
@@ -56,10 +56,22 @@ export function checkDocument(text: string): string;
 export function defaultDocument(): string;
 
 /**
- * What a caller needs to know of the document and the clock: the form, the screen, the limits, the
- * names, the paints, the sizes and the sounds, the frame rate and the lead.
+ * What a caller needs to know of the document, the clock and the hearing: the form, the screen, the
+ * limits, the names, the paints, the eyes' answer to the voice, the tuning's declaration, the frame rate,
+ * the lead and the spectrum's bands.
  */
 export function facts(): string;
+
+/**
+ * What the face hears of a sound, one channel of samples at `rate` a second: a reading a frame.
+ */
+export function hear(samples: Float32Array, rate: number): string;
+
+/**
+ * Where a drawing stands among the talking set's, measured from itself: `{ "at": [open, wide], "teeth" }`,
+ * or null for a drawing of nothing.
+ */
+export function measureAnchor(parts: string): string;
 
 /**
  * A document of an older form carried into this one, unchecked.
@@ -87,9 +99,15 @@ export function newPart(kind: string): string;
 export function partsDrawing(parts: string, colors: string): string;
 
 /**
- * A sound's loudness sampled for a preview, in dBFS a frame.
+ * What the face does at each frame of a sound under a tuning, for the editor to draw beneath its
+ * preview: `[{ "voice", "open", "round", "teeth", "tongue", "grow", "squint", "shine" }]`.
  */
-export function sampleLoudness(seed: number, frames: number): Float64Array;
+export function poses(heard: string, tuning: string): string;
+
+/**
+ * The voice sampled for previews, at `rate` samples a second.
+ */
+export function sampleVoice(rate: number): Float32Array;
 
 /**
  * The handles a node takes made smooth from nothing, coming then leaving; null for no such node.
@@ -117,12 +135,15 @@ export interface InitOutput {
     readonly facescene_speak: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
     readonly facescene_stop: (a: number, b: number) => void;
     readonly facts: () => [number, number];
+    readonly hear: (a: number, b: number, c: number) => [number, number];
+    readonly measureAnchor: (a: number, b: number) => [number, number, number, number];
     readonly migrateDocument: (a: number, b: number) => [number, number, number, number];
     readonly mirrorParts: (a: number, b: number) => [number, number, number, number];
     readonly newInside: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly newPart: (a: number, b: number) => [number, number, number, number];
     readonly partsDrawing: (a: number, b: number, c: number, d: number) => [number, number, number, number];
-    readonly sampleLoudness: (a: number, b: number) => [number, number];
+    readonly poses: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly sampleVoice: (a: number) => [number, number];
     readonly smoothHandles: (a: number, b: number, c: number) => [number, number, number, number];
     readonly __wbindgen_externrefs: WebAssembly.Table;
     readonly __wbindgen_malloc: (a: number, b: number) => number;

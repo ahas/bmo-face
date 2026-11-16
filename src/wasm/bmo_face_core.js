@@ -124,8 +124,8 @@ export class FaceScene {
         }
     }
     /**
-     * A sound to speak, first heard at `start`: `{ "loudness": [dBFS a frame], "cues": [{ "from", "to",
-     * "text" }], "seed", "faces": [{ "at", "face" }] }`, showing `face`.
+     * A sound to speak, first heard at `start`: `{ "heard": [what `hear` answers], "cues": [{ "from",
+     * "to", "text" }], "faces": [{ "at", "face" }] }`, showing `face`.
      * @param {string} speech
      * @param {string} face
      * @param {number} start
@@ -220,8 +220,9 @@ export function defaultDocument() {
 }
 
 /**
- * What a caller needs to know of the document and the clock: the form, the screen, the limits, the
- * names, the paints, the sizes and the sounds, the frame rate and the lead.
+ * What a caller needs to know of the document, the clock and the hearing: the form, the screen, the
+ * limits, the names, the paints, the eyes' answer to the voice, the tuning's declaration, the frame rate,
+ * the lead and the spectrum's bands.
  * @returns {string}
  */
 export function facts() {
@@ -234,6 +235,54 @@ export function facts() {
         return getStringFromWasm0(ret[0], ret[1]);
     } finally {
         wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * What the face hears of a sound, one channel of samples at `rate` a second: a reading a frame.
+ * @param {Float32Array} samples
+ * @param {number} rate
+ * @returns {string}
+ */
+export function hear(samples, rate) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passArrayF32ToWasm0(samples, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.hear(ptr0, len0, rate);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
+ * Where a drawing stands among the talking set's, measured from itself: `{ "at": [open, wide], "teeth" }`,
+ * or null for a drawing of nothing.
+ * @param {string} parts
+ * @returns {string}
+ */
+export function measureAnchor(parts) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(parts, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.measureAnchor(ptr0, len0);
+        var ptr2 = ret[0];
+        var len2 = ret[1];
+        if (ret[3]) {
+            ptr2 = 0; len2 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred3_0 = ptr2;
+        deferred3_1 = len2;
+        return getStringFromWasm0(ptr2, len2);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
     }
 }
 
@@ -374,15 +423,44 @@ export function partsDrawing(parts, colors) {
 }
 
 /**
- * A sound's loudness sampled for a preview, in dBFS a frame.
- * @param {number} seed
- * @param {number} frames
- * @returns {Float64Array}
+ * What the face does at each frame of a sound under a tuning, for the editor to draw beneath its
+ * preview: `[{ "voice", "open", "round", "teeth", "tongue", "grow", "squint", "shine" }]`.
+ * @param {string} heard
+ * @param {string} tuning
+ * @returns {string}
  */
-export function sampleLoudness(seed, frames) {
-    const ret = wasm.sampleLoudness(seed, frames);
-    var v1 = getArrayF64FromWasm0(ret[0], ret[1]).slice();
-    wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+export function poses(heard, tuning) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(heard, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(tuning, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.poses(ptr0, len0, ptr1, len1);
+        var ptr3 = ret[0];
+        var len3 = ret[1];
+        if (ret[3]) {
+            ptr3 = 0; len3 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred4_0 = ptr3;
+        deferred4_1 = len3;
+        return getStringFromWasm0(ptr3, len3);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
+ * The voice sampled for previews, at `rate` samples a second.
+ * @param {number} rate
+ * @returns {Float32Array}
+ */
+export function sampleVoice(rate) {
+    const ret = wasm.sampleVoice(rate);
+    var v1 = getArrayF32FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
     return v1;
 }
 
@@ -442,17 +520,17 @@ const FaceSceneFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_facescene_free(ptr, 1));
 
-function getArrayF64FromWasm0(ptr, len) {
+function getArrayF32FromWasm0(ptr, len) {
     ptr = ptr >>> 0;
-    return getFloat64ArrayMemory0().subarray(ptr / 8, ptr / 8 + len);
+    return getFloat32ArrayMemory0().subarray(ptr / 4, ptr / 4 + len);
 }
 
-let cachedFloat64ArrayMemory0 = null;
-function getFloat64ArrayMemory0() {
-    if (cachedFloat64ArrayMemory0 === null || cachedFloat64ArrayMemory0.byteLength === 0) {
-        cachedFloat64ArrayMemory0 = new Float64Array(wasm.memory.buffer);
+let cachedFloat32ArrayMemory0 = null;
+function getFloat32ArrayMemory0() {
+    if (cachedFloat32ArrayMemory0 === null || cachedFloat32ArrayMemory0.byteLength === 0) {
+        cachedFloat32ArrayMemory0 = new Float32Array(wasm.memory.buffer);
     }
-    return cachedFloat64ArrayMemory0;
+    return cachedFloat32ArrayMemory0;
 }
 
 function getStringFromWasm0(ptr, len) {
@@ -469,6 +547,13 @@ function getUint8ArrayMemory0() {
 
 function isLikeNone(x) {
     return x === undefined || x === null;
+}
+
+function passArrayF32ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 4, 4) >>> 0;
+    getFloat32ArrayMemory0().set(arg, ptr / 4);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
 }
 
 function passStringToWasm0(arg, malloc, realloc) {
@@ -548,7 +633,7 @@ function __wbg_finalize_init(instance, module) {
     wasmInstance = instance;
     wasm = instance.exports;
     wasmModule = module;
-    cachedFloat64ArrayMemory0 = null;
+    cachedFloat32ArrayMemory0 = null;
     cachedUint8ArrayMemory0 = null;
     wasm.__wbindgen_start();
     return wasm;

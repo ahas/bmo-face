@@ -41,24 +41,12 @@ face:
     side:
       left: 왼쪽
       right: 오른쪽
-    family:
-      bean: 강낭콩
-      line: 선
-      slit: 틈
-      round: 동그라미
-      grimace: 이 드러냄
-      small-o: 작은 o
-    size:
-      small: 작게
-      medium: 중간
-      large: 크게
-    mouth_n: "{n}번"
+    anchor_n: "{n}번"
     target:
       face: 표정
       element: 부위
       side: 쪽
-      family: 입 모양
-      mouth: 그림
+      anchor: 입 그림
     action:
       save: 저장
       logout: 로그아웃
@@ -66,9 +54,10 @@ face:
       add_oval: 타원
       add_line: 선
       remove_part: 모양 삭제
-      add_mouth: 입 그림
+      add_anchor: 입 그림
       add_part_mouth: 모양·입 추가
-      remove_mouth: 입 그림 삭제
+      remove_anchor: 입 그림 삭제
+      measure: 그림대로 놓기
       add_node: 노드 추가
       remove_node: 노드 삭제
       add_teeth: 윗니
@@ -105,7 +94,15 @@ face:
       inside_part: "{paint} {n}"
       mirror: 좌우 대칭
       reach: 시선 범위
-      size: 크기
+      voice: 목소리 반응
+      grow: 커짐
+      squint: 찡그림
+      shine: 반짝임
+      corners: 입꼬리
+      place: 위치
+      open: 벌림
+      wide: 너비
+      teeth: 이 맞물림
     paint:
       none: 없음
       ink: 검정
@@ -117,17 +114,81 @@ face:
       tear: 눈물
     preview:
       title: 미리보기
-      talk: 말하기
+      sample: 예시 소리
+      file: 소리 파일
+      stop: 정지
+      file_failed: 소리 파일을 읽지 못했어요.
       blink: 깜빡임
       gaze_x: 시선 가로
       gaze_y: 시선 세로
+      strip: 들린 소리
+      level: 소리 크기
+      open: 벌림
+      round: 오므림
+      teeth: 이
+    tuning:
+      title: 소리 반응
+      group:
+        sound: 소리
+        mouth: 입
+        time: 시간
+        eyes: 눈
+      from: 시작
+      to: 끝
+      key:
+        floor: 가장 작은 소리
+        range: 소리 범위
+        open: 벌림
+        jaw: 턱
+        round: 오므림
+        teeth: 이
+        tongue: 혀
+        corners: 입꼬리 높이
+        cues: 자막 반영
+        attack: 열림 시간
+        release: 닫힘 시간
+        glide: 따라가기 시간
+        rest: 쉬기 시간
+        eyePulse: 소리 크기
+        eyeOnset: 소리 시작
+        eyeSquint: 긴 큰 소리
+        eyeShine: 치찰음
+        lowHz: 첫째 포먼트
+        midHz: 둘째 포먼트
+        highHz: 치찰음 대역
+        jawHz: 턱 대역
+        roundHz: 오므림 대역
+        onTwos: 두 프레임씩
+      hint:
+        floor: 입이 열리기 시작하는 가장 작은 소리(dBFS)예요.
+        range: 소리의 큰 쪽에서 이만큼(dB) 작은 소리부터 입이 열려요.
+        open: 큰 소리에서 입이 벌어지는 정도예요.
+        jaw: 벌림 가운데 첫째 포먼트가 정하는 몫으로, 클수록 '아'가 '이'보다 크게 벌어져요.
+        round: 둥근 모음('오', '우')에서 입을 오므리는 세기예요.
+        teeth: 치찰음('ㅅ', 'ㅆ')에서 이를 맞물리는 세기예요.
+        tongue: 크게 벌린 유성음에서 혀가 보이는 세기예요.
+        corners: 표정의 입꼬리가 다 올라갈 때 너비 30인 입의 끝이 움직이는 거리예요.
+        cues: 시간이 붙은 문장이 입 모양을 바꾸는 정도예요.
+        attack: 입이 열리는 데 걸리는 시간(ms)이에요.
+        release: 입이 닫히는 데 걸리는 시간(ms)이에요.
+        glide: 오므림, 이, 혀가 소리를 따라가는 시간(ms)이에요.
+        rest: 말이 멈췄을 때 표정의 입으로 돌아가는 시간(ms)이에요.
+        eyePulse: 소리 크기에 따라 눈이 커지는 세기예요.
+        eyeOnset: 소리가 갑자기 시작될 때 눈이 커지는 세기예요.
+        eyeSquint: 큰 소리가 길게 이어질 때 눈을 찡그리는 세기예요.
+        eyeShine: 치찰음에서 눈의 반짝임이 커지는 세기예요.
+        lowHz: 첫째 포먼트를 찾는 대역(Hz)이에요.
+        midHz: 둘째 포먼트를 찾는 대역(Hz)이에요.
+        highHz: 치찰음을 찾는 대역(Hz)이에요.
+        jawHz: 첫째 포먼트가 이 범위(Hz)의 시작이면 턱이 닫히고 끝이면 다 열려요.
+        roundHz: 둥근 모음의 두 포먼트 위 대역(Hz)으로, 이 대역의 소리가 그 아래보다 작을수록 입을 오므려요.
+        onTwos: 입과 눈을 매 프레임 대신 두 프레임에 한 번씩 그려 애니메이션처럼 보이게 해요.
     place:
       color: "색 {name}"
       part: "모양 {n}"
       inside: "안쪽 {n}"
       node: "노드 {n}"
-      family: "입 모양 {n}"
-      mouth: "그림 {n}"
+      anchor: "입 그림 {n}"
     refusal:
       not-a-document: 표정 문서의 모양이 맞지 않아요.
       color: "#rrggbb 꼴이어야 해요."
@@ -136,6 +197,8 @@ face:
       not-a-face: 표정이 맞지 않아요.
       not-a-pair: 왼쪽과 오른쪽이 맞지 않아요.
       reach: "시선 범위는 {least}에서 {most} 사이여야 해요."
+      eye-voice: "목소리 반응은 {least}에서 {most} 사이여야 해요."
+      corners: "입꼬리는 {least}에서 {most} 사이여야 해요."
       parts: "모양은 {most}개까지예요."
       not-a-part: 모양이 아니에요.
       closedness: 닫힌 선인지가 맞지 않아요.
@@ -150,12 +213,10 @@ face:
       nested-inside: 안에 넣은 모양 안에는 다시 넣을 수 없어요.
       inside-open: 열린 선 안에는 모양을 넣을 수 없어요.
       inside-count: "안에 넣는 모양은 {most}개까지예요."
-      families: "입 모양은 {least}개에서 {most}개 사이여야 해요."
-      family-name: 입 모양 이름이 맞지 않아요.
-      voices: 입 모양이 그려지는 소리가 맞지 않아요.
-      weight: 입 모양의 비중이 맞지 않아요.
-      mouths: "입 모양마다 그림은 {least}개에서 {most}개 사이여야 해요."
-      size: 그림의 크기가 맞지 않아요.
+      anchors: "입 그림은 {least}개에서 {most}개 사이여야 해요."
+      anchor-value: 입 그림의 값이 맞지 않아요.
+      anchor-place: 같은 위치에 다른 입 그림이 있어요.
+      tuning: "{least}에서 {most} 사이여야 해요."
     login:
       title: 표정 에디터 로그인
       wrong: 아이디 또는 비밀번호가 맞지 않아요.

@@ -9,16 +9,17 @@ caller, the native displayer that draws it on a machine's own panel, and the ser
 ## What stands here
 
 - **The display** — one full-screen web page, `/bmo-face/`, that draws BMO's face in SVG on a teal
-  body and moves it on the animation's own held clock: the mouth with the sound BMO speaks, the face
-  with the emotion it speaks with and with what BMO is doing, and the eyes with every blink.
+  body and moves it on the animation's own held clock: the mouth and the eyes with the sound BMO speaks,
+  read from the sound itself, the face with the emotion it speaks with and with what BMO is doing, and
+  the eyes with every blink.
 - **The native displayer** — `bmo-face-displayer`, a program of its own that does what the display
   does on a machine's own panel, straight through the kernel's display interface, with no browser, no
   window system and no desktop session (「The native displayer」).
-- **The editor** — `/bmo-face/edit`, where a person draws and corrects the faces and the talking
-  mouths and saves them. What it saves is what every display shows, with no rebuild and no reload.
+- **The editor** — `/bmo-face/edit`, where a person draws and corrects the faces and the talking set
+  and tunes how the sound moves them, and saves them. What it saves is what every display shows, with no rebuild and no reload.
 - **The core** — the one implementation of the face, a Rust crate with no I/O and no clock of its
-  own: it reads the expression document, holds the shapes, does the geometry and the blending, and
-  drives speaking, blinking, changing expression and gazing frame by frame. The display and the
+  own: it reads the expression document, holds the shapes, does the geometry and the blending, hears a
+  sound, and drives speaking, blinking, changing expression and gazing frame by frame. The display and the
   editor's preview draw what its WebAssembly build answers, and a native displayer drawing straight
   to a panel draws what the crate itself answers (「The face's core」).
 - **The server** — serves both pages, keeps the expression document, logs the editor in, passes
@@ -131,7 +132,7 @@ caller, the native displayer that draws it on a machine's own panel, and the ser
   1. **Pinned** — a face the caller pins shows whatever else is heard; the editor's preview pins the
      face being edited.
   2. **Speaking** — a briefing is playing: the face the briefing shows, with the talking mouth in
-     place of its own (「The mouth while speaking」).
+     place of its own and its eyes answering the voice (「The mouth while speaking」).
   3. **Just spoke** — for four seconds after a briefing ends, that face with its own mouth, so the
      feeling does not snap away with the last syllable.
   4. **Asleep** — BMO has been `idle` for ten minutes: the `졸림` face.
@@ -145,9 +146,11 @@ caller, the native displayer that draws it on a machine's own panel, and the ser
 ### The held clock
 
 - **The face is drawn on the animation's frames,** 23.976 a second, and every drawing is held for
-  whole frames: an ordinary drawing for two (on twos), now and then for one or four. Nothing on the
-  face is eased and nothing is tweened from one display frame to the next; a drawing is computed when
-  its frame comes and stands until the next drawing's frame.
+  whole frames: a change of face's in-betweens and the gaze's steps on twos, the blink frame by frame,
+  and, while BMO speaks, the mouth and the eyes every frame, following the sound (「The mouth while
+  speaking」), or on twos where the talking set's switch asks for the animation's look. Nothing is
+  tweened from one display frame to the next; a drawing is computed when its frame comes and stands
+  until the next drawing's frame.
 - **Frames are the caller's.** A caller counts frames from a moment of its own and asks the core the
   drawing of a frame and the next frame the drawing may change; it waits until then, or until it hears
   something new. Frames are asked in order.
@@ -194,66 +197,154 @@ caller, the native displayer that draws it on a machine's own panel, and the ser
 ### Less motion
 
 - **A viewer whose setting asks for less motion** (`prefers-reduced-motion: reduce`) is shown every
-  change of face as a cut, with no in-betweens. The held clock already moves nothing smoothly, so the
-  blink, the talking mouth and the gaze's held steps stay: they are how the face speaks and looks
-  alive, and each is a cut from one held drawing to the next.
+  change of face as a cut, with no in-betweens. The blink, the talking mouth, the eyes' answer to the
+  voice and the gaze's held steps stay: they are how the face speaks and looks alive, and each frame of
+  them is a drawing of its own, held until the next.
+
+## Hearing the sound
+
+- **The face is moved by the sound itself.** Every caller decodes a briefing's sound whole before it
+  plays and hands its first channel's samples to the core, which reads them into what the face hears at
+  each frame of the held clock; the display, the editor's preview and the native displayer hear one
+  sound alike.
+- **What each frame holds:**
+  - its **level** — the root mean square of the frame's own samples, in dBFS, silence at −120;
+  - its **spectrum** in sixteen bands of seven sixteenths of an octave from 80 Hz to 10,240 Hz (edges
+    80, 108, 147, 199, 269, 364, 494, 668, 905, 1,226, 1,660, 2,248, 3,044, 4,123, 5,583, 7,561 and
+    10,240 Hz), each band the mean square its share of the sound would have alone, in dBFS, so a band
+    holding the whole of a sound reads its level;
+  - its **centroid** — the frequency the energy between 80 Hz and 10,240 Hz centres on, nought for
+    silence;
+  - its **flux** — how much the spectrum's magnitude rose since the frame before, as a share of its
+    own, from nought to one: a sharp start reads high;
+  - whether it is **voiced** — louder than −60 dBFS, more of its energy below 905 Hz than above
+    3,044 Hz, and crossing nought fewer than 3,000 times a second.
+- **How it is read.** A frame's samples are those from the sample its start rounds to up to the one the
+  next frame's start rounds to. Its spectrum is the mean of two transforms, each over a periodic Hann
+  window as long as the power of two nearest one frame's samples — 2,048 at 48 kHz — centred a quarter
+  and three quarters of the way through the frame, so the windows overlap by half and every sample
+  weighs alike; samples before the first and past the last count as silence. Nothing is smoothed here:
+  the speaking driver smooths what it draws from these readings.
+- **One implementation.** The transform is rustfft's radix-4 transform in single precision, built
+  without its SIMD paths, and the logarithms and cosines come from `libm`, the pure-Rust mathematics
+  library: the same operations in the same order natively and in the WebAssembly build, so the two hear
+  a sound alike to the bit, but where the transform's own twiddle factors, which rustfft computes with
+  the platform's sine and cosine, differ in their last bit — they can move a band's reading by a few
+  millionths of a decibel. The web's test holds its build's hearing of a fixture to the native one's
+  within a thousandth of a decibel, and no closer.
+- **At any rate.** The web display opens its audio at 48 kHz, as the voice's Opus is coded, so both
+  displays hear the same samples; a sound at another rate is read with a window the power of two
+  nearest its own frame, and a band above half its rate stands silent.
+- **A voice to try.** The core makes a sample of its own for the editor, the shots and the tests: about
+  five seconds of a formant-synthesised voice saying the five vowels one by one, then "sa", "ma", "so"
+  and "simu", with pauses between, a sawtooth voice falling from 140 to 115 Hz through a vowel's three
+  resonances and a fourth at 3,300 Hz every voice holds, brightened as the lips radiate it by a first difference, and noise through a double
+  difference for a hiss.
 
 ## The mouth while speaking
 
-- **The talking mouth set** (「The expression document」) is the mouths the animation talks with,
-  in families — a bean in three sizes, a line, a slit, a round O, a small dark o, a grimace of teeth —
-  each family naming the sounds it is drawn for and how often it is drawn while talking, each mouth its
-  size class. Speaking draws one of them at a time over the face in place of its own mouth.
-- **The driver plans the whole sound before it plays.** The display decodes the briefing into the
-  page's own audio graph and reads its loudness once a frame of the held clock, in dBFS; the core
-  plans every drawing over it at once:
-  - each drawing is held two frames as a rule, one frame one time in ten and four frames one time in
-    ten, and cut to the next — never morphed;
-  - a drawing is picked for the sound two frames after it shows: the animation's mouth leads its
-    voice by two frames, so the display shows each drawing two frames before the sound it is drawn
-    for is heard;
-  - the loudness of those frames, ranked against the sound's own voiced frames in tenths, picks by
-    the measured relation how often the mouth is closed — about one drawing in five at the quietest
-    tenth, one in twenty-five at the loudest — and the size the open mouths aim at, from small to
-    large;
-  - a frame more than 35 dB below the sound's loudest, or quieter than −50 dBFS, is a pause: the mouth
-    closes on a line or a slit;
-  - the first drawing after a pause and the last before one are small, as the animation's mouth grows
-    from a line's first drawing and shrinks into its last;
-  - within what the loudness allows, the family is drawn by its weight and the mouth by seeded chance
-    — the seed is the briefing's message — and never the same mouth twice running.
-- **Timed text steers the family where a briefing carries it.** A cue is a run of the spoken text and
-  the frames of the sound it is spoken over; its sounds are spread evenly across them. The lips
-  meeting (P, B, M) draw a closed line or slit seven times in ten; a rounded vowel (O, U, W) draws the
-  small o or the round O; an open vowel (A) a large open mouth. Korean is read the same way by
-  extrapolation, never measured: ㅁ, ㅂ, ㅃ and ㅍ close the lips at a syllable's start or end, ㅗ,
-  ㅜ and the vowels built on them round them, ㅏ and ㅑ open them. Today's briefings carry no timed
-  text, so the loudness alone drives the mouth.
+- **The talking set** (「The expression document」) is the drawings the talking mouth passes through,
+  its anchors, and the tuning of how the sound moves it. Each anchor stands at a place on a plane of
+  how open a mouth is and how wide, each from nought to one, and the anchors whose teeth stand together
+  on a plane of their own. Speaking draws, at every frame, the mouth the sound calls for over the face in
+  place of its own (「The talking set」).
+- **What the sound calls for at a frame,** before it is smoothed:
+  - **open** — the level's place between quiet and loud, quiet being `range` dB below the sound's own
+    loud level (the level 95 % of its frames above `floor` stay under) and never below `floor`; times
+    `open`; with the share `jaw` of it decided by where the first formant stands — the centre of the
+    energy in the `lowHz` band, from closed at the first of `jawHz` to fully open at the second — so an
+    open vowel opens wider than a close one; and closed by up to seven tenths with the hiss;
+  - **round** — how little stands above a rounded vowel's two formants: the energy in the `roundHz`
+    band against the energy from the start of the `lowHz` band up to the start of `roundHz`, not round
+    at all where it stands 18 dB below and fully round at 30 dB below, times `round`. /o/ and /u/ hold
+    both their formants under that band, so they round the mouth, while /a/, /e/ and /i/ reach into it
+    and spread it. The second formant's own centre does not decide it: read by bands, it barely
+    moves between /o/ and /a/, and the first formant's band holds the second formant of a back vowel
+    as well. A frame heard but not voiced keeps the roundness before it, and a frame under quiet lets
+    it go;
+  - **teeth** — the hiss: how far the `highHz` band stands over the louder of the two formant bands,
+    from nought at even to whole six decibels over, times `teeth`, so a sibilant draws the slit of
+    teeth together. A voiced frame stands well under even, at ten decibels or more below in a measured
+    voice;
+  - **tongue** — on a voiced frame, the openness past 0.45, whole at 0.8, times `tongue`;
+  - **voice** — one while the level stands above quiet, nought below: how far the talking mouth stands
+    in for the face's own.
+- **Followed with a light smoothing:** each of these follows its aim as a one-pole filter a frame long,
+  the openness rising over `attack` (25 ms) and falling over `release` (60 ms), the roundness, the teeth
+  and the tongue over `glide` (60 ms) both ways, and the voice rising over `glide` and falling over
+  `rest` (300 ms), so the mouth closes in the gaps between syllables and goes back to the face's own
+  in a pause. Each value is held to a thousandth, so frames that would draw alike are one drawing.
+- **The mouth a shape draws.** Its place on the plane is its openness, held to the openness the anchors
+  span, and its roundness taken across the widths the anchors reach at that openness — the widest at
+  nought, the narrowest at one. The anchors' places are cut into triangles that meet edge to edge, no
+  triangle's circle holding another place (Delaunay's construction), and the mouth is the blend by
+  correspondence (「Blending one drawing into another」) of the three anchors round its place, weighed
+  by where it stands among them — two along an edge, one at an anchor, which then draws exactly as it
+  stands; anchors on one line are blended along it. The teeth plane draws its own mouth for the same
+  shape, and the teeth are the share of the way from the first mouth to it. A line meeting an opening is
+  first drawn as the thin closed band its stroke covers, half the line's width wide and round at both
+  ends, so an opening grows from round ends and never from points.
+- **The tongue** is pressed down into its own base to the tongue's share of its height, and left out
+  below a twentieth.
+- **The corners.** Each face says how far its talking mouth's corners lift while it speaks, from −1,
+  dropped, to 1, lifted (`corners` of the face), and the tuning's `corners` how far that is in screen
+  units for a mouth 30 wide, a narrower one less in proportion: every point of the mouth moves straight
+  up or down along a parabola across its width, the ends by the whole and the middle not at all. Moving
+  points straight up or down by their place across alone never makes a drawing cross itself.
+- **Silence closes to the face's own mouth.** The mouth drawn is the face's own blended to the talking
+  mouth by the voice, so the first syllable grows out of the face's mouth and a pause returns to it.
+- **The lead.** The animation's mouth leads its voice by two frames, so a frame shows what the sound
+  calls for two frames later, and the first drawing shows two frames before the sound is heard.
+- **Every frame, or on twos.** By default the mouth and the eyes follow the sound every frame, as a
+  visualiser would. With the talking set's `onTwos` switch, the same poses are sampled on twos — each
+  pair of frames shows the first one's — for the animation's held look.
+- **Timed text bends the mouth where a briefing carries it,** but the sound decides. A cue is a run of
+  the spoken text and the frames of the sound it is spoken over; its sounds are spread evenly across
+  them. A rounded vowel (O, U, W) moves the roundness `cues` of the way to round, an open vowel (A) the
+  same share to wide, and the lips meeting (P, B, M) close the openness by `cues`. Korean is read the
+  same way by extrapolation: ㅁ, ㅂ, ㅃ and ㅍ close the lips at a syllable's start or end, ㅗ, ㅜ
+  and the vowels built on them round them, ㅏ and ㅑ open them. Today's briefings carry no timed text.
+- **Nothing is chance.** The same sound, document and face draw the same mouth at every caller; no
+  seed reaches the speaking.
 - **The face follows the briefing while the mouth talks.** The briefing's expression selects the face
-  for as long as it speaks; the driver only replaces the mouth. A briefing could carry changes of
-  expression at times within its sound — the core takes a list of faces, each from a frame of the
-  sound — but BMO's briefing event names one expression, so the display hands the core one. A timed
+  for as long as it speaks; the driver only replaces the mouth and moves the eyes. A briefing could carry
+  changes of expression at times within its sound — the core takes a list of faces, each from a frame of
+  the sound — but BMO's briefing event names one expression, so the display hands the core one. A timed
   list needs BMO's briefing event to carry each expression with the moment of the sound it starts at,
   and the face's entry to answer each; neither is this unit's to change.
-- **The lead the display reaches.** The whole sound is decoded before it plays, so the plan stands
-  before the first sample: the display starts the sound on the audio clock so that it is heard two frames
-  after the first drawing shows — earlier by the output latency the browser reports, so the sound leaves
-  the speaker on that frame — and keeps the mouth on the frame clock from there. A browser that reports no output latency leads by two frames less what its own
-  output path delays.
+- **The lead the display reaches.** The whole sound is decoded before it plays, so every pose stands
+  before the first sample: the display starts the sound on the audio clock so that it is heard two
+  frames after the first drawing shows — earlier by the output latency the browser reports, so the sound
+  leaves the speaker on that frame — and keeps the face on the frame clock from there. A browser that
+  reports no output latency leads by two frames less what its own output path delays.
 - **Heard or silent.** By default the display plays the sound. With `?sound=off` in its address it
-  plays nothing and moves the mouth from the same decoded sound, for a case whose sound comes from
+  plays nothing and moves the face from the same decoded sound, for a case whose sound comes from
   somewhere else.
 - **A briefing that is late** — sent more than two minutes before the display hears of it, as after
   a reconnect — is not played, the same rule every listener keeps.
 - **그만듣기** stands on the display while it speaks. It stops the sound here and posts the stop, so
   every other listener stops too; a stop from anywhere else stops it here.
 
+## The eyes while speaking
+
+- **A restrained answer to the voice.** While a briefing speaks, each open eye grows taller about its
+  own middle with the level — followed over `attack` and `release` — times `eyePulse`, and with the
+  flux, which rises at once and falls over 250 ms, times `eyeOnset`; it grows shorter through a long
+  loud stretch — the level averaged over 1.5 s, past half — times `eyeSquint`; and its shine, a part
+  inside it painted `light`, grows about its own middle with the hiss, times `eyeShine`.
+- **Each eye bounds its own answer.** A face's eyes say how far they answer (`voice` of the eyes:
+  `grow`, `squint` and `shine`, each a share of the eye's own size, at most a half); the pose's amounts,
+  from nought to one, are taken of those bounds, so a face stays the face it is. The default eyes take
+  theirs from the eye set (`docs/expressions.md`, 「The eye set」); an eye drawn as a stroke, already
+  closed, never answers, whatever it says.
+- **The blink wins.** While a blink plays, the eyes do not answer; the gaze then moves the answered eye.
+
 ## The expression document
 
 - **One JSON document** in the data root, `faces.json`, which the display reads and the editor
   writes. A server starting with none writes the default the core draws.
 - **What it holds:**
-  - `form` — `2`, the form this document is written in; a document of an older form is carried into
+  - `form` — `3`, the form this document is written in; a document of an older form is carried into
     this one as the server starts (「Preparing the document」).
   - `colors` — the body and the screen, and the seven paints a part is drawn in: `ink` (the lines,
     eyes and outlines), `light` (the teeth and an eye's shine), `mouth` (the inside of an open mouth),
@@ -264,15 +355,17 @@ caller, the native displayer that draws it on a machine's own panel, and the ser
     - `blush`, `eyes` and `brows` — each a **pair**: its `left` parts, and its `right` parts or `null`
       where the right is the left reflected across the screen's middle, which it is by default, so an
       eye is drawn once and mirrored, or each side drawn on its own. `eyes` also holds `reach`, how far
-      in screen units each eye moves each way with the gaze (「The gaze」), at most 6.
+      in screen units each eye moves each way with the gaze (「The gaze」), at most 6, and `voice`, how
+      far each eye answers the voice — `grow`, `squint` and `shine`, each a share of its own size from
+      nought to a half (「The eyes while speaking」).
     - `mouth` — its parts: an open stroke for a closed mouth, or a closed outline filled `mouth` with
       the teeth and the tongue standing inside it.
     - `marks` — tears, sweat and whatever else is drawn over the face.
-    An element may be empty.
-  - `talk` — the talking mouth set: one to twelve families, each its `name` (small letters, digits and
-    dashes), the `voices` it is drawn for (`silence`, `closing`, `rounded`, `open`, `other`), its
-    `weight` (its share of the talking frames, above nothing and at most one) and its `mouths`, one to
-    twelve, each its `size` (`small`, `medium`, `large`) and its `parts`.
+    An element may be empty. A face also holds `corners`, how far its talking mouth's corners lift
+    while it speaks, from −1 to 1.
+  - `talk` — the talking set (「The talking set」): its `anchors`, one to thirty-two, each its `at`
+    (how open and how wide, each from nought to one), whether its `teeth` stand together, and its
+    `parts`; and its `tuning`.
   - `savedAt` — when it was last saved, which is also its version.
 - **A part** is one path (「How a path is written」), in the screen's own coordinates, a box one
   hundred wide and seventy-five high, with:
@@ -288,6 +381,39 @@ caller, the native displayer that draws it on a machine's own panel, and the ser
     showing as a rim along the top of `tongue`; and how an eye holds a pupil or a shine.
 - **The paint is the part's own.** A part names the paint it is filled and lined with; nothing takes
   a colour from the element a part stands in.
+
+### The talking set
+
+- **The anchors** are the drawings the talking mouth passes through: each draws exactly as it stands
+  when the sound calls for its place, and the mouths between are blended from them (「The mouth while
+  speaking」). No two anchors of one plane — the open mouths, or the teeth together — stand within
+  0.005 of each other both ways.
+- **Where an anchor stands is measured from its drawing** when the core draws it or carries it from an
+  older form, and the editor offers the same measure: how open, the height of its closed parts over
+  20.2 units — the largest round O's — or nought for lips drawn as a line; how wide, its width from 6
+  units at nought to 44 at one; and its teeth together where a band painted `light` inside its opening
+  reaches four tenths of the opening's height. The editor may then move it anywhere.
+- **The tuning** is every value of how the sound moves the face, each with its bounds and default:
+
+  | Key | Holds | Bounds | Default |
+  | --- | --- | --- | --- |
+  | `floor` | the quietest level that opens the mouth, dBFS | −90 to −20 | −55 |
+  | `range` | how far below the sound's loud level the mouth starts to open, dB | 6 to 60 | 30 |
+  | `open` | the openness at the loud level | 0 to 2 | 1 |
+  | `jaw` | the share of the openness the first formant decides | 0 to 1 | 0.35 |
+  | `round` | how strongly a rounded vowel rounds the mouth | 0 to 2 | 1 |
+  | `teeth` | how strongly a hiss shows the teeth | 0 to 3 | 1 |
+  | `tongue` | how strongly an open voiced sound shows the tongue | 0 to 2 | 1 |
+  | `corners` | how far a mouth 30 wide lifts its corners at a face's full lift, screen units | 0 to 4 | 2 |
+  | `attack`, `release` | how fast the mouth opens and closes, ms | 0 to 500, 0 to 1,000 | 25, 60 |
+  | `glide` | how fast the roundness, teeth and tongue follow, and the voice rises, ms | 0 to 1,000 | 60 |
+  | `rest` | how slowly the mouth goes back to the face's own in a pause, ms | 0 to 2,000 | 300 |
+  | `eyePulse`, `eyeOnset`, `eyeSquint`, `eyeShine` | how strongly the eyes answer the level, a sharp start, a long loud stretch and the hiss | 0 to 1 | 0.4, 0.6, 0.7, 1 |
+  | `cues` | how far a timed text bends the mouth | 0 to 1 | 0.5 |
+  | `lowHz`, `midHz`, `highHz` | where the first formant is sought, the second, and the hiss, Hz | within 80 to 10,240, the first below the second | 250–1,000, 900–2,800, 3,500–10,240 |
+  | `jawHz` | the first formant at which the jaw is closed and fully open, Hz | as above | 350–750 |
+  | `roundHz` | the band above a rounded vowel's two formants, read against the energy under it, Hz | as above | 1,650–3,000 |
+  | `onTwos` | the mouth and the eyes on twos rather than every frame | true or false | false |
 
 ### How a path is written
 
@@ -336,19 +462,19 @@ drawings it stands between — which is where a hook would grow.
 
 ### Saving is checked
 
-- **A document is refused whole** unless it is of this form and every face, part and talking mouth is
-  well formed and within the screen — every anchor and the end of every handle — and it must name the
+- **A document is refused whole** unless it is of this form, every face, part and anchor is well formed
+  and within the screen and every tuning value within its bounds — every anchor and the end of every handle — and it must name the
   version it was edited from: one saved in between is a conflict, refused, and the editor says another
   window saved first. A list of parts holds at most sixteen, a part at most eight inside it, and a line
   is between 0.2 and 10 wide.
 - **A refusal is a code and a place.** The check answers why — `node-count`, `off-screen`,
-  `line-width` and the like — and where, from the outside in: a colour, a face, an element, a side, a
-  part, a part inside it, a node, a family, a mouth, each counted from one, with the limits the code
-  turns on. The editor words it from its language pack; the server answers it under `refusal` beside an
+  `line-width`, `anchor-place`, `tuning` and the like — and where, from the outside in: a colour, a
+  face, an element, a side, an anchor, a part, a part inside it, a node, each counted from one, or a
+  tuning value by its key, with the limits the code turns on. The editor words it from its language pack; the server answers it under `refusal` beside an
   English `error` line.
 - **One check, in the core.** The server checks with the core crate, and the editor with the same
   crate's WebAssembly build before it sends anything, so the two cannot drift.
-- **The default is drawn once,** in the core, from its eye and talking mouth sets.
+- **The default is drawn once,** in the core, from its eye and talking sets.
 
 ### Preparing the document
 
@@ -361,15 +487,26 @@ drawings it stands between — which is where a hook would grow.
   - a saved document holding no face for a name the default draws is given the default's face for
     it, written in place with its version unchanged, so a face added here reaches a document saved
     before it rather than falling back to `기본`; colours it does not hold come from the default;
+  - a saved document of this form is given the tuning values it lacks from the default, written in
+    place with its version unchanged;
   - a saved document of an older form is carried into this one by the core and written in place, with
     its version unchanged:
+    - **form 2** talked in families of mouths, picked by chance and held on twos. Each mouth of every
+      family, in order, becomes an anchor at the place measured from its drawing (「The talking set」),
+      leaving out one the check refuses, one that draws nothing and one standing within 0.005 both ways
+      of an earlier one of its plane, up to thirty-two; where none is left, the default's anchors stand
+      instead, and the tuning is the default's. A form 2 document whose set was never edited — the
+      default's own — is carried to the default's anchors exactly, as they are measured from the same
+      drawings in the same order. Each face takes the default's `corners` for its name, and its eyes the
+      default's `voice` for its name where they draw as the default's eyes do, else a dot eye's where
+      they are filled shapes and none where they are strokes. Every drawing stays as it was drawn.
     - **form 1** drew a face in five groups and the speaking mouth as a ladder of stages. Its `eyes`,
       `brows` and `cheeks` become the pairs `eyes`, `brows` and `blush`: a part whose anchors stand left
       of the screen's middle on the left, the rest on the right, and the right left out — mirrored —
       where it draws the left reflected, whichever node each starts at and whichever way each runs. Dot
       eyes take a reach of 2.2 across and 1.6 up and down, stroked eyes none. `mouth` and `marks` stay
-      as they are, and the stages give way to the default's talking mouth set. Every path stays as it
-      was drawn.
+      as they are, and the stages give way to the default's talking set; the face is then carried as a
+      face of form 2 is. Every path stays as it was drawn.
     - **form 0** drew a part as an ellipse or as a curve through points, and is carried through form 1:
       a curve becomes a path whose nodes are those points, each smooth, its leaving handle a sixth of
       the step from the point before it to the point after it and its coming handle that step reversed
@@ -391,27 +528,32 @@ drawings it stands between — which is where a hook would grow.
 ## The face's core
 
 - **One crate, `core/`, is the face's one implementation:** the document read, checked and carried
-  from its older forms; the eye and talking mouth sets; the geometry of a path; the blend; the drivers
-  of speaking, blinking, changing expression and gazing; and which face shows. It does no I/O, keeps no
+  from its older forms; the eye and talking sets; the geometry of a path; the blend; the hearing of a
+  sound and a voice sampled to try it on; the drivers of speaking, blinking, changing expression and
+  gazing; and which face shows. It does no I/O, keeps no
   clock and depends on no platform. The server uses it as a crate; the display and the editor use its
   WebAssembly build; a native displayer uses it as a crate.
 - **Its one question:** given the document, what the caller has told it and a frame of the held clock,
   which drawing shows — deterministic for a seed: the same seed, document and events give the same
-  drawings to every caller.
+  drawings to every caller. The seed draws the blinks and the changes of face; the speaking turns on the
+  sound alone.
 - **The scene is what a caller holds,** made from a checked document, a seed and the frame the caller
   starts counting at. A caller tells it:
   - a document saved since, drawn at once;
   - what BMO is doing, with the frame it began;
-  - a briefing to speak: the sound's loudness in dBFS, one reading a frame from its first frame; the
-    timed text it says where known, each cue its text and the frames of the sound it is spoken over;
-    the seed its picks are drawn from; the face it shows, and the faces it moves to at frames of the
-    sound; and the frame its first frame is heard at;
+  - a briefing to speak: what is heard of its sound, one reading a frame from its first frame, as the
+    core's own hearing answers it (「Hearing the sound」); the timed text it says where known, each cue
+    its text and the frames of the sound it is spoken over; the face it shows, and the faces it moves to
+    at frames of the sound; and the frame its first frame is heard at;
   - that the sound stopped, at a frame;
   - where the eyes look from a frame on, −1 to 1 each way;
   - a face to pin, or none;
   - whether expression changes are calm (cuts alone) and whether the eyes blink.
 - **And it asks it:** the drawing a frame shows, and the next frame after it where the drawing may
-  change — none where nothing will change until it is told something. Frames are asked in order.
+  change — none where nothing will change until it is told something. Frames are asked in order. It
+  also answers what the face hears of a sound's samples, the voice it samples, what the face does at
+  each frame of a sound under a tuning, and where a drawing stands among the talking set's, for the
+  callers to hand back and the editor to draw.
 - **The drawing** is the screen's size in document units (100 by 75), the body's and the screen's
   colours, a list of clip outlines, and the paint to lay down in order. Each paint is a path filled, or
   a path stroked with its width — always with round caps and round joins — in a `#rrggbb` colour, and
@@ -422,9 +564,8 @@ drawings it stands between — which is where a hook would grow.
 - **What a native caller does:** scales the document's units to its panel — 1024 by 600 is wider than
   4:3, so the 100 by 75 screen stands centred at 800 by 600 with the screen's colour filling the panel whole —
   rasterises each paint in order with its clip as a mask, counts frames at 23.976 a second from its own
-  monotonic clock, reads the loudness of the sound it plays one frame at a time in dBFS before it plays
-  it, tells the scene the frame the sound's first sample will be heard at, and draws when the next
-  change comes. The scene asks nothing of its caller and never blocks.
+  monotonic clock, hands the core the samples of the sound it plays to hear before it plays them, tells
+  the scene the frame the sound's first sample will be heard at, and draws when the next change comes. The scene asks nothing of its caller and never blocks.
 - **The WebAssembly build** is carried in the repository, under `src/wasm/`: the binding's glue and
   types, the module's bytes written into a JavaScript module, and the hash of the sources it was made
   from. `bun scripts/core.ts` makes it again — `cargo rustc` for `wasm32-unknown-unknown` under the
@@ -433,10 +574,14 @@ drawings it stands between — which is where a hook would grow.
   imports it through `src/core.ts`, which instantiates it on import and types what it answers; the
   binding hands JSON text and plain numbers across and holds no logic.
 - **Tested** by its own tests, natively: the check and its refusals, the carrying of every older form
-  on the old default and the old fixtures, the geometry, every blend of every two default faces, the
-  driver's cadence, closing and loudness, the timed text in English and Korean, the blink's sequence,
-  rate and doubles, the change's cuts and in-betweens, the gaze's held steps, and a scene's every
-  change of drawing announced by the frame it named.
+  on the old defaults and the old fixtures, the geometry, every blend of every two default faces, the
+  hearing of silence, tones, a hiss and the sampled voice, the speaking driver's opening, closing,
+  rounding, teeth and smoothing, the talking mouth never crossing itself across its whole plane and every
+  lift, the anchors drawn as they stand, the eyes held within what they allow, the same samples drawing
+  the same faces, the timed text in English and Korean, the blink's sequence, rate and doubles, the
+  change's cuts and in-betweens, the gaze's held steps, and a scene's every change of drawing announced
+  by the frame it named. The root's test holds the WebAssembly build's hearing of a fixture to the native
+  hearing written beside it.
 
 ## The editor
 
@@ -446,16 +591,19 @@ drawings it stands between — which is where a hook would grow.
   - `감정 표정` — one face at a time, chosen by name: the ten emotions and the three states. A face
     is edited one element at a time — eyes, brows, blush, the resting mouth and the marks — and the
     eyes, brows and blush one side at a time.
-  - `말하는 입` — the talking mouth set, one mouth at a time, chosen by its family and its place in
-    it; its size class is chosen beside them. Mouths are added to a family, a copy of the one being
-    edited, and removed, down to one a family.
+  - `말하는 입` — the talking set, one anchor at a time, chosen by its number. Its place, how open and
+    how wide, and whether its teeth stand together stand beside it, with a button that places it where
+    its drawing measures (「The talking set」). Anchors are added, a copy of the one being edited
+    standing a twentieth more open (less, at the top), and removed, down to one. The tuning stands
+    beside them too (「Tuning by ear」).
   - Both tabs edit parts the same way, parts inside a part included.
 - **A pair's two sides.** The eyes, the brows and the blush hold a switch, 좌우 대칭, on while the
   right side is the left reflected. While it is on, the right side is not edited: it stands dimmed on
   the canvas, and the side select offers the left alone. Turning it off gives the right side the left's
   reflection to edit on its own; turning it on again drops the right side's own drawing.
-- **How far the eyes look.** The eyes hold the reach of the gaze across and up and down, two numbers
-  from 0 to 6.
+- **How far the eyes look and answer.** The eyes hold the reach of the gaze across and up and down,
+  two numbers from 0 to 6, and how far they answer the voice — 커짐, 찡그림 and 반짝임, each from 0 to
+  0.5. The resting mouth holds the face's 입꼬리, how far its talking mouth's corners lift, from −1 to 1.
 - **The canvas** is the screen at the display's own proportions, with the face or mouth being edited
   on it. The parts being edited carry handles; the rest of the face stands dimmed behind them for
   reference, each part in its own paints.
@@ -494,8 +642,8 @@ drawings it stands between — which is where a hook would grow.
   - Everything the editor makes is made from its one create button (「The screens' shared style」),
     named 모양 추가 in the face tab and 모양·입 추가 in the talking mouth tab. It opens one menu: the
     oval and the line; the parts inside under 안쪽 모양 while a closed part of the target's own is
-    chosen, offered as long as it holds fewer than it may; and, in the talking mouth tab, a new mouth
-    in the family being edited. An entry that cannot be made now stands disabled.
+    chosen, offered as long as it holds fewer than it may; and, in the talking mouth tab, a new anchor,
+    as the talking set's anchors are added. An entry that cannot be made now stands disabled.
   - What stands inside a chosen part is listed beside the canvas only once it holds something.
   - A new part comes with its own paints, whatever element it is added to: an oval filled `ink` with
     no line, a line in `ink` 0.8 wide, a teeth band filled `light`, a tongue filled `tongue`, its light
@@ -506,10 +654,25 @@ drawings it stands between — which is where a hook would grow.
     path takes as many segments as its shape needs.
   - Removing a node removes the chosen one, down to two.
 - **The preview** beside the canvas is the core's own drawing of the face being edited, on the held
-  clock, as a display draws it: it blinks as a display does, which a switch, 깜빡임, turns off; a
-  second switch, 말하기, speaks a sampled voice with the talking mouth set, the drawings cut on the held
-  clock as a briefing's are; and two sliders, 시선 가로 and 시선 세로, turn the gaze. In the talking
-  mouth tab it shows the mouth being edited in `기본`'s face until 말하기 is turned on.
+  clock, as a display draws it: it blinks as a display does, which a switch, 깜빡임, turns off, and two
+  sliders, 시선 가로 and 시선 세로, turn the gaze. In the talking mouth tab it shows the anchor being
+  edited in `기본`'s face while it is not speaking.
+- **Speaking in the preview.** 예시 소리 plays the core's sampled voice aloud and 소리 파일 a sound
+  file the person picks, decoded in the browser at 48 kHz; the face being edited speaks it as a display
+  would, with the document as it is being edited, and 정지 stops it. Beneath the face a strip draws what
+  is heard: the sixteen bands as a heat map across the sound's frames, the level, and the openness,
+  roundness and teeth the tuning draws from it, the frame being shown marked as it plays. Played again,
+  a sound is heard with the tuning as it then stands.
+
+### Tuning by ear
+
+- **The tuning stands in the talking mouth tab** beside the anchor's numbers, in four groups: 소리
+  (`floor`, `range`, `lowHz`, `midHz`, `highHz`), 입 (`open`, `jaw`, `jawHz`, `round`, `roundHz`,
+  `teeth`, `tongue`, `corners`, `cues`), 시간 (`attack`, `release`, `glide`, `rest` and the switch 두
+  프레임씩) and 눈 (`eyePulse`, `eyeOnset`, `eyeSquint`, `eyeShine`). Each is a number box with its
+  bounds, a span two boxes; each is named in the language pack and its tooltip says what it moves.
+- **A value is saved with the document,** as any edit is, and a display draws it from the next
+  briefing it speaks.
 - **Saving** sends the whole document with the version it was edited from. A save refused by the
   check says why beside the save button, in the language pack's words for the refusal's code and
   place; one refused because another window saved first says so and offers to load the saved
@@ -683,9 +846,8 @@ flowchart TD
 - **The sound is fetched and decoded whole before it plays,** as the page does: the briefing's Ogg
   Opus sound demuxed by Symphonia's Ogg reader and decoded by the system's libopus, at 48 kHz, with the
   stream's pre-skip and end trimming applied.
-- **Its loudness is read once a frame of the held clock,** the root mean square of the first channel
-  over each frame's samples, in dBFS, silence held at −120 — the reading the page makes — and the core
-  plans every drawing over it at once.
+- **It is heard by the core,** its first channel's samples handed to the core's hearing (「Hearing the
+  sound」) — the reading the page makes — and the core plans every frame over it at once.
 - **Heard two frames after the first drawing.** The sound device is opened first and asked how far
   behind it plays; the frame the sound is first heard at is two frames after the next frame, moved
   later where the device's delay needs more. The playback writes silence until the device's own
@@ -698,7 +860,7 @@ flowchart TD
   system carries is loaded as the program runs, as libopus is, so a build needs no audio development
   files. A device that cannot be opened leaves the briefing spoken in silence, the mouth moving on the
   frame clock, and is said on its output.
-- **Silent.** With its sound setting `off` it opens no device and moves the mouth from the same decoded
+- **Silent.** With its sound setting `off` it opens no device and moves the face from the same decoded
   sound, as the page's `?sound=off` does.
 - **The mouth's picks** are seeded by the briefing's number, as the page seeds them by its message.
 - **Stopped** when the sound runs out or a stop of its room is heard (「What it hears」); the core is
@@ -736,7 +898,7 @@ Read from its environment, every one optional:
 - **`run --frames <folder>`** runs the whole displayer with every drawing it would show written as a
   PNG at the panel's size, 1024 by 600, into the folder, instead of taking a panel.
 - **`shots <folder>`** writes, from the core's default document and with no server, every default face,
-  a blink frame by frame, and a talking sequence over a sampled voice, at 1024 by 600.
+  a blink frame by frame, and a talking sequence over the core's sampled voice, at 1024 by 600.
 
 ### What it does not do
 

@@ -1,129 +1,180 @@
-//! The speaking driver (docs/face.md, 「The mouth while speaking」): drawings held on twos, now and then
-//! on ones and fours, cut from one to the next, never the same twice running, led by the loudness and
-//! steered by a timed text.
+//! The speaking driver (docs/face.md, 「The mouth while speaking」): the mouth read off the sound — closed
+//! in silence, open on a low formant, rounded on a low second formant, the teeth on a hiss — followed
+//! quickly up and more slowly down, two frames ahead of the sound, every frame or on twos, the same for
+//! the same samples, and bent by a timed text where one is given.
 
-use bmo_face_core::document::{Size, TalkFamily, Voice};
-use bmo_face_core::talk::{LEAD, Speech, Step, plan, sample_loudness, step_at};
-use bmo_face_core::text::{Cue, voice_at};
+use bmo_face_core::hearing::hear;
+use bmo_face_core::talk::{LEAD, Pose, Speech, plan, pose_at, shown_at};
+use bmo_face_core::text::{Cue, Voice, voice_at};
+use bmo_face_core::tuning::Tuning;
+use bmo_face_core::voice::{SAID, Stretch, sample_voice, stretches};
 
-use crate::support::document;
+use crate::hearing::{hiss, sine};
 
-fn speech(loudness: Vec<f64>, cues: Vec<Cue>) -> Speech {
-  Speech {
-    loudness,
-    cues,
-    seed: 7,
-  }
+const RATE: u32 = 48_000;
+
+fn poses_of(samples: &[f32]) -> Vec<Pose> {
+  poses_with(samples, Vec::new())
 }
 
-fn family<'a>(set: &'a [TalkFamily], step: &Step) -> &'a TalkFamily {
-  &set[step.family]
-}
-
-#[test]
-fn drawings_are_held_on_twos_now_and_then_on_ones_and_fours() {
-  let set = document().talk;
-  let steps = plan(&speech(sample_loudness(3, 24_000), Vec::new()), &set);
-  let count = |hold: i64| steps.iter().filter(|step| step.hold == hold).count() as f64 / steps.len() as f64;
-  assert!((count(2) - 0.8).abs() < 0.03, "{}", count(2));
-  assert!((count(1) - 0.1).abs() < 0.02 && (count(4) - 0.1).abs() < 0.02);
-  // Each drawing starts where the one before ends.
-  for pair in steps.windows(2) {
-    assert_eq!(pair[0].at + pair[0].hold, pair[1].at);
-  }
-}
-
-#[test]
-fn the_same_mouth_is_never_drawn_twice_running() {
-  let set = document().talk;
-  let steps = plan(&speech(sample_loudness(5, 6_000), Vec::new()), &set);
-  for pair in steps.windows(2) {
-    assert_ne!((pair[0].family, pair[0].mouth), (pair[1].family, pair[1].mouth));
-  }
-}
-
-#[test]
-fn silence_closes_the_mouth_and_loudness_opens_it() {
-  let set = document().talk;
-  let quiet: Vec<f64> = (0..2_400).map(|frame| if frame % 48 < 24 { -90.0 } else { -40.0 }).collect();
-  let steps = plan(&speech(quiet.clone(), Vec::new()), &set);
-  for step in &steps {
-    if (step.at..step.at + step.hold)
-      .all(|frame| quiet.get(frame as usize).is_none_or(|level| *level < -60.0))
-    {
-      assert!(family(&set, step).voices(Voice::Silence), "silent at {}", step.at);
-    }
-  }
-  // Over a sound of every loudness, the loudest tenth draws larger mouths than the quietest.
-  let loudness = sample_loudness(9, 24_000);
-  let steps = plan(&speech(loudness.clone(), Vec::new()), &set);
-  let mut sorted: Vec<f64> = loudness.iter().copied().filter(|level| *level > -60.0).collect();
-  sorted.sort_by(f64::total_cmp);
-  let (low, high) = (sorted[sorted.len() / 10], sorted[sorted.len() * 9 / 10]);
-  let openness = |keep: &dyn Fn(f64) -> bool| {
-    let sizes: Vec<f64> = steps
-      .iter()
-      .filter(|step| {
-        loudness.get(step.at as usize).is_some_and(|level| keep(*level))
-          && !family(&set, step).voices(Voice::Closing)
-      })
-      .map(|step| set[step.family].mouths[step.mouth].size.openness())
-      .collect();
-    sizes.iter().sum::<f64>() / sizes.len() as f64
-  };
-  assert!(openness(&|level| level >= high) > openness(&|level| level > -60.0 && level <= low) + 0.05);
-}
-
-#[test]
-fn a_drawing_shows_two_frames_before_the_sound_it_is_drawn_for() {
-  let steps = vec![
-    Step {
-      at: 0,
-      hold: 2,
-      family: 0,
-      mouth: 0,
+fn poses_with(samples: &[f32], cues: Vec<Cue>) -> Vec<Pose> {
+  plan(
+    &Speech {
+      heard: hear(samples, RATE),
+      cues,
     },
-    Step {
-      at: 2,
-      hold: 2,
-      family: 0,
-      mouth: 1,
-    },
-  ];
-  assert_eq!(LEAD, 2);
-  assert_eq!(step_at(&steps, -3), None);
-  assert_eq!(step_at(&steps, -2), Some(&steps[0]));
-  assert_eq!(step_at(&steps, 0), Some(&steps[1]));
+    &Tuning::default(),
+  )
+}
+
+/// A sound of a stretch of silence, then `sound`, then silence again.
+fn framed(sound: Vec<f32>) -> Vec<f32> {
+  let quiet = vec![0.0; RATE as usize / 2];
+  [quiet.clone(), sound, quiet].concat()
 }
 
 #[test]
-fn a_timed_text_steers_the_family_by_the_sound_it_says() {
-  let set = document().talk;
-  let loud = vec![-30.0; 480];
-  let said = |text: &str| {
-    plan(
-      &speech(
-        loud.clone(),
-        vec![Cue {
-          from: 0,
-          to: 480,
-          text: text.repeat(40),
-        }],
-      ),
-      &set,
-    )
-  };
-  let share = |steps: &[Step], voice: Voice| {
-    steps.iter().filter(|step| family(&set, step).voices(voice)).count() as f64 / steps.len() as f64
-  };
-  assert!(share(&said("mmmm"), Voice::Closing) > 0.6);
-  assert!(share(&said("oooo"), Voice::Rounded) > 0.6);
-  let open = said("aaaa");
-  let large = open
+fn silence_keeps_the_mouth_closed_and_the_face_its_own() {
+  let poses = poses_of(&vec![0.0; RATE as usize]);
+  assert!(poses.iter().all(|pose| *pose == Pose::default()));
+}
+
+#[test]
+fn a_tone_in_the_low_formant_band_opens_the_mouth_and_its_end_closes_it() {
+  let poses = poses_of(&framed(sine(700.0, 0.3, 1.0, RATE)));
+  for pose in &poses[16..32] {
+    assert!(pose.shape.open > 0.7, "{pose:?}");
+    assert!(pose.voice > 0.95 && pose.shape.teeth < 0.05);
+  }
+  let last = poses.last().unwrap();
+  assert!(last.shape.open < 0.01 && last.voice < 0.2, "{last:?}");
+}
+
+#[test]
+fn a_hiss_alone_draws_the_slit_of_teeth_together() {
+  let poses = poses_of(&framed(hiss(0.3, 0.5)));
+  for pose in &poses[16..24] {
+    assert!(pose.shape.teeth > 0.8, "{pose:?}");
+    assert!(pose.shape.open < 0.35, "{pose:?}");
+    assert_eq!(pose.shape.tongue, 0.0);
+  }
+}
+
+#[test]
+fn a_rising_level_opens_the_mouth_ever_wider() {
+  // From −60 to −6 dBFS over three seconds at one pitch.
+  let count = 3 * RATE as usize;
+  let samples: Vec<f32> = sine(700.0, 1.0, 3.0, RATE)
     .iter()
-    .filter(|step| set[step.family].mouths[step.mouth].size == Size::Large)
-    .count();
-  assert!(large as f64 / open.len() as f64 > 0.4);
+    .enumerate()
+    .map(|(at, sample)| sample * 10f32.powf((-60.0 + 54.0 * at as f32 / count as f32) / 20.0))
+    .collect();
+  let poses = poses_of(&samples);
+  for pair in poses[1..poses.len() - 1].windows(2) {
+    assert!(pair[1].shape.open >= pair[0].shape.open, "{:?} then {:?}", pair[0], pair[1]);
+  }
+  assert!(poses[poses.len() - 2].shape.open > 0.8);
+}
+
+#[test]
+fn the_sampled_voice_draws_each_of_its_sounds_as_its_own_mouth() {
+  let poses = poses_of(&sample_voice(RATE));
+  let mut seen = std::collections::HashMap::<&str, usize>::new();
+  for (from, to, stretch) in stretches() {
+    // The middle of the stretch, past the smoothing of its start.
+    let middle: Vec<&Pose> = poses[(from + 3) as usize..(to - 1).max(from + 4) as usize].iter().collect();
+    let each = |test: &dyn Fn(&Pose) -> bool| middle.iter().all(|pose| test(pose));
+    let name = match stretch {
+      Stretch::Pause if to - from >= 6 => {
+        let end = &poses[(to - 1) as usize];
+        assert!(end.shape.open < 0.05 && end.voice < 0.7, "pause to {to}: {end:?}");
+        "pause"
+      }
+      Stretch::Hiss => {
+        // A hiss can be three frames short: the frames wholly inside it, past the first one's smoothing.
+        let inside = &poses[(from + 2) as usize..to as usize];
+        let held = inside.iter().all(|pose| pose.shape.teeth > 0.6 && pose.shape.open < 0.35);
+        assert!(!inside.is_empty() && held, "hiss {from}: {inside:?}");
+        "hiss"
+      }
+      Stretch::Voiced([first, second, _]) if to - from >= 6 => {
+        let open = |least: f64| each(&|pose| pose.shape.open > least);
+        // The close vowels stand some ten decibels under the open ones, as a voice's do, and open less.
+        match (first, second) {
+          (750.0, _) => assert!(open(0.75) && each(&|pose| pose.shape.round < 0.3), "a {from}: {middle:?}"),
+          (300.0, 2_300.0) => assert!(open(0.3) && each(&|pose| pose.shape.round < 0.15), "i {from}"),
+          (320.0, 800.0) => assert!(open(0.3) && each(&|pose| pose.shape.round > 0.8), "u {from}"),
+          (500.0, 1_900.0) => assert!(open(0.55) && each(&|pose| pose.shape.round < 0.2), "e {from}"),
+          (500.0, 900.0) => assert!(open(0.6) && each(&|pose| pose.shape.round > 0.35), "o {from}"),
+          _ => {}
+        }
+        "vowel"
+      }
+      _ => "short",
+    };
+    *seen.entry(name).or_default() += 1;
+  }
+  assert_eq!(SAID.len(), seen.values().sum::<usize>());
+  assert!(seen["pause"] >= 3 && seen["hiss"] == 3 && seen["vowel"] >= 9, "{seen:?}");
+}
+
+#[test]
+fn the_mouth_opens_faster_than_it_closes() {
+  let poses = poses_of(&framed(sine(700.0, 0.3, 1.0, RATE)));
+  let on = (0..poses.len()).find(|frame| poses[*frame].shape.open > 0.0).unwrap();
+  let off = (on..poses.len())
+    .find(|frame| poses[*frame].shape.open < poses[frame - 1].shape.open - 0.1)
+    .unwrap();
+  let full = poses[on + 4].shape.open;
+  // A frame in, it has risen most of the way; a frame out, it has fallen half of it.
+  assert!(poses[on + 1].shape.open > 0.8 * full);
+  let fallen = (poses[off - 1].shape.open - poses[off].shape.open) / poses[off - 1].shape.open;
+  assert!(fallen < 0.8, "{fallen}");
+}
+
+#[test]
+fn the_same_samples_give_the_same_poses() {
+  let samples = sample_voice(RATE);
+  assert_eq!(poses_of(&samples), poses_of(&samples));
+}
+
+#[test]
+fn a_frame_shows_the_pose_two_frames_ahead_every_frame_or_on_twos() {
+  let poses: Vec<Pose> = (0..10)
+    .map(|frame| Pose {
+      voice: frame as f64 / 10.0,
+      ..Pose::default()
+    })
+    .collect();
+  assert_eq!(LEAD, 2);
+  assert_eq!(pose_at(&poses, -3, false), None);
+  assert_eq!(pose_at(&poses, -2, false), Some(&poses[0]));
+  assert_eq!(pose_at(&poses, 3, false), Some(&poses[5]));
+  assert_eq!(pose_at(&poses, 3, true), Some(&poses[4]));
+  assert_eq!(pose_at(&poses, 40, false), poses.last());
+  let shown: Vec<i64> = (-2..4).map(|frame| shown_at(frame, true)).collect();
+  assert_eq!(shown, [0, 0, 2, 2, 4, 4]);
+}
+
+#[test]
+fn a_timed_text_bends_the_mouth_round_or_wide_but_the_sound_still_opens_it() {
+  // Two partials, one above a rounded vowel's formants, so the sound alone reads unrounded.
+  let low = sine(700.0, 0.2, 1.0, RATE);
+  let high = sine(2_000.0, 0.1, 1.0, RATE);
+  let tone = framed(low.iter().zip(&high).map(|(one, other)| one + other).collect());
+  let cue = |text: &str| Cue {
+    from: 0,
+    to: 60,
+    text: text.repeat(20),
+  };
+  let plain = poses_of(&tone);
+  let rounded = poses_with(&tone, vec![cue("oooo")]);
+  let closing = poses_with(&tone, vec![cue("mmmm")]);
+  for frame in 16..30 {
+    assert!(rounded[frame].shape.round > plain[frame].shape.round + 0.3, "{frame}");
+    assert!(closing[frame].shape.open < plain[frame].shape.open);
+    assert!(closing[frame].shape.open > 0.2);
+  }
 }
 
 #[test]
