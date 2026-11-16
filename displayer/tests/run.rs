@@ -168,10 +168,10 @@ impl Drop for Bench {
   }
 }
 
-fn document(saved_at: f64, body: &str) -> Value {
+fn document(saved_at: f64, screen: &str) -> Value {
   let mut document = bmo_face_core::default::document().to_json();
   document["savedAt"] = json!(saved_at);
-  document["colors"]["body"] = json!(body);
+  document["colors"]["screen"] = json!(screen);
   document
 }
 
@@ -268,8 +268,8 @@ async fn until(what: &str, mut holds: impl FnMut() -> bool) {
   }
 }
 
-/// The colour at a frame's top left corner: the body's.
-fn body_of(frame: &Path) -> Option<String> {
+/// The colour at a frame's top left corner: the screen's, which fills the panel whole.
+fn screen_of(frame: &Path) -> Option<String> {
   let pixmap = tiny_skia::Pixmap::load_png(frame).ok()?;
   let pixel = pixmap.pixel(0, 0)?;
   Some(format!("#{:02x}{:02x}{:02x}", pixel.red(), pixel.green(), pixel.blue()))
@@ -279,13 +279,13 @@ fn body_of(frame: &Path) -> Option<String> {
 async fn the_document_is_drawn_and_a_save_heard_is_drawn_at_once() {
   let bench = Bench::start(Some(TOKEN), 0).await;
   until("the served document drawn", || {
-    bench.frames().last().and_then(|frame| body_of(frame)).as_deref() == Some("#102030")
+    bench.frames().last().and_then(|frame| screen_of(frame)).as_deref() == Some("#102030")
   })
   .await;
   *bench.stand_in.document.lock().expect("the document") = document(2.0, "#405060");
   let _ = bench.stand_in.saves.send(2.0);
   until("the saved document drawn", || {
-    bench.frames().last().and_then(|frame| body_of(frame)).as_deref() == Some("#405060")
+    bench.frames().last().and_then(|frame| screen_of(frame)).as_deref() == Some("#405060")
   })
   .await;
 }

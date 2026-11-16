@@ -1,4 +1,4 @@
-//! A drawing laid down in pixels (docs/face.md, 「Drawing」): where the screen and the body stand, a
+//! A drawing laid down in pixels (docs/face.md, 「Drawing」): where the screen stands, a
 //! stroke's round ends, a clip's cut and the order paint is laid down in, read off the pixels.
 
 use bmo_face_core::default;
@@ -91,14 +91,13 @@ fn the_screen_is_fitted_whole_and_centred() {
 }
 
 #[test]
-fn the_body_stands_either_side_and_in_the_screens_turned_corners() {
+fn the_screens_colour_fills_the_panel_whole() {
   let canvas = drawn(&drawing(Vec::new(), Vec::new()));
-  assert_eq!(pixel(&canvas, 0, 300), BODY);
-  assert_eq!(pixel(&canvas, 1023, 300), BODY);
-  assert_eq!(pixel(&canvas, 112, 0), BODY, "the corner is turned");
-  assert_eq!(pixel(&canvas, 112, 300), SCREEN);
-  assert_eq!(pixel(&canvas, 512, 0), SCREEN);
-  assert_eq!(pixel(&canvas, 911, 300), SCREEN);
+  assert_eq!(pixel(&canvas, 0, 300), SCREEN);
+  assert_eq!(pixel(&canvas, 1023, 300), SCREEN);
+  assert_eq!(pixel(&canvas, 0, 0), SCREEN, "no corner is turned");
+  assert_eq!(pixel(&canvas, 112, 0), SCREEN);
+  assert_eq!(pixel(&canvas, 512, 599), SCREEN);
 }
 
 #[test]
@@ -140,7 +139,7 @@ fn a_default_face_is_drawn_in_its_own_colours() {
   let document = default::document();
   let mut scene = Scene::new(document.clone(), 1, 0);
   let canvas = drawn(&scene.drawing(0));
-  assert_eq!(pixel(&canvas, 0, 0), document.colors.body.to_lowercase());
+  assert_eq!(pixel(&canvas, 0, 0), document.colors.screen.to_lowercase());
   assert_eq!(pixel(&canvas, 120, 300), document.colors.screen.to_lowercase());
   let ink = document.colors.paint(Painted::Ink).to_lowercase();
   let inked = (0..600)

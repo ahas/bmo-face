@@ -412,7 +412,7 @@ drawings it stands between — which is where a hook would grow.
   The screen's rounded rectangle is the caller's to draw: on the web it stands six units round at its
   corners.
 - **What a native caller does:** scales the document's units to its panel — 1024 by 600 is wider than
-  4:3, so the 100 by 75 screen stands centred at 800 by 600 with the body's colour either side —
+  4:3, so the 100 by 75 screen stands centred at 800 by 600 with the screen's colour filling the panel whole —
   rasterises each paint in order with its clip as a mask, counts frames at 23.976 a second from its own
   monotonic clock, reads the loudness of the sound it plays one frame at a time in dBFS before it plays
   it, tells the scene the frame the sound's first sample will be heard at, and draws when the next
@@ -591,10 +591,11 @@ flowchart TD
 
 ### Drawing
 
-- **Fitted, centred, on the body.** The screen's 100 by 75 units are scaled to the largest whole fit
-  of the panel's mode and centred, the body's colour either side; on a 1024 by 600 panel that is 800
-  by 600, eight pixels a unit. The screen is the rounded rectangle the web display draws, six units
-  round at its corners.
+- **Fitted, centred, and the whole panel the screen.** The screen's 100 by 75 units are scaled to the
+  largest whole fit of the panel's mode and centred; on a 1024 by 600 panel that is 800 by 600, eight
+  pixels a unit. The panel is BMO's screen itself, so the screen's colour fills it whole, edge to edge:
+  the body's colour and the screen's turned corners, which the web display draws round its screen, stand
+  nowhere on it.
 - **Each paint in order,** filled with the non-zero rule or stroked with its width, round caps and
   round joins, anti-aliased, cut off at its clip's outline as a mask — as the web display lays the
   same drawing down in SVG.

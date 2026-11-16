@@ -1,5 +1,5 @@
 //! A drawing of the core laid down in pixels (docs/face.md, 「Drawing」): the body over the whole panel,
-//! the screen's rounded rectangle fitted and centred on it, and each paint in order — filled with the
+//! the screen fitted and centred on it and its colour filling the panel whole, and each paint in order — filled with the
 //! non-zero rule or stroked with round caps and joins, anti-aliased, cut off at its clip — as the web
 //! display lays the same drawing down in SVG.
 
@@ -9,11 +9,6 @@ use bmo_face_core::geometry::{Cubic, Path as CorePath};
 use tiny_skia::{
   Color, FillRule, LineCap, LineJoin, Mask, Paint, Path, PathBuilder, Pixmap, Stroke, Transform,
 };
-
-/// How round the screen's corners stand, in the document's units, as the web display draws them.
-const SCREEN_ROUND: f32 = 6.0;
-/// How far a cubic's handle reaches to draw a quarter circle.
-const QUARTER_HANDLE: f32 = 0.552_284_8;
 
 /// Where the screen stands on the panel: its scale in pixels a unit and its top left corner.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -74,29 +69,10 @@ fn path_of(path: &CorePath) -> Option<Path> {
   builder.finish()
 }
 
-/// The screen's rectangle with its corners turned, in the document's units.
-fn screen_outline() -> Option<Path> {
-  let [width, height] = SCREEN.map(|side| side as f32);
-  let (r, k) = (SCREEN_ROUND, SCREEN_ROUND * QUARTER_HANDLE);
-  let mut builder = PathBuilder::new();
-  builder.move_to(r, 0.0);
-  builder.line_to(width - r, 0.0);
-  builder.cubic_to(width - r + k, 0.0, width, r - k, width, r);
-  builder.line_to(width, height - r);
-  builder.cubic_to(width, height - r + k, width - r + k, height, width - r, height);
-  builder.line_to(r, height);
-  builder.cubic_to(r - k, height, 0.0, height - r + k, 0.0, height - r);
-  builder.line_to(0.0, r);
-  builder.cubic_to(0.0, r - k, r - k, 0.0, r, 0.0);
-  builder.close();
-  builder.finish()
-}
-
 /// The panel's picture, drawn again whole for each drawing.
 pub struct Canvas {
   layout: Layout,
   pixmap: Pixmap,
-  screen: Option<Path>,
 }
 
 impl Canvas {
@@ -104,7 +80,6 @@ impl Canvas {
     Some(Canvas {
       layout: Layout::fit(width, height),
       pixmap: Pixmap::new(width, height)?,
-      screen: screen_outline(),
     })
   }
 
@@ -119,12 +94,7 @@ impl Canvas {
   /// Lays a drawing down over the whole panel.
   pub fn draw(&mut self, drawing: &Drawing) {
     let transform = self.layout.transform();
-    self.pixmap.fill(colour(&drawing.body));
-    if let Some(screen) = &self.screen {
-      self
-        .pixmap
-        .fill_path(screen, &paint_of(&drawing.screen), FillRule::Winding, transform, None);
-    }
+    self.pixmap.fill(colour(&drawing.screen));
     let clips: Vec<Option<Mask>> = drawing.clips.iter().map(|clip| self.mask(clip, transform)).collect();
     for painted in &drawing.paint {
       let (path, colour, clip) = match painted {
