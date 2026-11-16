@@ -41,16 +41,20 @@ which the suite runs with the rest.
 ## Build and test
 
 ```sh
-cargo build --workspace
-cargo test --workspace
-cargo clippy --workspace --all-targets -- -D warnings
+bmo-testbed cargo build --workspace
+bmo-testbed cargo test --workspace
+bmo-testbed cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all --check
 bun run check:types
 bun test ./tests
 (cd client && bun run check)
 ```
 
-The screen is seen working on the bench (`docs/development.md`) before it is reported.
+The Cargo verbs run through `bmo-testbed`, which holds the shared build directory; a plain `cargo`
+would compile the workspace cold into the checkout's own `target/`. The crates' format and lint need
+no declared step: the testbed's Cargo workspace check runs them over every member wherever a change
+marks a crate, and the change check compiles the crates it marks. The screen is seen working on the
+bench (`docs/development.md`) before it is reported.
 
 ## Version
 
