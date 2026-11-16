@@ -32,6 +32,13 @@ caller, the native displayer that draws it on a machine's own panel, and the ser
 
 ## What BMO sends, and by which road
 
+- **This road is the web display's, and nothing answers it today.** The app login, the device tokens
+  and the listener stream were the old console's and went with the phone app; BMO's console answers
+  none of the four routes below, so a display's sign-in fails and the web display hears no briefing
+  and no presence. They wait for the briefing unit, the planned owner of a listener stream with
+  presence (bmo-chat's `docs/conventions.md`: the speech engine is bmo-voice, the briefings are
+  bmo-briefing). The native displayer does not take this road: it listens to the voice engine itself
+  (「What it hears」).
 - **The road is BMO's own listener stream** — the one every listener hears briefings on. Nothing
   new is opened on BMO's side for the face; the face is one more listener.
 - **What the stream carries that the face uses:**
@@ -95,16 +102,17 @@ caller, the native displayer that draws it on a machine's own panel, and the ser
 
 ## How a screen signs in
 
-- **The display signs in once, the way the Android app does.** The first time a screen opens the
+- **The display signs in once, the way the Android app did.** The first time a screen opens the
   page it asks for a BMO web account's name and password and posts them to BMO's app login through
-  the pass-through. BMO answers with a device token, shown once.
+  the pass-through. BMO answers with a device token, shown once. BMO's console answers no app login
+  today, so this sign-in fails until the briefing unit stands (「What BMO sends, and by which road」).
 - **The token is kept in that browser's own storage** and sent as a bearer token on every stream,
   sound and stop request. A screen whose token BMO refuses — revoked on BMO's account screen, where
   the screen stands listed by the name it signed in with — forgets it and asks to sign in again.
 - **This server keeps no token and no password** of any screen's. It never sees a token except as a
   header it passes on.
-- **The native displayer signs in the same way, once, by a command** rather than a form, and keeps
-  its token in a file of its own (「The native displayer」).
+- **The native displayer signs in nowhere.** It reads the voice engine with the engine's own token,
+  from the file its setting names (「What it hears」).
 - **The editor signs in with a BMO web account too,** checked here against BMO's `web_users`, which
   is opened read-only for that and nothing else. What follows the check is this server's own: a
   session in its own database, the `bmo_face` cookie on `/bmo-face` for seven days, and at most
@@ -535,8 +543,11 @@ drawn by the core as a crate, with as little beside it as a face needs.
 
 ### What it is
 
-- **A display of its own, beside the web page.** It hears what the page hears, by the same roads
-  through this server, keeps the same rules, and draws the same drawings: the core answers both.
+- **A display of its own, beside the web page.** It draws the document the page draws, read from
+  this server, and the same drawings: the core answers both.
+- **A listener of the voice engine's.** It is the machine's own screen, a part of the face unit running
+  beside the units on the loopback, not a person's device: it hears briefings from the voice engine
+  directly, by the engine's documented API, with the engine's token, and signs in nowhere.
 - **Straight to the panel.** It writes pixels into the kernel's display interface (DRM/KMS) itself:
   no window system, no compositor, no browser and no graphics toolkit run for it.
 - **One process, mostly asleep.** It draws only when the core says the drawing may change or when it
@@ -544,7 +555,8 @@ drawn by the core as a crate, with as little beside it as a face needs.
 
 ```mermaid
 flowchart TD
-  S[this server: document, saves, BMO's listener routes] --> D[bmo-face-displayer]
+  S[this server: document, saves] --> D[bmo-face-displayer]
+  V[voice engine: briefing events, sounds] --> D
   G[gaze socket] --> D
   L[logind: the panel's card, its own VT] --> D
   D --> C[core: the drawing of each frame]
@@ -617,20 +629,50 @@ flowchart TD
 
 - **The expression document** from `GET /api/faces`, kept only when the core's check passes it, and
   read again whenever the saves stream names a version other than the one drawn (「The expression
-  document」).
-- **BMO's listener stream** through the pass-through, with its token, resumed from its cursor, taken
-  as gone after twenty seconds without a frame, keep frames included (「What BMO sends, and by which
-  road」).
-- **The same rules as the page:** a briefing's face is the expression it carries, else its emotion,
-  else `기본`; a briefing heard more than two minutes after it was sent is not played; a briefing
-  already heard is not played twice; `briefing-stopped` for the briefing speaking stops it; a newer
-  briefing takes over from one still speaking; `presence` is told to the core from the moment it
-  began, a moment ahead of this machine's clock read as now.
+  document」), the stream taken as gone after twenty seconds without a frame, keep frames included.
+- **The voice engine's event stream,** `GET /events` of the engine at the address its setting names,
+  narrowed to `briefing.ended` and `briefings.stopped`, with the engine's bearer token (bmo-voice's
+  `docs/boundary-api.md`, 「Events」 and 「Briefings」). It first opens with no cursor, so it reads on
+  from the live events, and opens again after the number of the last event read; a cursor the engine
+  answers `410` for, its events no longer kept, is dropped and the stream reads on from the live ones.
+  A stream that carries nothing at all for forty seconds — not an event, not the comment line the
+  engine writes every fifteen — is taken as gone.
+- **Which briefings it speaks,** as the engine states a listener plays them by itself and the web
+  console's player reads them: a `briefing.ended` of a `summary` that is `done`, that the engine spoke —
+  it names a synthesis — and whose `plays` holds. It leaves one it hears of more than two minutes after
+  it ended (its `finishedAt`, else the event's moment, read against this machine's clock, which the
+  engine on the loopback shares), one already taken, and one that ended at or before a stop of its room
+  or of every room. A `full` reading plays only when somebody asks for it, and nothing on the panel
+  asks.
+- **Which rooms.** Its setting names the rooms whose briefings it speaks, by the numbers the engine
+  keeps them under; where it names none, every room's. The live deployment names the owner's private
+  room alone: a briefing goes to the owner's private room, and to another room only where that room's
+  own setting asks for it (bmo-receiver's `docs/voiced-notices.md`, 「The rule」), and the panel stands
+  on the owner's own machine, so a briefing another room asks for is heard in that room and not here.
+- **One at a time.** A briefing heard while another is made ready or speaks waits behind it, in the
+  order heard, and follows it after a breath of 600 milliseconds, as the console's player takes it.
+- **A stop,** `briefings.stopped` naming a room or every room, ends the briefing of that room being
+  made ready or speaking, takes away those of it waiting, and leaves unspoken any of it heard later that
+  ended at or before the stop's moment. A briefing whose line is named or let go (`briefing.changed`)
+  changes nothing of what plays.
+- **The sound** is the engine's `GET /briefings/{briefingId}/sound`, with the same token.
+- **The face a briefing shows** is the face of the emotion it carries, the face the expression entry
+  answers for that emotion (「The expression entry」); one that carries none, or one this display does
+  not know, shows `기본`. The engine's briefing carries its emotion and no expression of its own. Today's
+  summaries carry no emotion: the receiver names none when it asks the engine for one, so every briefing
+  on the panel speaks with `기본` until the briefing's caller names one.
+- **Presence is not heard.** Nothing documented says today what BMO is doing: the listener stream that
+  carries `presence` waits for the briefing unit (「What BMO sends, and by which road」). The core is told
+  no presence, so outside a briefing the panel stands `idle` from the moment it started, and shows the
+  `졸림` face once that has lasted ten minutes, as the core reads a scene told nothing (「The faces」).
+- **The engine's token** is read from the file its setting names each time the stream opens or a sound
+  is fetched, so a token put in place is taken without a restart; it is never written and never said
+  on the output. The displayer keeps no token of its own.
+- **No engine named,** no briefing is heard and the engine is asked nothing; the face shows as ever.
 - **Every road is opened again on every failure,** the first wait a second and each one after twice
   the last, up to a minute, for as long as the program runs: it never gives up and never ends on a
-  failure it can wait out.
-- **A token BMO refuses** (401 or 403 on the listener stream) is forgotten — its file removed — and
-  the program waits for a new one, as the page asks to be signed in again.
+  failure it can wait out. A token the engine refuses (401 or 403), a token file missing or empty, and
+  an engine not answering are each tried again so, each said once on the output while it lasts.
 - **A new release.** Whenever the saves stream opens again — as it does after the server restarts on
   a deploy — the displayer compares the executable it was started from, followed through the deploy
   link, with the one it runs; when the deploy link has moved it ends with success, and its service
@@ -638,8 +680,8 @@ flowchart TD
 
 ### Speaking
 
-- **The sound is fetched and decoded whole before it plays,** as the page does: the Ogg Opus voice
-  message demuxed by Symphonia's Ogg reader and decoded by the system's libopus, at 48 kHz, with the
+- **The sound is fetched and decoded whole before it plays,** as the page does: the briefing's Ogg
+  Opus sound demuxed by Symphonia's Ogg reader and decoded by the system's libopus, at 48 kHz, with the
   stream's pre-skip and end trimming applied.
 - **Its loudness is read once a frame of the held clock,** the root mean square of the first channel
   over each frame's samples, in dBFS, silence held at −120 — the reading the page makes — and the core
@@ -658,21 +700,9 @@ flowchart TD
   frame clock, and is said on its output.
 - **Silent.** With its sound setting `off` it opens no device and moves the mouth from the same decoded
   sound, as the page's `?sound=off` does.
-- **Stopped** when the sound runs out, when the stream says `briefing-stopped` for it, or when a newer
-  briefing takes over; the core is told the frame it stopped at.
-
-### Signing in
-
-- **Once, by a command:** `bmo-face-displayer sign-in --name <account> --device <label>` reads the BMO
-  web account's password from its standard input — without echo where that is a terminal — and posts
-  them to BMO's app login through this server's pass-through, naming this server's own site as its
-  `Origin`, as a page served from here does, since a write must come from this site (「The server」).
-  Neither the password nor the token is ever written to its output or its log.
-- **The token** is written to `token` in the displayer's data root, the folder made `0700` and the file
-  `0600` before anything is written into it, replaced whole, never in part. The running displayer
-  reads it when it next opens the listener stream, and waits, paced by the same growing waits, while
-  there is none.
-- **Revoked on BMO's account screen,** where it stands by its label, it is forgotten as above.
+- **The mouth's picks** are seeded by the briefing's number, as the page seeds them by its message.
+- **Stopped** when the sound runs out or a stop of its room is heard (「What it hears」); the core is
+  told the frame it stopped at, and the briefing waiting first follows after the breath.
 
 ### The gaze socket
 
@@ -690,7 +720,10 @@ Read from its environment, every one optional:
 | Variable | Holds | Default |
 |---|---|---|
 | `BMO_FACE_URL` | this server's address with its base path | `http://127.0.0.1:3217/bmo-face` |
-| `BMO_FACE_DISPLAYER_DATA` | its data root, where the token stands | `~/.local/share/bmo/data/face-displayer` |
+| `BMO_FACE_DISPLAYER_VOICE` | the voice engine's address | none: no briefing is heard |
+| `BMO_FACE_DISPLAYER_VOICE_TOKEN_FILE` | the path of the file the engine's token stands in | none: the stream waits, saying so |
+| `BMO_FACE_DISPLAYER_ROOMS` | the rooms whose briefings are spoken, their numbers separated by commas | every room's |
+| `BMO_FACE_DISPLAYER_DATA` | its data root, where the gaze socket stands without a runtime folder | `~/.local/share/bmo/data/face-displayer` |
 | `BMO_FACE_DISPLAYER_CARD` | the card, a path such as `/dev/dri/card1` | the first card with a connected connector |
 | `BMO_FACE_DISPLAYER_CONNECTOR` | the connector, by its kernel name such as `HDMI-A-1` | the card's first connected connector |
 | `BMO_FACE_DISPLAYER_MODE` | the mode, `<width>x<height>` or `<width>x<height>@<hz>` | the connector's preferred mode |
@@ -709,25 +742,29 @@ Read from its environment, every one optional:
 
 - **No 그만듣기 and no touch.** It reads no input device, so it offers no stop of its own; a stop from
   any other listener stops it.
-- **No sign-in on the panel.** It signs in by its command alone.
+- **No presence and no full reading** (「What it hears」).
 - **No less-motion setting.** Every change of face is drawn with its in-betweens.
 - **No hotplug watch.** A panel connected after the displayer started is found the next time taking
   the panel is tried again, which a failed flip or a resumed seat brings about.
 - **No Opus output gain.** The Ogg stream's output gain is not applied, as the voice's encoder writes
   none.
-- **Plain HTTP only** to this server, which listens on the loopback.
+- **Plain HTTP only** to this server and to the voice engine, both on the loopback.
 
 ### Tested
 
 By the crate's own tests: the rasterising of a drawing to pixels against its geometry — where the
 screen and the body stand, a stroke's round ends, a clip's cut, the order paint is laid down in —
-the loudness framing, the playback clock's mapping onto frames, the listener's frames read into what
-they tell, the cursor, the freshness and the growing waits, the token file's permissions, the Ogg Opus
-decoding of a fixture, the face told what is heard — a briefing played once, a late one left, a stop
-for it, presence from the moment it began, a document the check refuses — and the whole program against
-a stand-in server: the document and a save heard drawn, a briefing's sound fetched and spoken and a late
-one left, a refused token forgotten, the stream opened again from its cursor after it drops, signing
-in from the server's own site, and the gaze socket's lines.
+the loudness framing, the playback clock's mapping onto frames, the engine's events read into what they
+tell — which briefings play, the face of each, the stops — the cursor, the freshness and the growing
+waits, the Ogg Opus decoding of a fixture, the face told what is heard — a briefing played once, a late
+one left, one waiting behind another and following it, a stop of its room or of every room, idle
+without presence, a document the check refuses — and the whole program against a stand-in face server
+and a stand-in voice engine, whose events and briefings take the shapes the engine's `docs/openapi.json`
+states: the document and a save heard drawn, a fresh summary's sound fetched and spoken and a late one
+left, a stop silencing the room speaking and what waits behind, the stream opened again after its last
+event and from the live ones once the engine answers `410`, a refused token tried again with growing
+waits while the program runs on, the rooms named alone spoken, nothing asked of the engine while none
+is named, and the gaze socket's lines.
 
 ## The screens' shared style
 

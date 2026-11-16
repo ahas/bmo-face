@@ -288,7 +288,6 @@ dependencies = [
  "hyper-util",
  "libc",
  "libloading",
- "percent-encoding",
  "serde_json",
  "sse-stream",
  "symphonia-core",

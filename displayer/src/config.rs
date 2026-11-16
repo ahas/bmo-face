@@ -62,6 +62,12 @@ impl ModeWish {
 pub struct Config {
   /// The face server's address with its base path, without a trailing slash.
   pub face_url: String,
+  /// The voice engine's address, without a trailing slash; none hears no briefing.
+  pub voice: Option<String>,
+  /// The file the voice engine's token stands in.
+  pub voice_token: Option<PathBuf>,
+  /// The rooms whose briefings are spoken; every room's where none is named.
+  pub rooms: Vec<i64>,
   pub data: PathBuf,
   pub card: Option<PathBuf>,
   pub connector: Option<String>,
@@ -96,6 +102,16 @@ impl Config {
       (None, Some(runtime)) => PathBuf::from(runtime).join(GAZE_SOCKET),
       (None, None) => data.join(DATA_GAZE_SOCKET),
     };
+    let rooms = match lookup("BMO_FACE_DISPLAYER_ROOMS") {
+      Some(rooms) => rooms
+        .split(',')
+        .map(str::trim)
+        .filter(|room| !room.is_empty())
+        .map(|room| room.parse::<i64>())
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| format!("BMO_FACE_DISPLAYER_ROOMS is not a list of room numbers: {rooms}"))?,
+      None => Vec::new(),
+    };
     let first_retry = match lookup("BMO_FACE_DISPLAYER_RETRY_MS") {
       Some(ms) => Duration::from_millis(
         ms.parse()
@@ -108,6 +124,11 @@ impl Config {
         .unwrap_or_else(|| FACE_URL.to_owned())
         .trim_end_matches('/')
         .to_owned(),
+      voice: lookup("BMO_FACE_DISPLAYER_VOICE")
+        .map(|voice| voice.trim().trim_end_matches('/').to_owned())
+        .filter(|voice| !voice.is_empty()),
+      voice_token: lookup("BMO_FACE_DISPLAYER_VOICE_TOKEN_FILE").map(PathBuf::from),
+      rooms,
       data,
       card: lookup("BMO_FACE_DISPLAYER_CARD").map(PathBuf::from),
       connector: lookup("BMO_FACE_DISPLAYER_CONNECTOR"),

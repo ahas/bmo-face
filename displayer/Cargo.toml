@@ -1,6 +1,6 @@
 # BMO's face on a machine's own panel (docs/face.md, 「The native displayer」): the core's drawing
-# rasterised on the CPU and shown straight through DRM/KMS, moved by what the face server and BMO's
-# listener stream say, with the voice played on an ALSA device. Every dependency is here for one job a
+# rasterised on the CPU and shown straight through DRM/KMS, moved by the face server's document and the
+# voice engine's briefings, with the voice played on an ALSA device. Every dependency is here for one job a
 # face needs and is chosen to stay small: the program idles at a few megabytes beside its buffers.
 
 [package]
@@ -20,7 +20,7 @@ path = "src/main.rs"
 [dependencies]
 # The face's core: the document's check, the scene and the drawing of each frame.
 bmo-face-core = { path = "../core" }
-# Its three verbs and their flags.
+# Its two verbs and their flags.
 clap = { version = "4.6.7", default-features = false, features = ["derive", "error-context", "help", "std", "usage"] }
 # The panel through the kernel's mode setting: connectors, modes, dumb buffers and page flips, in Rust
 # over the kernel's ioctls, with no libdrm.
@@ -29,13 +29,11 @@ futures-util = "0.3.34"
 http-body-util = "0.1.3"
 hyper = { version = "1.12.0", features = ["client", "http1", "http2", "server"] }
 hyper-util = { version = "0.1.21", features = ["client", "client-legacy", "client-proxy", "client-proxy-system", "http1", "http2", "server", "service", "tokio"] }
-# The VT's ioctls, and the terminal's echo turned off while a password is typed.
+# The VT's ioctls.
 libc = "0.2.177"
 # The system's libasound and libopus, loaded as the program runs, so a build needs neither library's
 # development files and the reference decoder and the system's sound stack are the ones used.
 libloading = "0.9.1"
-# The run named in the listener stream's query.
-percent-encoding = "2.3.1"
 # The document keeps its keys in the order they were written, as the core reads it.
 serde_json = { version = "1.0.138", features = ["float_roundtrip", "preserve_order"] }
 # The server-sent event streams read as events off a response body.

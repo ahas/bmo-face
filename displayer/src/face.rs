@@ -1,9 +1,9 @@
 //! The face the displayer holds (docs/face.md, 「What it hears」 and 「Speaking」): the core's scene on the
-//! displayer's held clock, told what is heard as the web display tells it — the document, what BMO is
-//! doing, a briefing to speak and its stop, where the eyes look — and asked the drawing of the frame
-//! standing and when the next may change.
+//! displayer's held clock, told what is heard — the document, the briefings to speak one at a time and
+//! the stops that silence them, where the eyes look — and asked the drawing of the frame standing and
+//! when the next may change.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, VecDeque};
 use std::time::Instant;
 
 use bmo_face_core::check::check;
@@ -15,7 +15,7 @@ use bmo_face_core::scene::Scene;
 use bmo_face_core::talk::{LEAD, Speech};
 use serde_json::Value;
 
-use crate::listener::{Briefing, is_fresh};
+use crate::listener::{Briefing, FRESH_MS, is_fresh};
 use crate::playback::Playing;
 
 /// How many frames the first drawing of a briefing waits after its sound is ready, so its own frame
@@ -36,8 +36,15 @@ pub struct Face {
   clock: crate::clock::HeldClock,
   /// The version of the document drawn; none while it is the core's default.
   saved_at: Option<f64>,
-  heard: HashSet<(i64, i64)>,
+  /// The briefings already taken, by their ids, with when each ended, kept while one could still be fresh.
+  heard: HashMap<i64, f64>,
   speaking: Option<Speaking>,
+  /// The briefings taken while another spoke, in the order they came.
+  waiting: VecDeque<Briefing>,
+  /// The latest stop of every room's briefings, and of each room's, on the engine's clock: a briefing
+  /// that ended at or before the stop covering its room is never spoken.
+  every_room_stopped: f64,
+  room_stopped: HashMap<i64, f64>,
   plays: u64,
 }
 
@@ -50,8 +57,11 @@ impl Face {
       scene: Scene::new(bmo_face_core::default::document(), seed, frame),
       clock,
       saved_at: None,
-      heard: HashSet::new(),
+      heard: HashMap::new(),
       speaking: None,
+      waiting: VecDeque::new(),
+      every_room_stopped: f64::NEG_INFINITY,
+      room_stopped: HashMap::new(),
       plays: 0,
     }
   }
@@ -71,22 +81,32 @@ impl Face {
     Ok(())
   }
 
-  /// What BMO is doing, since `since` on the console's clock, heard when this machine's clock read `now`
-  /// (both in milliseconds); a moment ahead of this clock is read as now.
-  pub fn presence(&mut self, state: &str, since: f64, now: f64, at: Instant) {
-    let ago = (now - since).max(0.0);
-    let frame = self.clock.frame(at) - (ago * FPS / 1_000.0).floor() as i64;
-    self.scene.presence(state, frame);
-  }
-
-  /// A briefing heard: the play it starts, where it is fresh and not heard before. A briefing still
-  /// speaking stops for it.
-  pub fn briefing(&mut self, briefing: Briefing, now: f64, at: Instant) -> Option<u64> {
-    if self.heard.contains(&briefing.key()) || !is_fresh(briefing.sent_at, now) {
+  /// A briefing heard when this machine's clock read `now`, in milliseconds: the play it starts now, where
+  /// it is fresh, not heard before and not stopped, and nothing else speaks. One heard while another
+  /// speaks waits behind it.
+  pub fn briefing(&mut self, briefing: Briefing, now: f64) -> Option<u64> {
+    if self.heard.contains_key(&briefing.id) || !is_fresh(briefing.ended_at, now) || self.stopped(&briefing)
+    {
       return None;
     }
-    self.heard.insert(briefing.key());
-    self.stop(at);
+    self.heard.retain(|_, ended_at| is_fresh(*ended_at, now));
+    self.heard.insert(briefing.id, briefing.ended_at);
+    self.waiting.push_back(briefing);
+    self.next()
+  }
+
+  /// Whether a stop of its room or of every room came at or after the briefing ended.
+  fn stopped(&self, briefing: &Briefing) -> bool {
+    let room = self.room_stopped.get(&briefing.chat_id).copied().unwrap_or(f64::NEG_INFINITY);
+    briefing.ended_at <= self.every_room_stopped.max(room)
+  }
+
+  /// The briefing waiting first, as a play, where nothing speaks.
+  fn next(&mut self) -> Option<u64> {
+    if self.speaking.is_some() {
+      return None;
+    }
+    let briefing = self.waiting.pop_front()?;
     self.plays += 1;
     self.speaking = Some(Speaking {
       id: self.plays,
@@ -95,6 +115,11 @@ impl Face {
       playing: None,
     });
     Some(self.plays)
+  }
+
+  /// The briefings waiting behind the one speaking, by their ids, in the order they will be spoken.
+  pub fn waiting(&self) -> Vec<i64> {
+    self.waiting.iter().map(|briefing| briefing.id).collect()
   }
 
   /// The briefing a play is of, while it is still the one to speak.
@@ -115,7 +140,7 @@ impl Face {
     let speech = Speech {
       loudness,
       cues: Vec::new(),
-      seed: speaking.briefing.message_id.unsigned_abs(),
+      seed: speaking.briefing.id.unsigned_abs(),
     };
     self.scene.speak(&speech, &speaking.briefing.face, Vec::new(), start);
     speaking.start = Some(start);
@@ -130,18 +155,34 @@ impl Face {
     }
   }
 
-  /// A play ended: its sound ran out, failed or was stopped.
-  pub fn ended(&mut self, id: u64, at: Instant) {
+  /// A play ended: its sound ran out, failed or was stopped. Answers the play that follows it.
+  pub fn ended(&mut self, id: u64, at: Instant) -> Option<u64> {
     if self.speaking.as_ref().is_some_and(|speaking| speaking.id == id) {
       self.stop(at);
     }
+    self.next()
   }
 
-  /// `briefing-stopped` heard: the briefing it names stops if it is the one speaking.
-  pub fn stopped(&mut self, key: (i64, i64), at: Instant) {
-    if self.speaking.as_ref().is_some_and(|speaking| speaking.briefing.key() == key) {
+  /// The engine stopped the briefings of a room, or of every room where none is named, at `stopped_at` on
+  /// its clock, heard when this machine's clock read `now`: the one of that room speaking stops, those of
+  /// it waiting go, and none of it that ended at or before the stop is spoken afterwards. Answers the play
+  /// that follows.
+  pub fn silence(&mut self, chat_id: Option<i64>, stopped_at: f64, now: f64, at: Instant) -> Option<u64> {
+    match chat_id {
+      None => self.every_room_stopped = self.every_room_stopped.max(stopped_at),
+      Some(room) => {
+        let known = self.room_stopped.entry(room).or_insert(f64::NEG_INFINITY);
+        *known = known.max(stopped_at);
+      }
+    }
+    // A stop older than a briefing can be and still play reaches nothing more.
+    self.room_stopped.retain(|_, stopped_at| now - *stopped_at <= FRESH_MS);
+    let reaches = |briefing: &Briefing| chat_id.is_none_or(|room| room == briefing.chat_id);
+    self.waiting.retain(|briefing| !reaches(briefing));
+    if self.speaking.as_ref().is_some_and(|speaking| reaches(&speaking.briefing)) {
       self.stop(at);
     }
+    self.next()
   }
 
   /// Stops what speaks, the sound with it.

@@ -57,7 +57,13 @@ declaration, `testbed.toml`; nothing here deploys itself.
   and no privilege is needed for that.
 - **It starts at boot and comes back from any end:** `Restart=always`, wanted by `graphical.target`.
 - **Its settings** are set as `Environment=` lines in the unit's drop-in (`systemctl edit`), never in
-  the repository. Its token stands under the shared data root, `face-displayer/`.
+  the repository (`docs/face.md`, 「Its settings」).
+- **It hears briefings from the voice engine,** on the loopback, with the engine's own token
+  (`docs/face.md`, 「What it hears」): the drop-in names the engine's address, the file its token stands
+  in and the rooms whose briefings are spoken. The token file is the voice's own, the file under the
+  shared data root's `env/` that the voice's settings name as `token_file` (bmo-voice's
+  `docs/boundary-api.md`, 「Settings」); the unit's user reads it where it stands, and the drop-in names
+  its path, never its value. The displayer signs in nowhere and keeps no token of its own.
 
 ### Setting it up once
 
@@ -72,14 +78,15 @@ stands for a VT no getty or display manager uses.
    `sudo install -m 0644 deploy/system/pam.d/bmo-face-displayer /etc/pam.d/bmo-face-displayer`.
 3. The unit: `sudo install -m 0644 deploy/system/bmo-face-displayer@.service /etc/systemd/system/` and
    `sudo systemctl daemon-reload`.
-4. Its settings, where the defaults do not hold, in a drop-in:
-   `sudo systemctl edit bmo-face-displayer@<user>.service` with `Environment=` lines
-   (`docs/face.md`, 「Its settings」), for example `BMO_FACE_DISPLAYER_SOUND=off` where nothing
-   should be heard.
-5. Signing in, as `<user>`, once a release holds the binary:
-   `~/.local/share/bmo-face/deploy/bin/bmo-face-displayer sign-in --name <account> --device <label>`,
-   typing the account's password when asked.
-6. Starting it now and at every boot: `sudo systemctl enable --now bmo-face-displayer@<user>.service`.
+4. Its settings, in a drop-in: `sudo systemctl edit bmo-face-displayer@<user>.service` with
+   `Environment=` lines (`docs/face.md`, 「Its settings」):
+   - `BMO_FACE_DISPLAYER_VOICE=<the voice engine's address>`, the `address` the voice's settings name;
+   - `BMO_FACE_DISPLAYER_VOICE_TOKEN_FILE=<the shared data root>/env/<the voice's token file>`;
+   - `BMO_FACE_DISPLAYER_ROOMS=<the owner's private room>`, the room's number as the engine keeps it;
+   - and any other where its default does not hold, for example `BMO_FACE_DISPLAYER_SOUND=off` where
+     nothing should be heard.
+5. Starting it now and at every boot: `sudo systemctl enable --now bmo-face-displayer@<user>.service`;
+   a unit already running takes changed settings with `sudo systemctl restart` of the same name.
 
 It brings its VT to the foreground as it starts; the greeter stays running behind it. `Ctrl+Alt+F1`
 — or whichever VT the greeter stands on — brings the greeter back, and the face's VT key brings the

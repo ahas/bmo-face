@@ -1,136 +1,126 @@
-//! What BMO's listener stream says, read as the web display reads it (docs/face.md, 「What BMO sends,
-//! and by which road」): each event told apart, the briefing's face picked, the cursor a reconnecting
-//! stream resumes from, whether a briefing is still fresh, and how long to wait before trying again.
+//! What the voice engine's event stream says, read as a listener reads it (docs/face.md, 「What it hears」;
+//! bmo-voice's `docs/boundary-api.md`, 「Events」 and 「Briefings」): the briefings a listener plays by
+//! itself and the face each shows, the stops, the cursor a reconnecting stream resumes from, whether a
+//! briefing is still fresh, and how long to wait before trying again.
 
 use std::time::Duration;
 
-use bmo_face_core::names::{EMOTIONS, FALLBACK, is_state};
-use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
+use bmo_face_core::names::{EMOTIONS, FALLBACK};
 use serde_json::Value;
 
-/// A stream that has said nothing, not even its keep frame, for this long is taken as gone.
+/// The face server's saves stream says something, a keep frame at least, every five seconds; one silent
+/// for this long is taken as gone.
 pub const SILENCE: Duration = Duration::from_secs(20);
-/// A briefing heard of later than this after it was sent is not played.
+/// The voice engine writes a comment line every fifteen seconds; a stream that carries nothing at all for
+/// this long is taken as gone.
+pub const ENGINE_SILENCE: Duration = Duration::from_secs(40);
+/// A briefing heard of later than this after it ended is not played.
 pub const FRESH_MS: f64 = 2.0 * 60_000.0;
+/// The kinds of the engine's events the displayer reads.
+pub const KINDS: &str = "briefing.ended,briefings.stopped";
 /// The longest of the growing waits.
 const LAST_RETRY: Duration = Duration::from_secs(60);
 
-/// A briefing as the displayer needs it: which message it is, the face it shows and when it was sent.
+/// A briefing as the displayer needs it: which one it is, the room it was spoken for, the face it shows
+/// and when it ended, on the engine's clock in milliseconds.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Briefing {
+  pub id: i64,
   pub chat_id: i64,
-  pub message_id: i64,
   pub face: String,
-  pub sent_at: f64,
-}
-
-impl Briefing {
-  pub fn key(&self) -> (i64, i64) {
-    (self.chat_id, self.message_id)
-  }
+  pub ended_at: f64,
 }
 
 /// What one event tells the displayer.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Heard {
-  Run(String),
+  /// A briefing ended that a listener plays by itself.
   Briefing(Briefing),
-  /// What BMO is doing, since a moment on the console's clock in milliseconds.
-  Presence {
-    state: String,
-    since: f64,
-  },
+  /// The briefings of a room were stopped, or of every room where none is named, at a moment on the
+  /// engine's clock.
   Stopped {
-    chat_id: i64,
-    message_id: i64,
+    chat_id: Option<i64>,
+    at: f64,
   },
-  Keep,
   Other,
 }
 
-/// The face a briefing names: its expression where it carries one this display knows, else its
-/// emotion, else the fallback.
-fn face_named(word: Option<&str>) -> String {
-  word.filter(|word| EMOTIONS.contains(word)).unwrap_or(FALLBACK).to_owned()
+/// The face a briefing shows: the face of the emotion it was spoken with, where this display knows it,
+/// else the fallback. The face's expression entry answers each emotion with its own face, and the engine's
+/// briefing carries the emotion alone.
+fn face_named(emotion: Option<&str>) -> String {
+  emotion.filter(|word| EMOTIONS.contains(word)).unwrap_or(FALLBACK).to_owned()
 }
 
-/// What an event of the stream says, by its name and its data.
+/// Whether a briefing as the engine tells it is one a listener plays by itself: a summary, done, which
+/// the engine spoke and which plays by itself.
+fn plays_by_itself(briefing: &Value) -> bool {
+  briefing["kind"] == "summary"
+    && briefing["state"] == "done"
+    && briefing["plays"] != false
+    && !briefing["synthesisId"].is_null()
+}
+
+/// What an event of the engine's stream says, by its name and its data.
 pub fn heard(event: Option<&str>, data: Option<&str>) -> Heard {
-  let event = event.unwrap_or("message");
-  if event == "keep" {
-    return Heard::Keep;
-  }
   let Some(data) = data.and_then(|data| serde_json::from_str::<Value>(data).ok()).filter(Value::is_object)
   else {
     return Heard::Other;
   };
-  match event {
-    "run" => data["run"].as_str().map_or(Heard::Other, |run| Heard::Run(run.to_owned())),
-    "presence" => match (data["state"].as_str(), data["since"].as_f64()) {
-      (Some(state), Some(since)) if is_state(state) => Heard::Presence {
-        state: state.to_owned(),
-        since,
-      },
-      _ => Heard::Other,
-    },
-    "briefing-stopped" => match (data["chatId"].as_i64(), data["messageId"].as_i64()) {
-      (Some(chat_id), Some(message_id)) => Heard::Stopped {
-        chat_id,
-        message_id,
-      },
-      _ => Heard::Other,
-    },
-    "bot" if data["type"] == "briefing" => {
-      let news = &data["briefing"];
-      match (data["chatId"].as_i64(), data["messageId"].as_i64(), news["sentAt"].as_f64()) {
-        (Some(chat_id), Some(message_id), Some(sent_at)) => Heard::Briefing(Briefing {
+  let Some(at) = data["at"].as_f64() else { return Heard::Other };
+  let member = &data["data"];
+  match event.or(data["kind"].as_str()) {
+    Some("briefing.ended") if plays_by_itself(member) => {
+      match (member["id"].as_i64(), member["chatId"].as_i64()) {
+        (Some(id), Some(chat_id)) => Heard::Briefing(Briefing {
+          id,
           chat_id,
-          message_id,
-          // The face the face's own entry answered for the briefing, else the emotion it was spoken with.
-          face: face_named(news["expression"].as_str().or(news["emotion"].as_str())),
-          sent_at,
+          face: face_named(member["emotion"].as_str()),
+          ended_at: member["finishedAt"].as_f64().unwrap_or(at),
         }),
         _ => Heard::Other,
       }
     }
+    Some("briefings.stopped") => match &member["chatId"] {
+      Value::Null => Heard::Stopped { chat_id: None, at },
+      room => room.as_i64().map_or(Heard::Other, |room| Heard::Stopped {
+        chat_id: Some(room),
+        at,
+      }),
+    },
     _ => Heard::Other,
   }
 }
 
-/// Whether a briefing sent at `sent_at` is still fresh enough to play at `now`, both in milliseconds.
-pub fn is_fresh(sent_at: f64, now: f64) -> bool {
-  now - sent_at <= FRESH_MS
+/// Whether a briefing that ended at `ended_at` is still fresh enough to play at `now`, both in
+/// milliseconds.
+pub fn is_fresh(ended_at: f64, now: f64) -> bool {
+  now - ended_at <= FRESH_MS
 }
 
-/// The cursor a reconnecting stream resumes from: the last numbered event read, against the run it was
-/// read in. A new run of the bot numbers its events afresh, so a cursor from another run is dropped.
+/// The cursor a reconnecting stream resumes from: the last event number read. With none, the stream reads
+/// on from the newest event the engine keeps, the live ones alone.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Cursor {
-  pub after: u64,
-  pub run: Option<String>,
+  pub after: Option<i64>,
 }
 
 impl Cursor {
-  pub fn on_run(&mut self, run: &str) {
-    if self.run.as_deref().is_some_and(|known| known != run) {
-      self.after = 0;
+  pub fn on_id(&mut self, id: Option<&str>) {
+    if let Some(value) = id.and_then(|id| id.trim().parse::<i64>().ok()) {
+      self.after = Some(self.after.map_or(value, |after| after.max(value)));
     }
-    self.run = Some(run.to_owned());
   }
 
-  pub fn on_id(&mut self, id: Option<&str>) {
-    if let Some(value) = id.and_then(|id| id.parse::<u64>().ok()) {
-      self.after = self.after.max(value);
-    }
+  /// The engine keeps the events past the cursor no longer: the stream reads on from the live ones.
+  pub fn gone(&mut self) {
+    self.after = None;
   }
 
   /// The query a stream opens with.
   pub fn query(&self) -> String {
-    let run = self
-      .run
-      .as_deref()
-      .map_or(String::new(), |run| format!("&run={}", utf8_percent_encode(run, NON_ALPHANUMERIC)));
-    format!("?after={}{run}", self.after)
+    let after = self.after.map_or(String::new(), |after| format!("&after={after}"));
+    format!("?kinds={KINDS}{after}")
   }
 }
 
