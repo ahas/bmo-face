@@ -862,7 +862,8 @@ flowchart TD
   frame clock, and is said on its output.
 - **Silent.** With its sound setting `off` it opens no device and moves the face from the same decoded
   sound, as the page's `?sound=off` does.
-- **The mouth's picks** are seeded by the briefing's number, as the page seeds them by its message.
+- **Nothing is chance.** The mouth and the eyes turn on the sound alone, so the panel and the page
+  draw the same face for the same briefing.
 - **Stopped** when the sound runs out or a stop of its room is heard (「What it hears」); the core is
   told the frame it stopped at, and the briefing waiting first follows after the breath.
 
@@ -916,7 +917,7 @@ Read from its environment, every one optional:
 
 By the crate's own tests: the rasterising of a drawing to pixels against its geometry — where the
 screen and the body stand, a stroke's round ends, a clip's cut, the order paint is laid down in —
-the loudness framing, the playback clock's mapping onto frames, the engine's events read into what they
+the core's hearing of a decoded sound, the playback clock's mapping onto frames, the engine's events read into what they
 tell — which briefings play, the face of each, the stops — the cursor, the freshness and the growing
 waits, the Ogg Opus decoding of a fixture, the face told what is heard — a briefing played once, a late
 one left, one waiting behind another and following it, a stop of its room or of every room, idle

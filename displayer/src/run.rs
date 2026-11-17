@@ -339,7 +339,7 @@ pub async fn display(
       Some(Event::Heard(Heard::Other)) => {}
       Some(Event::Ready { id, sound, pcm }) => {
         let latency = pcm.as_ref().map_or(0.0, |pcm| pcm.buffer() as f64 / f64::from(pcm.rate()));
-        if let Some(target) = face.speak(id, sound.loudness.clone(), latency, now) {
+        if let Some(target) = face.speak(id, sound.heard.clone(), latency, now) {
           match pcm {
             Some(pcm) => {
               let tell = tell.clone();

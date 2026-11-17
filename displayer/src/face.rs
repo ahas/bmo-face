@@ -11,6 +11,7 @@ use bmo_face_core::clock::{FPS, ms_at};
 use bmo_face_core::document::Document;
 use bmo_face_core::drawing::Drawing;
 use bmo_face_core::geometry::Point;
+use bmo_face_core::hearing::Heard;
 use bmo_face_core::scene::Scene;
 use bmo_face_core::talk::{LEAD, Speech};
 use serde_json::Value;
@@ -133,14 +134,13 @@ impl Face {
 
   /// A play's sound is ready, its device `latency` seconds behind: the scene is told to speak it, and
   /// the moment its first sample must be heard is answered. Nothing where the play was given up.
-  pub fn speak(&mut self, id: u64, loudness: Vec<f64>, latency: f64, at: Instant) -> Option<Instant> {
+  pub fn speak(&mut self, id: u64, heard: Vec<Heard>, latency: f64, at: Instant) -> Option<Instant> {
     let speaking = self.speaking.as_mut().filter(|speaking| speaking.id == id)?;
     let now = self.clock.frame(at);
     let start = (now + SETTLE_FRAMES + LEAD).max(now + SETTLE_FRAMES + (latency * FPS).ceil() as i64);
     let speech = Speech {
-      loudness,
+      heard,
       cues: Vec::new(),
-      seed: speaking.briefing.id.unsigned_abs(),
     };
     self.scene.speak(&speech, &speaking.briefing.face, Vec::new(), start);
     speaking.start = Some(start);

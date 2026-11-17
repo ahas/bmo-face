@@ -1,13 +1,16 @@
 //! The shots (docs/face.md, 「Frames and shots」): from the core's default document and with no server,
-//! every default face, a blink frame by frame and a talking sequence over a sampled voice, each written
+//! every default face, a blink frame by frame and a talking sequence over the core's sampled voice, as the
+//! core hears it, each written
 //! as a PNG at the panel's size, to be looked at beside the web display's drawing of the same core.
 
 use std::path::Path;
 
 use bmo_face_core::default;
+use bmo_face_core::hearing::hear;
 use bmo_face_core::names::{FALLBACK, face_names};
 use bmo_face_core::scene::Scene;
-use bmo_face_core::talk::{Speech, sample_loudness};
+use bmo_face_core::talk::Speech;
+use bmo_face_core::voice::sample_voice;
 
 use crate::render::Canvas;
 use crate::run::FRAMES_SIZE;
@@ -16,9 +19,9 @@ use crate::run::FRAMES_SIZE;
 const SEED: u64 = 7;
 /// How many frames the blink's shots take, from the frame before it.
 const BLINK_FRAMES: i64 = 7;
-/// The talking sequence: the frame its sound is first heard at, and how many frames it speaks.
+/// The frame the talking sequence's sound is first heard at, and the rate its voice is sampled at.
 const TALK_START: i64 = 20;
-const TALK_FRAMES: usize = 72;
+const TALK_RATE: u32 = 48_000;
 
 fn write(canvas: &mut Canvas, scene: &mut Scene, frame: i64, path: &Path) -> Result<(), String> {
   canvas.draw(&scene.drawing(frame));
@@ -62,12 +65,12 @@ pub fn write_all(folder: &Path) -> Result<usize, String> {
   let mut scene = Scene::new(default::document(), SEED, 0);
   scene.set_blinking(false);
   let speech = Speech {
-    loudness: sample_loudness(SEED, TALK_FRAMES),
+    heard: hear(&sample_voice(TALK_RATE), TALK_RATE),
     cues: Vec::new(),
-    seed: SEED,
   };
+  let frames = speech.heard.len() as i64;
   scene.speak(&speech, FALLBACK, Vec::new(), TALK_START);
-  for frame in 0..TALK_START + TALK_FRAMES as i64 {
+  for frame in 0..TALK_START + frames {
     write(&mut canvas, &mut scene, frame, &folder.join(format!("talk-{frame:04}.png")))?;
     written += 1;
   }

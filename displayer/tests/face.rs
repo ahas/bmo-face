@@ -5,6 +5,7 @@
 use std::time::{Duration, Instant};
 
 use bmo_face_core::clock::FPS;
+use bmo_face_core::hearing::{BANDS, Heard};
 use bmo_face_core::names::{ASLEEP, EMOTIONS, FALLBACK};
 use bmo_face_core::talk::LEAD;
 use bmo_face_displayer::face::Face;
@@ -22,6 +23,18 @@ fn briefing(id: i64, chat_id: i64, face: &str, ended_at: f64) -> Briefing {
     face: face.to_owned(),
     ended_at,
   }
+}
+
+/// A sound `frames` long, every frame of it heard as a steady voice at −20 dBFS.
+fn voice(frames: usize) -> Vec<Heard> {
+  let steady = Heard {
+    level: -20.0,
+    bands: [-30.0; BANDS],
+    centroid: 700.0,
+    flux: 0.0,
+    voiced: true,
+  };
+  vec![steady; frames]
 }
 
 fn frame() -> Duration {
@@ -67,14 +80,14 @@ fn the_sound_is_heard_the_lead_after_the_next_frame_or_later_where_the_device_ne
   let mut face = Face::new(1, origin);
   let id = face.briefing(briefing(10, 1, EMOTIONS[2], NOW), NOW).expect("fresh");
   let at = origin + Duration::from_secs(3);
-  let target = face.speak(id, vec![-20.0; 48], 0.0, at).expect("still the one to speak");
+  let target = face.speak(id, voice(48), 0.0, at).expect("still the one to speak");
   let ahead = target - at;
   assert!(ahead > frame() * LEAD as u32 && ahead <= frame() * (LEAD as u32 + 1), "{ahead:?}");
   assert_eq!(face.face_at(target), EMOTIONS[2]);
 
   face.briefing(briefing(11, 1, EMOTIONS[3], NOW), NOW);
   let id = face.ended(id, at).expect("the next follows");
-  let target = face.speak(id, vec![-20.0; 48], 0.5, at).expect("still the one to speak");
+  let target = face.speak(id, voice(48), 0.5, at).expect("still the one to speak");
   assert!(target - at >= Duration::from_millis(500), "the device's delay is waited out");
 }
 
@@ -83,7 +96,7 @@ fn a_stop_silences_its_room_and_what_of_it_ended_before() {
   let origin = Instant::now();
   let mut face = Face::new(1, origin);
   let id = face.briefing(briefing(10, 1, EMOTIONS[1], NOW - 1_000.0), NOW).expect("fresh");
-  face.speak(id, vec![-20.0; 480], 0.0, origin);
+  face.speak(id, voice(480), 0.0, origin);
   face.briefing(briefing(11, 1, EMOTIONS[1], NOW - 900.0), NOW);
   face.briefing(briefing(12, 2, EMOTIONS[1], NOW - 800.0), NOW);
 
@@ -94,7 +107,7 @@ fn a_stop_silences_its_room_and_what_of_it_ended_before() {
   // The room's stop ends the one speaking and takes away the one of it waiting; the other room's follows.
   let next = face.silence(Some(1), NOW - 500.0, NOW, origin).expect("the other room's follows");
   assert_eq!(spoken(&face, id), None);
-  assert_eq!(face.speak(id, vec![-20.0; 48], 0.0, origin), None, "a play given up speaks nothing");
+  assert_eq!(face.speak(id, voice(48), 0.0, origin), None, "a play given up speaks nothing");
   assert_eq!(spoken(&face, next), Some(12));
   assert!(face.waiting().is_empty());
 
@@ -136,7 +149,7 @@ fn no_presence_is_heard_so_the_face_stands_idle_and_falls_asleep_as_the_core_rea
   // A briefing still speaks with its face, and the fallback where it names none.
   let id = face.briefing(briefing(10, 1, FALLBACK, NOW), NOW).expect("fresh");
   let at = origin + Duration::from_secs(11 * 60);
-  let target = face.speak(id, vec![-20.0; 48], 0.0, at).expect("still the one to speak");
+  let target = face.speak(id, voice(48), 0.0, at).expect("still the one to speak");
   assert_eq!(face.face_at(target), FALLBACK);
 }
 
