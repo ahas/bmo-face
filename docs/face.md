@@ -899,7 +899,9 @@ Read from its environment, every one optional:
 - **`run --frames <folder>`** runs the whole displayer with every drawing it would show written as a
   PNG at the panel's size, 1024 by 600, into the folder, instead of taking a panel.
 - **`shots <folder>`** writes, from the core's default document and with no server, every default face,
-  a blink frame by frame, and a talking sequence over the core's sampled voice, at 1024 by 600.
+  a blink frame by frame, and a talking sequence over the core's sampled voice, at 1024 by 600. With
+  `--sound <file>` the talking sequence speaks that Ogg Opus sound instead, decoded and heard as a
+  briefing's is, so a real voice can be looked at frame by frame.
 
 ### What it does not do
 

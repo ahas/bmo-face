@@ -26,14 +26,20 @@ enum Verb {
     frames: Option<PathBuf>,
   },
   /// Writes the default faces, a blink and a talking sequence as PNGs into a folder.
-  Shots { folder: PathBuf },
+  Shots {
+    folder: PathBuf,
+    /// An Ogg Opus sound for the talking sequence to speak, decoded as a briefing's is, instead of the
+    /// core's sampled voice.
+    #[arg(long)]
+    sound: Option<PathBuf>,
+  },
 }
 
 fn main() -> ExitCode {
   let command = Command::parse();
   let outcome = (|| -> Result<(), String> {
-    if let Some(Verb::Shots { folder }) = &command.verb {
-      let written = shots::write_all(folder)?;
+    if let Some(Verb::Shots { folder, sound }) = &command.verb {
+      let written = shots::write_all(folder, sound.as_deref())?;
       eprintln!("{written} pictures written into {}", folder.display());
       return Ok(());
     }

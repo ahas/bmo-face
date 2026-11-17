@@ -1,12 +1,12 @@
 //! The shots (docs/face.md, 「Frames and shots」): from the core's default document and with no server,
-//! every default face, a blink frame by frame and a talking sequence over the core's sampled voice, as the
-//! core hears it, each written
+//! every default face, a blink frame by frame and a talking sequence over the core's sampled voice or a
+//! sound named, as the core hears it, each written
 //! as a PNG at the panel's size, to be looked at beside the web display's drawing of the same core.
 
 use std::path::Path;
 
 use bmo_face_core::default;
-use bmo_face_core::hearing::hear;
+use bmo_face_core::hearing::{Heard, hear};
 use bmo_face_core::names::{FALLBACK, face_names};
 use bmo_face_core::scene::Scene;
 use bmo_face_core::talk::Speech;
@@ -14,6 +14,7 @@ use bmo_face_core::voice::sample_voice;
 
 use crate::render::Canvas;
 use crate::run::FRAMES_SIZE;
+use crate::sound::decode;
 
 /// The seed every shot is drawn from, so two runs write the same pictures.
 const SEED: u64 = 7;
@@ -28,8 +29,20 @@ fn write(canvas: &mut Canvas, scene: &mut Scene, frame: i64, path: &Path) -> Res
   canvas.pixmap().save_png(path).map_err(|fault| format!("{}: {fault}", path.display()))
 }
 
-/// Writes every shot into a folder, answering how many.
-pub fn write_all(folder: &Path) -> Result<usize, String> {
+/// What the talking sequence hears: an Ogg Opus sound decoded as a briefing's is, or the sampled voice.
+fn talk_heard(sound: Option<&Path>) -> Result<Vec<Heard>, String> {
+  match sound {
+    Some(path) => {
+      let bytes = std::fs::read(path).map_err(|fault| format!("{}: {fault}", path.display()))?;
+      Ok(decode(bytes).map_err(|fault| format!("{}: {fault}", path.display()))?.heard)
+    }
+    None => Ok(hear(&sample_voice(TALK_RATE), TALK_RATE)),
+  }
+}
+
+/// Writes every shot into a folder, answering how many; the talking sequence speaks `sound` where one is
+/// named.
+pub fn write_all(folder: &Path, sound: Option<&Path>) -> Result<usize, String> {
   std::fs::create_dir_all(folder).map_err(|fault| format!("{}: {fault}", folder.display()))?;
   let (width, height) = FRAMES_SIZE;
   let mut canvas = Canvas::new(width, height).ok_or("no picture of the panel's size")?;
@@ -65,7 +78,7 @@ pub fn write_all(folder: &Path) -> Result<usize, String> {
   let mut scene = Scene::new(default::document(), SEED, 0);
   scene.set_blinking(false);
   let speech = Speech {
-    heard: hear(&sample_voice(TALK_RATE), TALK_RATE),
+    heard: talk_heard(sound)?,
     cues: Vec::new(),
   };
   let frames = speech.heard.len() as i64;
