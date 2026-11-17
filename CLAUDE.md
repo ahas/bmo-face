@@ -13,11 +13,6 @@ reached at the console's address; nothing of BMO's is imported.
   document, the face's core and its interface, the native displayer, the editor and every route, the console screen among
   them; `docs/expressions.md` the design the face is drawn from; `docs/deploy.md` states the release, the unit, the tool
   entry and the native displayer's system unit.
-- **`.graph/` is written only with `bmo graph`.** It holds the repository's feature nodes and the
-  boundary nodes for the APIs it exposes and calls; no other command and no hand edit changes it, and
-  a change to code brings the node it touches up to date in the checkout. Its area files are generated
-  and untracked, so a fresh checkout builds them again, while `settings.toml` is the repository's
-  configuration and stays tracked. The format is `docs/graph.md` in the bmo-graph repository.
 - **Two base libraries, each for the console screen alone.** bmo-ui's release, the one bmo-chat's
   `shared-versions.toml` pins, is vendored under `client/vendor/` and named in the screen's manifest;
   the bundle is built on it, while the standalone screens do not extend it. bmo-chat's

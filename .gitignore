@@ -9,5 +9,4 @@ target/
 server/target/
 __pycache__/
 .env
-.graph/*
-!.graph/settings.toml
+.graph/
