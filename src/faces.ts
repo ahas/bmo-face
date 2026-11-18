@@ -44,6 +44,9 @@ export const SCREEN = FACTS.screen;
 /** The limits a document is held to, as the core states them. */
 export const LIMITS = FACTS.limits;
 
+/** The longest either rest stage may wait, in seconds, as the core states it. */
+export const REST_MOST = FACTS.idle.most;
+
 export type Point = [number, number];
 
 /**

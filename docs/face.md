@@ -390,8 +390,8 @@ caller, the native displayer that draws it on a machine's own panel, and the ser
     `parts`; and its `tuning`.
   - `idle` — how long BMO rests before its face changes (「The faces」), each in seconds from nought to
     86,400: `blank`, when the held face gives way to the `idle` face, 600 by default; and `asleep`, when
-    that gives way to `졸림`, 1,800 by default and never before `blank`. The editor shows neither and
-    keeps both as they stand.
+    that gives way to `졸림`, 1,800 by default and never before `blank`. The editor sets both in
+    minutes (「Tuning by ear」).
   - `savedAt` — when it was last saved, which is also its version.
 - **A part** is one path (「How a path is written」), in the screen's own coordinates, a box one
   hundred wide and seventy-five high, with:
@@ -699,8 +699,13 @@ drawings it stands between — which is where a hook would grow.
   `teeth`, `tongue`, `corners`, `cues`), 시간 (`attack`, `release`, `glide`, `rest` and the switch 두
   프레임씩) and 눈 (`eyePulse`, `eyeOnset`, `eyeSquint`, `eyeShine`). Each is a number box with its
   bounds, a span two boxes; each is named in the language pack and its tooltip says what it moves.
-- **A value is saved with the document,** as any edit is, and a display draws it from the next
-  briefing it speaks.
+- **The rest stands under the tuning,** as 쉬는 동안의 표정: 무표정까지 and 졸린 표정까지, the
+  document's `idle.blank` and `idle.asleep` (「The faces」), each a number box in minutes from 0 to
+  1,440 to a tenth, stepping by one, named in the language pack with a tooltip saying what it changes.
+  A minute is kept as the whole second nearest it. 졸린 표정까지 is never below 무표정까지: its box
+  starts at that value, and 무표정까지 raised past it carries 졸린 표정까지 up with it.
+- **A value is saved with the document,** as any edit is: a display draws a tuning value from the
+  next briefing it speaks, and a rest value from the moment it draws the saved document.
 - **Saving** sends the whole document with the version it was edited from. A save refused by the
   check says why beside the save button, in the language pack's words for the refusal's code and
   place; one refused because another window saved first says so and offers to load the saved

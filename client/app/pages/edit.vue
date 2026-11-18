@@ -121,6 +121,8 @@
           <template v-if="tab === 'talk'">
             <USeparator />
             <TuningFields :tuning="edited.talk.tuning" @change="changeTuning" />
+            <USeparator />
+            <RestFields :document="edited" @change="changeRest" />
           </template>
         </template>
         <USkeleton v-else-if="!loadFailed" class="edit-preview-skeleton" role="status" :aria-label="t('face.edit.preview.title')" />
@@ -154,6 +156,8 @@
         <template v-if="tab === 'talk'">
           <USeparator />
           <TuningFields :tuning="edited.talk.tuning" @change="changeTuning" />
+          <USeparator />
+          <RestFields :document="edited" @change="changeRest" />
         </template>
       </div>
     </template>
@@ -181,6 +185,7 @@ import {
   setEyeVoice,
   setMirrored,
   setReach,
+  setRestMinutes,
   setTuning,
   withParts,
 } from "~/domain/edit";
@@ -188,14 +193,14 @@ import { useBackClose } from "~/domain/layers";
 
 import type { DropdownMenuItem } from "@nuxt/ui";
 import type { Element, EyeVoice, FaceDocument, FaceName, Part, PairElement, Point, Side, Tuning } from "#faces";
-import type { EditTarget, NewInside, NewPart } from "~/domain/edit";
+import type { EditTarget, NewInside, NewPart, RestStage } from "~/domain/edit";
 import type { EditorRoad } from "~/composables/useEditor";
 
 // The expression editor (docs/face.md, 「The editor」): one side of one face's element, or one anchor of
 // the talking set, at a time on the canvas — or the parts inside one of its parts — the element's and the chosen
 // part's numbers and the preview beside it, and one save for the whole. The page's own route reaches the server behind the editor's
 // login; the console screen hands it the console's road, which needs none (「The console screen」). The
-// talking set's tuning stands beside its anchors.
+// talking set's tuning stands beside its anchors, and the rest's two stages under it.
 
 const props = defineProps<{ road?: EditorRoad }>();
 
@@ -473,6 +478,10 @@ const elementHandlers = {
 
 function changeTuning(key: string, value: Tuning[string]): void {
   applyChange((document) => setTuning(document, key, value));
+}
+
+function changeRest(stage: RestStage, minutes: number): void {
+  applyChange((document) => setRestMinutes(document, stage, minutes));
 }
 
 useHead({ title: () => t("face.edit.title") });

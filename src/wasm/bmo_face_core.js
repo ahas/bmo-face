@@ -221,8 +221,8 @@ export function defaultDocument() {
 
 /**
  * What a caller needs to know of the document, the clock and the hearing: the form, the screen, the
- * limits, the names, the paints, the eyes' answer to the voice, the tuning's declaration, the frame rate,
- * the lead and the spectrum's bands.
+ * limits, the names, the paints, the eyes' answer to the voice, the tuning's declaration, the longest a
+ * rest stage may wait, the frame rate, the lead and the spectrum's bands.
  * @returns {string}
  */
 export function facts() {

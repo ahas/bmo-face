@@ -25,6 +25,7 @@ import {
   removeAnchor,
   removeInside,
   removeNode,
+  restMinutes,
   saveBody,
   setAnchorPlace,
   setAnchorTeeth,
@@ -33,6 +34,7 @@ import {
   setEyeVoice,
   setMirrored,
   setReach,
+  setRestMinutes,
   setSmooth,
   setTuning,
   withPart,
@@ -364,6 +366,36 @@ describe("the talking set", () => {
     expect(voiced.faces[joy]!.eyes.voice).toEqual({ grow: LIMITS.maxEyeVoice, squint: 0, shine: 0.2 });
     expect(setCorners(doc(), joy, -3).faces[joy]!.corners).toBe(-1);
     expect(refusalOf(setCorners(voiced, joy, 0.5))).toBeNull();
+  });
+});
+
+describe("the rest", () => {
+  test("each stage is shown and set in minutes, kept as the nearest whole second", () => {
+    expect(restMinutes(doc(), "blank")).toBe(10);
+    expect(restMinutes(doc(), "asleep")).toBe(30);
+
+    const set = setRestMinutes(setRestMinutes(doc(), "blank", 12.5), "asleep", 45.01);
+
+    expect(set.idle).toEqual({ blank: 750, asleep: 2701 });
+    expect(refusalOf(set)).toBeNull();
+  });
+
+  test("each stage stays within the core's bounds and sleep never comes before the blank face", () => {
+    expect(setRestMinutes(doc(), "blank", -3).idle.blank).toBe(0);
+    expect(setRestMinutes(doc(), "asleep", 5).idle.asleep).toBe(600);
+    expect(setRestMinutes(doc(), "asleep", 99_999).idle.asleep).toBe(86_400);
+
+    const pushed = setRestMinutes(doc(), "blank", 40);
+
+    expect(pushed.idle).toEqual({ blank: 2400, asleep: 2400 });
+    expect(refusalOf(pushed)).toBeNull();
+  });
+
+  test("a rest value past its bounds is refused at its key, worded by its place", () => {
+    const wrong = { ...doc(), idle: { blank: 600, asleep: 300 } };
+
+    expect(refusalOf(wrong)).toEqual({ code: "idle", at: [{ idle: "asleep" }], least: 600, most: 86_400 });
+    expect(refusalWords(refusalOf(wrong)!, (key) => key)).toBe("face.edit.place.idle.asleep: face.edit.refusal.idle");
   });
 });
 

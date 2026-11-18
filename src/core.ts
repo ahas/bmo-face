@@ -48,6 +48,8 @@ export interface Facts {
     spans: { key: string; least: number; most: number; default: [number, number] }[];
     switch: string;
   };
+  /** The longest either rest stage may wait, in seconds. */
+  idle: { most: number };
   /** Frames a second on the held clock. */
   fps: number;
   /** How many frames a talking mouth shows before the sound it is drawn for. */

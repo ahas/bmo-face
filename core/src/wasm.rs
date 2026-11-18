@@ -11,6 +11,7 @@ use crate::document::{Colors, EyeVoice, FORM, Paint, Part, SCREEN, limits, parts
 use crate::drawing::Drawing;
 use crate::edit::{self, NewInside, NewPart};
 use crate::hearing::{self, BAND_EDGES, Heard};
+use crate::idle;
 use crate::migrate::migrate;
 use crate::mouth::measure;
 use crate::names::{EMOTIONS, FALLBACK, STATES};
@@ -35,8 +36,8 @@ fn read_colors(text: &str) -> Result<Colors, JsError> {
 }
 
 /// What a caller needs to know of the document, the clock and the hearing: the form, the screen, the
-/// limits, the names, the paints, the eyes' answer to the voice, the tuning's declaration, the frame rate,
-/// the lead and the spectrum's bands.
+/// limits, the names, the paints, the eyes' answer to the voice, the tuning's declaration, the longest a
+/// rest stage may wait, the frame rate, the lead and the spectrum's bands.
 #[wasm_bindgen]
 pub fn facts() -> String {
   json!({
@@ -59,6 +60,7 @@ pub fn facts() -> String {
     "paints": Paint::ALL.map(Paint::name),
     "eyeVoice": EyeVoice::KEYS,
     "tuning": Tuning::declaration(),
+    "idle": { "most": idle::MOST },
     "fps": FPS,
     "lead": LEAD,
     "bands": BAND_EDGES,

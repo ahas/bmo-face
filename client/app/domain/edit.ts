@@ -1,8 +1,8 @@
 import { addNode as coreAddNode, measureAnchor, mirrorParts, newInside as coreNewInside, newPart as coreNewPart, smoothHandles } from "#core";
-import { checkFaceDocument, FALLBACK_FACE, LIMITS, PAIR_ELEMENTS, SCREEN } from "#faces";
+import { checkFaceDocument, FALLBACK_FACE, LIMITS, PAIR_ELEMENTS, REST_MOST, SCREEN } from "#faces";
 
 import type { NewInside, NewPart } from "#core";
-import type { Anchor, Element, EyeVoice, Face, FaceDocument, FaceName, Pair, PairElement, Part, PathNode, Point, Refusal, Side, Tuning } from "#faces";
+import type { Anchor, Element, EyeVoice, Face, FaceDocument, FaceName, IdleStages, Pair, PairElement, Part, PathNode, Point, Refusal, Side, Tuning } from "#faces";
 
 // The editor's own logic, kept apart from its screen (docs/face.md, 「The editor」): which parts are
 // being edited, the handles each part is dragged by, and every change as a new part or a new
@@ -483,6 +483,34 @@ export function placeMeasured(document: FaceDocument, index: number): FaceDocume
 /** The talking set with one tuning value set: a number, a span of two, or the switch. */
 export function setTuning(document: FaceDocument, key: string, value: Tuning[string]): FaceDocument {
   return { ...document, talk: { ...document.talk, tuning: { ...document.talk.tuning, [key]: value } } };
+}
+
+/** A rest stage the editor sets, by its key in the document's `idle`. */
+export type RestStage = keyof IdleStages;
+
+/** The longest a rest stage may wait, in the minutes the editor shows. */
+export const REST_MOST_MINUTES = REST_MOST / 60;
+
+/** A rest stage as the editor shows it, in minutes. */
+export function restMinutes(document: FaceDocument, stage: RestStage): number {
+  return document.idle[stage] / 60;
+}
+
+/**
+ * The document with one rest stage set from minutes, kept as the whole second nearest them within the
+ * core's bounds: the blank face from nought, sleep from the blank face on. A blank face set past sleep
+ * carries sleep up with it.
+ */
+export function setRestMinutes(document: FaceDocument, stage: RestStage, minutes: number): FaceDocument {
+  const { blank, asleep } = document.idle;
+
+  if (stage === "asleep") {
+    return { ...document, idle: { blank, asleep: within(Math.round(minutes * 60), blank, REST_MOST) } };
+  }
+
+  const held = within(Math.round(minutes * 60), 0, REST_MOST);
+
+  return { ...document, idle: { blank: held, asleep: Math.max(asleep, held) } };
 }
 
 /** What a save sends: the document without its version, and the version it was edited from. */
