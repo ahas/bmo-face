@@ -13,7 +13,7 @@
           :step="1"
           :min="stage === 'asleep' ? restMinutes(document, 'blank') : 0"
           :max="REST_MOST_MINUTES"
-          :format-options="{ maximumFractionDigits: 1 }"
+          :format-options="MINUTES"
           :aria-label="t(`face.edit.rest.key.${stage}`)"
           class="w-full"
           @update:model-value="(next: number | null) => next !== null && emit('change', stage, next)"
@@ -38,4 +38,6 @@ const emit = defineEmits<{ change: [stage: RestStage, minutes: number] }>();
 const { t } = useI18n();
 
 const STAGES: RestStage[] = ["blank", "asleep"];
+/** Minutes written with their unit, as the reader's language writes it, to a tenth. */
+const MINUTES: Intl.NumberFormatOptions = { style: "unit", unit: "minute", unitDisplay: "short", maximumFractionDigits: 1 };
 </script>

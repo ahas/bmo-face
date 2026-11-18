@@ -699,9 +699,9 @@ drawings it stands between — which is where a hook would grow.
   `teeth`, `tongue`, `corners`, `cues`), 시간 (`attack`, `release`, `glide`, `rest` and the switch 두
   프레임씩) and 눈 (`eyePulse`, `eyeOnset`, `eyeSquint`, `eyeShine`). Each is a number box with its
   bounds, a span two boxes; each is named in the language pack and its tooltip says what it moves.
-- **The rest stands under the tuning,** as 쉬는 동안의 표정: 무표정까지 and 졸린 표정까지, the
-  document's `idle.blank` and `idle.asleep` (「The faces」), each a number box in minutes from 0 to
-  1,440 to a tenth, stepping by one, named in the language pack with a tooltip saying what it changes.
+- **The rest stands under the tuning,** as 쉬는 중 표정: 무표정까지 and 졸린 표정까지, the
+  document's `idle.blank` and `idle.asleep` (「The faces」), each a number box in minutes written with
+  their unit, from 0 to 1,440 to a tenth, stepping by one, named in the language pack with a tooltip saying what it changes.
   A minute is kept as the whole second nearest it. 졸린 표정까지 is never below 무표정까지: its box
   starts at that value, and 무표정까지 raised past it carries 졸린 표정까지 up with it.
 - **A value is saved with the document,** as any edit is: a display draws a tuning value from the
@@ -1000,8 +1000,9 @@ is named, and the gaze socket's lines.
     darker step in light mode so the white mark reads, and nothing for it in the toolbar;
   - `n` presses it, as long as it is enabled, no field holds the typing and nothing floats over the
     screen;
-  - the canvas's area keeps the room the floating button takes at its foot, the `--bmo-create-room`
-    token, so on a phone the face is drawn clear of it. The token is nought on a wide screen; the
+  - the canvas's area and the end of the fields' drawer keep the room the floating button takes at
+    their foot, the `--bmo-create-room` token, so on a phone the face is drawn, and the drawer's last
+    fields scroll, clear of it. The token is nought on a wide screen; the
     console answers it on the console screen, and the standalone screens' stylesheet states it.
 - **A value is chosen from a list in one select,** bmo-ui's `ChoiceSelect` (bmo-ui's
   `docs/components.md`, 「Choosing a value」), and no screen draws the library's select, select menu

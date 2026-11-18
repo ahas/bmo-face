@@ -138,7 +138,7 @@
       </AppTooltip>
     </template>
     <template #body>
-      <div v-if="edited" class="flex flex-col gap-4">
+      <div v-if="edited" class="edit-drawer-fields flex flex-col gap-4">
         <ElementFields :document="edited" :target="target" v-on="elementHandlers" />
         <USeparator />
         <PartFields
@@ -500,6 +500,11 @@ useHead({ title: () => t("face.edit.title") });
   align-items: center;
   justify-content: center;
   padding: 16px 16px calc(16px + var(--bmo-create-room));
+}
+
+/* The drawer's fields scroll clear of the floating create button at their end. */
+.edit-drawer-fields {
+  padding-bottom: var(--bmo-create-room);
 }
 
 .edit-preview-skeleton {
