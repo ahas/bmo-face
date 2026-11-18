@@ -29,9 +29,9 @@ const APART: f64 = 0.005;
 /// How far each dot eye of a carried face moves with the gaze.
 const CARRIED_REACH: [f64; 2] = [2.2, 1.6];
 
-/// The document in this form. A document already of it is given the default's faces and colours it
-/// lacks; one of an older form is carried over whole. What is not a document at all is handed back
-/// untouched, for the check to refuse.
+/// The document in this form. A document already of it is given the default's faces, colours, tuning
+/// and `idle` values it lacks; one of an older form is carried over whole, with the default's `idle`.
+/// What is not a document at all is handed back untouched, for the check to refuse.
 pub fn migrate(value: &Value) -> Value {
   let Some(document) = value.as_object() else {
     return value.clone();
@@ -77,17 +77,29 @@ pub fn migrate(value: &Value) -> Value {
   };
   carried.remove("mouths");
   carried.insert("talk".into(), talk);
+  let idle = match document.get("idle") {
+    Some(Value::Object(held)) => Value::Object(overlaid(&defaults["idle"], held)),
+    Some(other) => other.clone(),
+    None => defaults["idle"].clone(),
+  };
+  carried.insert("idle".into(), idle);
   Value::Object(carried)
+}
+
+/// The default's values with every value held laid over them.
+fn overlaid(defaults: &Value, held: &Map<String, Value>) -> Map<String, Value> {
+  let mut values = defaults.as_object().cloned().unwrap_or_default();
+  for (key, value) in held {
+    values.insert(key.clone(), value.clone());
+  }
+  values
 }
 
 /// A talking set of this form given the tuning values it lacks from the default's.
 fn tuned(talk: &Map<String, Value>, defaults: &Value) -> Map<String, Value> {
   let mut talk = talk.clone();
-  if let (Some(Value::Object(held)), Some(defaults)) = (talk.get("tuning"), defaults.as_object()) {
-    let mut tuning = defaults.clone();
-    for (key, value) in held {
-      tuning.insert(key.clone(), value.clone());
-    }
+  if let Some(Value::Object(held)) = talk.get("tuning") {
+    let tuning = overlaid(defaults, held);
     talk.insert("tuning".into(), Value::Object(tuning));
   }
   talk

@@ -1,6 +1,6 @@
 //! `bmo-face-displayer` (docs/face.md, 「The native displayer」): `run` shows BMO's face on the panel, or
-//! writes its frames into a folder; `shots` writes the default faces, a blink and a talking sequence as
-//! pictures.
+//! writes its frames into a folder; `shots` writes the default faces, a blink, the talking sequences and
+//! the rest after a briefing as pictures.
 
 use std::path::PathBuf;
 use std::process::ExitCode;

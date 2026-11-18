@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use bmo_face_core::clock::FPS;
 use bmo_face_core::hearing::{BANDS, Heard};
-use bmo_face_core::names::{ASLEEP, EMOTIONS, FALLBACK};
+use bmo_face_core::names::{ASLEEP, EMOTIONS, FALLBACK, IDLE};
 use bmo_face_core::talk::LEAD;
 use bmo_face_displayer::face::Face;
 use bmo_face_displayer::gaze::direction;
@@ -141,14 +141,15 @@ fn a_stop_of_every_room_silences_them_all() {
 }
 
 #[test]
-fn no_presence_is_heard_so_the_face_stands_idle_and_falls_asleep_as_the_core_reads_idle() {
+fn no_presence_is_heard_so_the_face_rests_goes_blank_and_falls_asleep_as_the_core_reads_a_rest() {
   let origin = Instant::now();
   let mut face = Face::new(1, origin);
-  assert_eq!(face.face_at(origin + Duration::from_secs(60)), "idle");
-  assert_eq!(face.face_at(origin + Duration::from_secs(11 * 60)), ASLEEP);
+  assert_eq!(face.face_at(origin + Duration::from_secs(60)), FALLBACK);
+  assert_eq!(face.face_at(origin + Duration::from_secs(11 * 60)), IDLE);
+  assert_eq!(face.face_at(origin + Duration::from_secs(31 * 60)), ASLEEP);
   // A briefing still speaks with its face, and the fallback where it names none.
   let id = face.briefing(briefing(10, 1, FALLBACK, NOW), NOW).expect("fresh");
-  let at = origin + Duration::from_secs(11 * 60);
+  let at = origin + Duration::from_secs(31 * 60);
   let target = face.speak(id, voice(48), 0.0, at).expect("still the one to speak");
   assert_eq!(face.face_at(target), FALLBACK);
 }

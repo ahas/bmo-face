@@ -4,6 +4,7 @@
 
 use crate::document::{Colors, Document, EyeVoice, Eyes, Face, Paint, Pair, Part, Talk};
 use crate::geometry::{Point, add};
+use crate::idle::Idle;
 use crate::names::{EMOTIONS, STATES};
 use crate::sets::{LEFT_EYE, MOUTH, anchors, corners, eye, line_mouth, opening, outline_width};
 use crate::shapes::{Insides, Opening, STROKE, Turn, mouth, stroke};
@@ -245,6 +246,7 @@ pub fn document() -> Document {
     colors: colors(),
     faces: faces(),
     talk: talk(),
+    idle: Idle::default(),
   }
 }
 

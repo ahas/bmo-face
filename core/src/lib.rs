@@ -18,6 +18,7 @@ pub mod eyes;
 pub mod gaze;
 pub mod geometry;
 pub mod hearing;
+pub mod idle;
 pub mod json;
 pub mod look;
 pub mod migrate;

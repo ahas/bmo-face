@@ -4,6 +4,7 @@
 use serde_json::{Map, Value, json};
 
 use crate::geometry::{Cubic, Path, Point, add, sub};
+use crate::idle::Idle;
 use crate::json::number;
 use crate::names::FALLBACK;
 use crate::tuning::Tuning;
@@ -463,6 +464,8 @@ pub struct Document {
   pub colors: Colors,
   pub faces: Vec<(String, Face)>,
   pub talk: Talk,
+  /// How long BMO rests before its face changes.
+  pub idle: Idle,
 }
 
 impl Document {
@@ -485,6 +488,7 @@ impl Document {
       "colors": self.colors.to_json(),
       "faces": faces,
       "talk": self.talk.to_json(),
+      "idle": self.idle.to_json(),
     })
   }
 }

@@ -175,3 +175,14 @@ fn a_document_of_this_form_is_given_the_tuning_values_it_lacks() {
   assert_eq!(carried.talk.tuning.glide, default::document().talk.tuning.glide);
   assert_eq!(carried.talk.tuning.rest, 500.0);
 }
+
+#[test]
+fn a_document_is_given_the_idle_values_it_lacks() {
+  let mut document = default::document().to_json();
+  document.as_object_mut().unwrap().shift_remove("idle");
+  assert_eq!(check(&migrate(&document)).unwrap().idle, default::document().idle);
+  let mut document = default::document().to_json();
+  document["idle"] = json!({ "asleep": 3_600 });
+  let carried = check(&migrate(&document)).unwrap();
+  assert_eq!((carried.idle.blank, carried.idle.asleep), (600.0, 3_600.0));
+}

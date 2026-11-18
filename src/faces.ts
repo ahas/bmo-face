@@ -113,6 +113,12 @@ export interface TalkSet {
   tuning: Tuning;
 }
 
+/** When the held face gives way to the blank `idle` face, and when that gives way to sleep. */
+export interface IdleStages {
+  blank: number;
+  asleep: number;
+}
+
 export type FaceColors = { body: string; screen: string } & Record<Paint, string>;
 
 export interface FaceDocument {
@@ -121,6 +127,8 @@ export interface FaceDocument {
   faces: Partial<Record<FaceName, Face>>;
   /** The talking set. */
   talk: TalkSet;
+  /** How long BMO rests before its face changes, each in seconds of rest (docs/face.md, 「The faces」). */
+  idle: IdleStages;
   /** When it was last saved, in epoch milliseconds; also its version. */
   savedAt: number;
 }
@@ -135,7 +143,8 @@ export type RefusalPlace =
   | { inside: number }
   | { node: number }
   | { anchor: number }
-  | { tuning: string };
+  | { tuning: string }
+  | { idle: string };
 
 /** Why a document is refused, as a code the screen words from its language pack, and where. */
 export interface Refusal {

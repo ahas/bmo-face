@@ -1,13 +1,15 @@
 //! The shots (docs/face.md, 「Frames and shots」): from the core's default document and with no server,
-//! every default face, a blink frame by frame and a talking sequence over the core's sampled voice or a
-//! sound named, as the core hears it, each written
-//! as a PNG at the panel's size, to be looked at beside the web display's drawing of the same core.
+//! every default face, a blink frame by frame, a talking sequence over the core's sampled voice or a
+//! sound named, as the core hears it, by the resting face and by an open-mouthed one, and the rest after
+//! it at each stage, each written as a PNG at the panel's size, to be looked at beside the web display's
+//! drawing of the same core.
 
 use std::path::Path;
 
+use bmo_face_core::clock::frames_in;
 use bmo_face_core::default;
 use bmo_face_core::hearing::{Heard, hear};
-use bmo_face_core::names::{FALLBACK, face_names};
+use bmo_face_core::names::{EMOTIONS, FALLBACK, face_names};
 use bmo_face_core::scene::Scene;
 use bmo_face_core::talk::Speech;
 use bmo_face_core::voice::sample_voice;
@@ -23,6 +25,10 @@ const BLINK_FRAMES: i64 = 7;
 /// The frame the talking sequence's sound is first heard at, and the rate its voice is sampled at.
 const TALK_START: i64 = 20;
 const TALK_RATE: u32 = 48_000;
+/// The open-mouthed face the rest sequence speaks with, and how many frames past a stage's start its
+/// shot is taken, so a change into it has ended.
+const REST_FACE: &str = EMOTIONS[1];
+const SETTLED: i64 = 24;
 
 fn write(canvas: &mut Canvas, scene: &mut Scene, frame: i64, path: &Path) -> Result<(), String> {
   canvas.draw(&scene.drawing(frame));
@@ -85,6 +91,30 @@ pub fn write_all(folder: &Path, sound: Option<&Path>) -> Result<usize, String> {
   scene.speak(&speech, FALLBACK, Vec::new(), TALK_START);
   for frame in 0..TALK_START + frames {
     write(&mut canvas, &mut scene, frame, &folder.join(format!("talk-{frame:04}.png")))?;
+    written += 1;
+  }
+
+  // The same voice spoken by an open-mouthed face, every frame, then the rest after it at each stage.
+  let mut scene = Scene::new(default::document(), SEED, 0);
+  scene.set_blinking(false);
+  scene.speak(&speech, REST_FACE, Vec::new(), TALK_START);
+  for frame in 0..TALK_START + frames {
+    write(&mut canvas, &mut scene, frame, &folder.join(format!("open-{frame:04}.png")))?;
+    written += 1;
+  }
+  let ended = TALK_START + frames;
+  let idle = default::document().idle;
+  // Each stage from the frame it starts at, and the frame its shot is taken at.
+  let (blank, asleep) = (ended + frames_in(idle.blank), ended + frames_in(idle.asleep));
+  let stages = [
+    ("spoken", ended, ended),
+    ("held", blank - 1, blank - 1),
+    ("blank", blank, blank + SETTLED),
+    ("asleep", asleep, asleep + SETTLED),
+  ];
+  for (index, (stage, starts, shot)) in stages.into_iter().enumerate() {
+    scene.drawing(starts);
+    write(&mut canvas, &mut scene, shot, &folder.join(format!("rest-{}-{stage}.png", index + 1)))?;
     written += 1;
   }
   Ok(written)

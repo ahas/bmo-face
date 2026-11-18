@@ -15,6 +15,9 @@ pub const FALLBACK: &str = EMOTIONS[0];
 /// The face shown once BMO has been idle a long stretch.
 pub const ASLEEP: &str = EMOTIONS[5];
 
+/// The presence of a BMO at rest, which is also the blank face its rest gives way to.
+pub const IDLE: &str = STATES[2];
+
 /// Every face name, the emotions first.
 pub fn face_names() -> impl Iterator<Item = &'static str> {
   EMOTIONS.into_iter().chain(STATES)

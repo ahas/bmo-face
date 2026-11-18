@@ -47,12 +47,15 @@ pub struct Speech {
   pub cues: Vec<Cue>,
 }
 
-/// What the face does at one frame of a sound: how far the talking mouth stands in for the face's own,
-/// the talking mouth's shape, and how far the eyes grow, squint and shimmer, each from nought to one.
+/// What the face does at one frame of a sound: how far the talking mouth stands in for the face's
+/// resting mouth, the talking mouth's shape, the shape of the last frame heard above quiet, which a face
+/// whose own mouth is open closes to, and how far the eyes grow, squint and shimmer, each from nought to
+/// one.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Pose {
   pub voice: f64,
   pub shape: Shape,
+  pub last: Shape,
   pub grow: f64,
   pub squint: f64,
   pub shine: f64,
@@ -62,14 +65,16 @@ impl Pose {
   /// The pose to a thousandth, so two frames that would draw alike are equal.
   fn settled(self) -> Pose {
     let unit = |value: f64| (value.clamp(0.0, 1.0) * 1000.0).round() / 1000.0;
+    let shape = |shape: Shape| Shape {
+      open: unit(shape.open),
+      round: unit(shape.round),
+      teeth: unit(shape.teeth),
+      tongue: unit(shape.tongue),
+    };
     Pose {
       voice: unit(self.voice),
-      shape: Shape {
-        open: unit(self.shape.open),
-        round: unit(self.shape.round),
-        teeth: unit(self.shape.teeth),
-        tongue: unit(self.shape.tongue),
-      },
+      shape: shape(self.shape),
+      last: shape(self.last),
       grow: unit(self.grow),
       squint: unit(self.squint),
       shine: unit(self.shine),
@@ -205,14 +210,16 @@ pub fn plan(speech: &Speech, tuning: &Tuning) -> Vec<Pose> {
       onset = follow(onset, wanted.onset, 0.0, ONSET_FALL);
       sustain = follow(sustain, wanted.level, SUSTAIN, SUSTAIN);
       hiss = follow(hiss, wanted.shape.teeth, tuning.glide, tuning.glide);
+      let shape = Shape {
+        open: follow(now.shape.open, wanted.shape.open, tuning.attack, tuning.release),
+        round: follow(now.shape.round, wanted.shape.round, tuning.glide, tuning.glide),
+        teeth: follow(now.shape.teeth, wanted.shape.teeth, tuning.glide, tuning.glide),
+        tongue: follow(now.shape.tongue, wanted.shape.tongue, tuning.glide, tuning.glide),
+      };
       now = Pose {
         voice: follow(now.voice, wanted.voice, tuning.glide, tuning.rest),
-        shape: Shape {
-          open: follow(now.shape.open, wanted.shape.open, tuning.attack, tuning.release),
-          round: follow(now.shape.round, wanted.shape.round, tuning.glide, tuning.glide),
-          teeth: follow(now.shape.teeth, wanted.shape.teeth, tuning.glide, tuning.glide),
-          tongue: follow(now.shape.tongue, wanted.shape.tongue, tuning.glide, tuning.glide),
-        },
+        shape,
+        last: if wanted.voice > 0.0 { shape } else { now.last },
         grow: tuning.eye_pulse * level + tuning.eye_onset * onset,
         squint: tuning.eye_squint * ((sustain - SQUINT_FROM) / (1.0 - SQUINT_FROM)).max(0.0),
         shine: tuning.eye_shine * hiss,

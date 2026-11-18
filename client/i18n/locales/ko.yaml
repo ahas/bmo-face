@@ -189,6 +189,9 @@ face:
       inside: "안쪽 {n}"
       node: "노드 {n}"
       anchor: "입 그림 {n}"
+      idle:
+        blank: 무표정까지 걸리는 시간
+        asleep: 졸린 표정까지 걸리는 시간
     refusal:
       not-a-document: 표정 문서의 모양이 맞지 않아요.
       color: "#rrggbb 꼴이어야 해요."
@@ -217,6 +220,7 @@ face:
       anchor-value: 입 그림의 값이 맞지 않아요.
       anchor-place: 같은 위치에 다른 입 그림이 있어요.
       tuning: "{least}에서 {most} 사이여야 해요."
+      idle: "{least}초에서 {most}초 사이여야 해요."
     login:
       title: 표정 에디터 로그인
       wrong: 아이디 또는 비밀번호가 맞지 않아요.

@@ -133,10 +133,19 @@ caller, the native displayer that draws it on a machine's own panel, and the ser
      face being edited.
   2. **Speaking** — a briefing is playing: the face the briefing shows, with the talking mouth in
      place of its own and its eyes answering the voice (「The mouth while speaking」).
-  3. **Just spoke** — for four seconds after a briefing ends, that face with its own mouth, so the
-     feeling does not snap away with the last syllable.
-  4. **Asleep** — BMO has been `idle` for ten minutes: the `졸림` face.
-  5. **Otherwise** — the face of the current presence; `idle` until the stream has said.
+  3. **Just spoke** — for four seconds after a briefing ends, that face with its mouth closed
+     (「The mouth while speaking」), so the feeling does not snap away with the last syllable.
+  4. **At work** — BMO is `writing` or `thinking`: that state's face, at once, whatever was held.
+  5. **Resting** — BMO is `idle`, which it is until the stream has said otherwise. How long it has
+     rested counts from the later of the moment it went `idle` and the end of the last briefing; the
+     expression document's `idle` settings say how long each stage lasts (「The expression document」):
+     - **held** — until `blank` (ten minutes by default): the face of the last briefing, its mouth
+       closed as it closed when the briefing ended, or `기본` where no briefing was heard, or where the
+       last one's face has eyes drawn as strokes, so the eyes held go on blinking;
+     - **blank** — from `blank` until `asleep`: the `idle` face;
+     - **asleep** — from `asleep` (thirty minutes by default): the `졸림` face.
+- **A rest that reached `blank` forgets the last briefing.** Told what BMO is doing next, a scene whose
+  rest had reached the blank face holds `기본` the next time it rests, until another briefing is heard.
 - **A face that is missing** from the document falls back to `기본`, so a document with fewer faces
   still draws.
 - **What each default face draws** is the animation's own design, measured frame by frame and
@@ -291,8 +300,21 @@ caller, the native displayer that draws it on a machine's own panel, and the ser
   units for a mouth 30 wide, a narrower one less in proportion: every point of the mouth moves straight
   up or down along a parabola across its width, the ends by the whole and the middle not at all. Moving
   points straight up or down by their place across alone never makes a drawing cross itself.
-- **Silence closes to the face's own mouth.** The mouth drawn is the face's own blended to the talking
-  mouth by the voice, so the first syllable grows out of the face's mouth and a pause returns to it.
+- **Silence closes the mouth.** The mouth drawn is the face's resting mouth blended to the talking
+  mouth by the voice, so the first syllable grows out of it and a pause returns to it.
+  - **A face whose own mouth is a line** rests on its own mouth.
+  - **A face whose own mouth is open** — one holding a filled closed part, as `기쁨`, `놀람` and `폭소`
+    do — rests on a closed mouth instead: one ink line as wide as the talking mouth of the last shape
+    heard above quiet, standing level across that mouth's middle, its corners lifted by the face's
+    `corners` as the talking mouth's are. A face that lifts its corners closes in a smile, deeper the
+    wider the last mouth was, so a spread vowel closes smiling and a rounded one nearly level; a face
+    that drops them, or lifts them not at all, closes in a level line. Before anything is heard the
+    last shape is the closed, widest one. For such a face the talking mouth stands in only as far as
+    it is open as well: below an openness of a tenth it gives way to the closed mouth in proportion,
+    so a talking mouth that has shut in a pause draws as the closed mouth, never as the talking set's
+    own closed lips.
+  - **After the briefing** the face held keeps the closed mouth its last pose rested on (「The
+    faces」). A talking set that draws nothing leaves the face its own mouth.
 - **The lead.** The animation's mouth leads its voice by two frames, so a frame shows what the sound
   calls for two frames later, and the first drawing shows two frames before the sound is heard.
 - **Every frame, or on twos.** By default the mouth and the eyes follow the sound every frame, as a
@@ -366,6 +388,10 @@ caller, the native displayer that draws it on a machine's own panel, and the ser
   - `talk` — the talking set (「The talking set」): its `anchors`, one to thirty-two, each its `at`
     (how open and how wide, each from nought to one), whether its `teeth` stand together, and its
     `parts`; and its `tuning`.
+  - `idle` — how long BMO rests before its face changes (「The faces」), each in seconds from nought to
+    86,400: `blank`, when the held face gives way to the `idle` face, 600 by default; and `asleep`, when
+    that gives way to `졸림`, 1,800 by default and never before `blank`. The editor shows neither and
+    keeps both as they stand.
   - `savedAt` — when it was last saved, which is also its version.
 - **A part** is one path (「How a path is written」), in the screen's own coordinates, a box one
   hundred wide and seventy-five high, with:
@@ -407,7 +433,7 @@ caller, the native displayer that draws it on a machine's own panel, and the ser
   | `corners` | how far a mouth 30 wide lifts its corners at a face's full lift, screen units | 0 to 4 | 2 |
   | `attack`, `release` | how fast the mouth opens and closes, ms | 0 to 500, 0 to 1,000 | 25, 60 |
   | `glide` | how fast the roundness, teeth and tongue follow, and the voice rises, ms | 0 to 1,000 | 60 |
-  | `rest` | how slowly the mouth goes back to the face's own in a pause, ms | 0 to 2,000 | 300 |
+  | `rest` | how slowly the mouth goes back to its resting mouth in a pause, ms | 0 to 2,000 | 300 |
   | `eyePulse`, `eyeOnset`, `eyeSquint`, `eyeShine` | how strongly the eyes answer the level, a sharp start, a long loud stretch and the hiss | 0 to 1 | 0.4, 0.6, 0.7, 1 |
   | `cues` | how far a timed text bends the mouth | 0 to 1 | 0.5 |
   | `lowHz`, `midHz`, `highHz` | where the first formant is sought, the second, and the hiss, Hz | within 80 to 10,240, the first below the second | 250–1,000, 900–2,800, 3,500–10,240 |
@@ -463,14 +489,14 @@ drawings it stands between — which is where a hook would grow.
 ### Saving is checked
 
 - **A document is refused whole** unless it is of this form, every face, part and anchor is well formed
-  and within the screen and every tuning value within its bounds — every anchor and the end of every handle — and it must name the
+  and within the screen and every tuning and `idle` value within its bounds — every anchor and the end of every handle — and it must name the
   version it was edited from: one saved in between is a conflict, refused, and the editor says another
   window saved first. A list of parts holds at most sixteen, a part at most eight inside it, and a line
   is between 0.2 and 10 wide.
 - **A refusal is a code and a place.** The check answers why — `node-count`, `off-screen`,
-  `line-width`, `anchor-place`, `tuning` and the like — and where, from the outside in: a colour, a
+  `line-width`, `anchor-place`, `tuning`, `idle` and the like — and where, from the outside in: a colour, a
   face, an element, a side, an anchor, a part, a part inside it, a node, each counted from one, or a
-  tuning value by its key, with the limits the code turns on. The editor words it from its language pack; the server answers it under `refusal` beside an
+  tuning or `idle` value by its key, with the limits the code turns on. The editor words it from its language pack; the server answers it under `refusal` beside an
   English `error` line.
 - **One check, in the core.** The server checks with the core crate, and the editor with the same
   crate's WebAssembly build before it sends anything, so the two cannot drift.
@@ -487,10 +513,10 @@ drawings it stands between — which is where a hook would grow.
   - a saved document holding no face for a name the default draws is given the default's face for
     it, written in place with its version unchanged, so a face added here reaches a document saved
     before it rather than falling back to `기본`; colours it does not hold come from the default;
-  - a saved document of this form is given the tuning values it lacks from the default, written in
-    place with its version unchanged;
-  - a saved document of an older form is carried into this one by the core and written in place, with
-    its version unchanged:
+  - a saved document of this form is given the tuning and `idle` values it lacks from the default,
+    written in place with its version unchanged;
+  - a saved document of an older form is carried into this one by the core, with the default's `idle`
+    values, and written in place with its version unchanged:
     - **form 2** talked in families of mouths, picked by chance and held on twos. Each mouth of every
       family, in order, becomes an anchor at the place measured from its drawing (「The talking set」),
       leaving out one the check refuses, one that draws nothing and one standing within 0.005 both ways
@@ -579,8 +605,10 @@ drawings it stands between — which is where a hook would grow.
   rounding, teeth and smoothing, the talking mouth never crossing itself across its whole plane and every
   lift, the anchors drawn as they stand, the eyes held within what they allow, the same samples drawing
   the same faces, the timed text in English and Korean, the blink's sequence, rate and doubles, the
-  change's cuts and in-betweens, the gaze's held steps, and a scene's every change of drawing announced
-  by the frame it named. The root's test holds the WebAssembly build's hearing of a fixture to the native
+  change's cuts and in-betweens, the gaze's held steps, the rest's held face, blank face and sleep at the
+  document's `idle` settings, work breaking the hold, the closed mouth's smile after a spread vowel and
+  its level line after a round one or under dropped corners, and a scene's every change of drawing
+  announced by the frame it named. The root's test holds the WebAssembly build's hearing of a fixture to the native
   hearing written beside it.
 
 ## The editor
@@ -826,8 +854,9 @@ flowchart TD
   on the panel speaks with `기본` until the briefing's caller names one.
 - **Presence is not heard.** Nothing documented says today what BMO is doing: the listener stream that
   carries `presence` waits for the briefing unit (「What BMO sends, and by which road」). The core is told
-  no presence, so outside a briefing the panel stands `idle` from the moment it started, and shows the
-  `졸림` face once that has lasted ten minutes, as the core reads a scene told nothing (「The faces」).
+  no presence, so outside a briefing the panel rests from the moment it started, as the core reads a
+  scene told nothing: `기본` or the last briefing's face, then the `idle` face, then `졸림`, at the
+  document's `idle` settings (「The faces」).
 - **The engine's token** is read from the file its setting names each time the stream opens or a sound
   is fetched, so a token put in place is taken without a restart; it is never written and never said
   on the output. The displayer keeps no token of its own.
@@ -899,9 +928,11 @@ Read from its environment, every one optional:
 - **`run --frames <folder>`** runs the whole displayer with every drawing it would show written as a
   PNG at the panel's size, 1024 by 600, into the folder, instead of taking a panel.
 - **`shots <folder>`** writes, from the core's default document and with no server, every default face,
-  a blink frame by frame, and a talking sequence over the core's sampled voice, at 1024 by 600. With
-  `--sound <file>` the talking sequence speaks that Ogg Opus sound instead, decoded and heard as a
-  briefing's is, so a real voice can be looked at frame by frame.
+  a blink frame by frame, a talking sequence over the core's sampled voice spoken by `기본` and again by
+  `기쁨`, whose own mouth is open, and the rest after `기쁨`'s at each stage — just spoken, held at the
+  last frame before `blank`, blank and asleep — at 1024 by 600. With `--sound <file>` the talking
+  sequences speak that Ogg Opus sound instead, decoded and heard as a briefing's is, so a real voice can
+  be looked at frame by frame.
 
 ### What it does not do
 

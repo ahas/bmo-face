@@ -9,6 +9,7 @@ use crate::document::{
   Anchor, Colors, EyeVoice, Eyes, FORM, Face, Kind, Line, Node, Paint, Pair, Part, SCREEN, Talk, limits,
 };
 use crate::geometry::Point;
+use crate::idle::Idle;
 use crate::json::number;
 use crate::names::{FALLBACK, is_face_name};
 use crate::tuning::Tuning;
@@ -25,6 +26,7 @@ pub enum Place {
   Node(usize),
   Anchor(usize),
   Tuning(&'static str),
+  Idle(&'static str),
 }
 
 impl Place {
@@ -40,6 +42,7 @@ impl Place {
       Place::Node(index) => json!({ "node": index + 1 }),
       Place::Anchor(index) => json!({ "anchor": index + 1 }),
       Place::Tuning(key) => json!({ "tuning": key }),
+      Place::Idle(key) => json!({ "idle": key }),
     }
   }
 }
@@ -93,6 +96,11 @@ pub enum Why {
     least: f64,
     most: f64,
   },
+  /// An `idle` value is missing or outside its bounds.
+  Idle {
+    least: f64,
+    most: f64,
+  },
 }
 
 impl Why {
@@ -125,6 +133,7 @@ impl Why {
       Why::AnchorValue => "anchor-value",
       Why::AnchorPlace => "anchor-place",
       Why::Tuning { .. } => "tuning",
+      Why::Idle { .. } => "idle",
     }
   }
 
@@ -139,7 +148,7 @@ impl Why {
       Why::EyeVoice => Some((0.0, limits::MAX_EYE_VOICE)),
       Why::Corners => Some((-1.0, 1.0)),
       Why::Anchors => Some((1.0, limits::ANCHORS as f64)),
-      Why::Tuning { least, most } => Some((*least, *most)),
+      Why::Tuning { least, most } | Why::Idle { least, most } => Some((*least, *most)),
       _ => None,
     }
   }
@@ -190,6 +199,7 @@ impl Refusal {
         Place::Node(index) => format!("node {}", index + 1),
         Place::Anchor(index) => format!("anchor {}", index + 1),
         Place::Tuning(key) => format!("tuning {key}"),
+        Place::Idle(key) => format!("idle {key}"),
       })
       .collect();
     if at.is_empty() {
@@ -518,10 +528,20 @@ pub fn check(value: &Value) -> Checked<crate::document::Document> {
   }
 
   let talk = check_talk(document.get("talk"))?;
+  let idle = Idle::from_json(document.get("idle").unwrap_or(&Value::Null)).map_err(|wrong| {
+    Refusal::new(
+      Why::Idle {
+        least: wrong.least,
+        most: wrong.most,
+      },
+      &[Place::Idle(wrong.key)],
+    )
+  })?;
 
   Ok(crate::document::Document {
     colors,
     faces: checked_faces,
     talk,
+    idle,
   })
 }

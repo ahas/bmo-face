@@ -33,7 +33,7 @@ pub struct Tuning {
   pub release: f64,
   /// How fast the mouth's roundness, teeth and tongue follow, in milliseconds.
   pub glide: f64,
-  /// How slowly, in milliseconds, the mouth goes back to the face's own in a pause.
+  /// How slowly, in milliseconds, the mouth goes back to its resting mouth in a pause.
   pub rest: f64,
   /// How strongly the eyes follow the level, widen on a sharp start, squint through a long loud
   /// stretch and shine with the hiss, each as a share of what the eyes allow.

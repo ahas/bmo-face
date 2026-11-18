@@ -152,3 +152,19 @@ fn the_check_keeps_only_what_it_knows() {
   assert_eq!(checked["faces"][FALLBACK].get("extra"), None);
   assert_eq!(checked["colors"]["ink"], json!("#000a00"));
 }
+
+#[test]
+fn a_refusal_of_the_rest_names_the_idle_value_and_holds_sleep_after_the_blank_face() {
+  let mut long = default_json();
+  long["idle"]["blank"] = json!(100_000);
+  assert_eq!(
+    refusal(&long),
+    json!({ "code": "idle", "at": [{ "idle": "blank" }], "least": 0, "most": 86400 })
+  );
+  let mut early = default_json();
+  early["idle"]["asleep"] = json!(300);
+  assert_eq!(
+    refusal(&early),
+    json!({ "code": "idle", "at": [{ "idle": "asleep" }], "least": 600, "most": 86400 })
+  );
+}

@@ -9,7 +9,7 @@
 use crate::blend::blend_lists;
 use crate::document::{Anchor, Paint, Part};
 use crate::geometry::{Bounds, Cubic, Path, Point, add, scale, sub};
-use crate::shapes::smooth_nodes;
+use crate::shapes::{STROKE, smooth_nodes, stroke};
 
 /// The height of a mouth fully open and the widths of the narrowest and the widest mouth, in screen
 /// units: the largest round O, the small dark o and the widest bean of the talking set.
@@ -399,6 +399,17 @@ impl Mouths {
       (None, None) => Vec::new(),
     };
     lifted(&tongued(&drawn, shape.tongue), lift)
+  }
+
+  /// The mouth a face whose own mouth is open rests on: one ink line as wide as the talking mouth of
+  /// `last`, level across that mouth's middle, its corners lifted into a smile by `lift` and never
+  /// dropped. None where the talking set draws nothing.
+  pub fn closed(&self, last: Shape, lift: f64) -> Option<Vec<Part>> {
+    let bounds = bounds_of(&self.draw(last, 0.0)).filter(|bounds| bounds.width() > 0.0)?;
+    let [middle, height] = bounds.centre();
+    let half = bounds.width() / 2.0;
+    let line = stroke(&[[middle - half, height], [middle, height], [middle + half, height]], STROKE);
+    Some(lifted(&[line], lift.max(0.0)))
   }
 }
 

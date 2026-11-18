@@ -533,6 +533,7 @@ export function refusalWords(refusal: Refusal, t: (key: string, values?: Record<
     if ("side" in at) return t(`face.edit.side.${at.side}`);
     if ("color" in at) return t("face.edit.place.color", { name: at.color });
     if ("tuning" in at) return t(`face.edit.tuning.key.${at.tuning}`);
+    if ("idle" in at) return t(`face.edit.place.idle.${at.idle}`);
 
     const [kind, n] = Object.entries(at)[0] as [string, number];
 
