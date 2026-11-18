@@ -116,6 +116,14 @@ describe("the bundle as built", () => {
     expect((await manifest()).layer).toBe(LAYER_VERSION);
   });
 
+  test("takes the layer's island, layers, create button and select where the screens have copies", async () => {
+    const module = await Bun.file(join(consoleDir, "bundle.js")).text();
+    const taken = [...module.matchAll(/from ?"(bmo-ui\/[^"]+)"/g)].map((found) => found[1]);
+
+    expect(taken).toEqual(expect.arrayContaining(["bmo-ui/app/domain/island", "bmo-ui/app/domain/layers", "bmo-ui/app/components/CreateButton.vue", "bmo-ui/app/components/ChoiceSelect.vue"]));
+    expect(module).not.toContain("common.placeholder.search");
+  });
+
   test("names its menu by a word the bundle's words hold", async () => {
     const read = await manifest();
     const answer = await fetch(`${base}${read.words as string}`, { headers: credential });

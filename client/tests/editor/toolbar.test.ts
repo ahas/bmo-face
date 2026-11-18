@@ -6,7 +6,8 @@ import { parse } from "vue/compiler-sfc";
 // top bar holds the screen's name and logging out alone, the actions stand in the toolbar over the
 // canvas with leaving a part's inside at its left end and the one create button at its right end,
 // nothing else on the editor creates, and every control in that toolbar is the library's small one
-// at its own size, the theme setting no size of its own on an icon button.
+// at its own size, the theme setting no size of its own on an icon button. Every list a value is chosen
+// from is the one select, never the library's bare.
 
 (globalThis as { defineAppConfig?: unknown }).defineAppConfig = (config: unknown) => config;
 
@@ -38,6 +39,7 @@ async function templateOf(path: string): Promise<{ children: TemplateNode[] }> {
   return parse(source).descriptor.template!.ast! as unknown as { children: TemplateNode[] };
 }
 
+const client = new URL("../..", import.meta.url).pathname;
 const template = await templateOf("../../app/pages/edit.vue");
 const fields = await templateOf("../../app/components/PartFields.vue");
 const config = (await import("../../app/app.config")).default as { ui: Record<string, { slots?: Record<string, string>; variants?: Record<string, unknown> }> };
@@ -104,10 +106,21 @@ describe("the editor's bars", () => {
   });
 
   test("every control in the toolbar is the library's small one", () => {
-    const controls = elements(toolbar.children).filter((element) => ["UButton", "USelect", "CreateButton"].includes(element.tag));
+    const controls = elements(toolbar.children).filter((element) => ["UButton", "ChoiceSelect", "CreateButton"].includes(element.tag));
 
     expect(controls.length).toBeGreaterThan(0);
     expect(controls.filter((control) => attribute(control, "size") !== "sm")).toEqual([]);
+  });
+
+  test("every value is chosen in the one select, by the value its choices carry", async () => {
+    const screens = await Promise.all([...new Bun.Glob("app/**/*.vue").scanSync({ cwd: client })].filter((path) => path !== "app/components/ChoiceSelect.vue").map((path) => templateOf(`../../${path}`)));
+    const bare = screens.flatMap((screen) => elements(screen.children)).filter((element) => ["USelect", "USelectMenu", "UInputMenu"].includes(element.tag));
+    const selects = [...all, ...elements(fields.children)].filter((element) => element.tag === "ChoiceSelect");
+
+    expect(screens.length).toBeGreaterThan(2);
+    expect(bare).toEqual([]);
+    expect(selects).toHaveLength(7);
+    expect(selects.filter((select) => attribute(select, "value-key") !== "value")).toEqual([]);
   });
 
   test("the theme sizes no icon button and stretches nothing in a toolbar", () => {

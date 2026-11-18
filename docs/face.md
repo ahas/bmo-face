@@ -967,6 +967,24 @@ is named, and the gaze socket's lines.
   - the canvas's area keeps the room the floating button takes at its foot, the `--bmo-create-room`
     token, so on a phone the face is drawn clear of it. The token is nought on a wide screen; the
     console answers it on the console screen, and the standalone screens' stylesheet states it.
+- **A value is chosen from a list in one select,** bmo-ui's `ChoiceSelect` (bmo-ui's
+  `docs/components.md`, 「Choosing a value」), and no screen draws the library's select, select menu
+  or input menu bare. Every list the editor offers is one: the face, the element, the side and the
+  mouth's anchor in the toolbar, and the fill, the line's paint and the node in the part's fields.
+  The console screen takes the layer's component; the standalone screens take a copy of it that keeps
+  the layer's rule, words and look for the flat lists of their own choices they hand it:
+  - a list searches once it holds more than seven choices and never with seven or fewer, counted
+    from the choices it is handed, so a list read from the document takes its search as it grows and
+    no screen decides it;
+  - the search field stands at the top of the opened list, its search mark leading and the pack's
+    words for a search as its placeholder; opened by a pointer or a key it takes the focus, on a
+    touch screen it does not, and closing the list clears it;
+  - the typed phrase is matched whole against each choice's label, letter case folded, and the
+    matched part is marked where it stands;
+  - an empty list says whether nothing matched or nothing is there, in the pack's words;
+  - the control names the chosen choice from the whole list, so a search that leaves it out of the
+    opened list never turns the control's words into the raw value;
+  - the list opens against the control's leading edge.
 - **Every tooltip is one component.** A screen gives it the words and whether a press on what it
   stands on does something else; how it opens, how wide it grows and how a finger reaches it are the
   component's. On a touch screen a held finger opens it and the lift presses nothing, and the next
@@ -1096,10 +1114,11 @@ is named, and the gaze socket's lines.
   and the words `words.json`.
   - **Its one route** is the editor's page at the screen path, handed the road to the screens' calls
     through bmo-ui's `relayAddress`.
-  - **The island, the back gesture and the create button are the console's.** The bundle takes
-    bmo-ui's `island` and `layers` modules and its `CreateButton` where the screen has its own
-    copies, so the editor's notices and questions stand on the console's island, inside a part is
-    left by the console's one history of layers, and the editor creates from the layer's one button.
+  - **The island, the back gesture, the create button and the select are the console's.** The
+    bundle takes bmo-ui's `island` and `layers` modules, its `CreateButton` and its `ChoiceSelect`
+    where the screen has its own copies, so the editor's notices and questions stand on the console's
+    island, inside a part is left by the console's one history of layers, the editor creates from
+    the layer's one button and chooses every value in the layer's one select.
   - **The stylesheet** is the utility classes the screen's pages and components write, built against
     the theme's names without the theme, the base or the library's own classes, and the components'
     own styles. The theme, the focus ring and the fonts are the console's.

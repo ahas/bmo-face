@@ -24,12 +24,12 @@
               <UButton size="sm" icon="i-material-symbols-arrow-back" color="neutral" variant="ghost" :aria-label="t('face.edit.action.outline')" @click="leave" />
             </AppTooltip>
             <template v-if="tab === 'faces'">
-              <USelect v-model="face" size="sm" :items="faceItems" :aria-label="t('face.edit.target.face')" class="w-32 min-w-0" />
-              <USelect v-model="element" size="sm" :items="elementItems" :aria-label="t('face.edit.target.element')" class="w-24 min-w-0" />
-              <USelect v-if="isPair(element)" v-model="side" size="sm" :items="sideItems" :aria-label="t('face.edit.target.side')" class="w-24 min-w-0" />
+              <ChoiceSelect v-model="face" size="sm" value-key="value" :items="faceItems" :aria-label="t('face.edit.target.face')" class="w-32 min-w-0" />
+              <ChoiceSelect v-model="element" size="sm" value-key="value" :items="elementItems" :aria-label="t('face.edit.target.element')" class="w-24 min-w-0" />
+              <ChoiceSelect v-if="isPair(element)" v-model="side" size="sm" value-key="value" :items="sideItems" :aria-label="t('face.edit.target.side')" class="w-24 min-w-0" />
             </template>
             <template v-else>
-              <USelect v-model="anchor" size="sm" :items="anchorItems" :aria-label="t('face.edit.target.anchor')" class="w-24 min-w-0" />
+              <ChoiceSelect v-model="anchor" size="sm" value-key="value" :items="anchorItems" :aria-label="t('face.edit.target.anchor')" class="w-24 min-w-0" />
             </template>
 
             <!-- Wide, the actions stand as icon buttons in groups of three or fewer. -->
@@ -163,6 +163,7 @@
 <script setup lang="ts">
 import { ELEMENTS, faceFor, FACE_NAMES, FALLBACK_FACE, LIMITS, SIDES } from "#faces";
 
+import ChoiceSelect from "~/components/ChoiceSelect.vue";
 import CreateButton from "~/components/CreateButton.vue";
 import {
   addAnchor,

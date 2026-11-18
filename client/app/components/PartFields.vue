@@ -11,10 +11,10 @@
         <USwitch :model-value="part.closed" :label="t('face.edit.fields.closed')" :disabled="part.closed && holdsInside" @update:model-value="setOpenness" />
         <div class="grid grid-cols-2 gap-4">
           <UFormField :label="t('face.edit.fields.fill')">
-            <USelect :model-value="part.fill ?? NONE" :items="fillItems" :disabled="!part.closed" class="w-full" @update:model-value="setFill" />
+            <ChoiceSelect value-key="value" :model-value="part.fill ?? NONE" :items="fillItems" :disabled="!part.closed" class="w-full" @update:model-value="setFill" />
           </UFormField>
           <UFormField :label="t('face.edit.fields.line')">
-            <USelect :model-value="part.line?.paint ?? NONE" :items="lineItems" class="w-full" @update:model-value="setLine" />
+            <ChoiceSelect value-key="value" :model-value="part.line?.paint ?? NONE" :items="lineItems" class="w-full" @update:model-value="setLine" />
           </UFormField>
         </div>
         <UFormField v-if="part.line" :label="t('face.edit.fields.width')">
@@ -26,7 +26,7 @@
 
       <section class="flex flex-col gap-4">
         <div class="flex items-center gap-2">
-          <USelect :model-value="chosenNode ?? undefined" :items="nodeItems" :placeholder="t('face.edit.fields.node')" :aria-label="t('face.edit.fields.node')" class="min-w-0 flex-1" @update:model-value="(value) => emit('chooseNode', Number(value))" />
+          <ChoiceSelect value-key="value" :model-value="chosenNode ?? undefined" :items="nodeItems" :placeholder="t('face.edit.fields.node')" :aria-label="t('face.edit.fields.node')" class="min-w-0 flex-1" @update:model-value="(value: unknown) => emit('chooseNode', Number(value))" />
           <AppTooltip :text="t('face.edit.action.add_node')">
             <UButton icon="i-material-symbols-add" color="neutral" variant="ghost" :aria-label="t('face.edit.action.add_node')" :disabled="part.nodes.length >= LIMITS.maxNodes" @click="moreNode" />
           </AppTooltip>
@@ -89,6 +89,7 @@
 <script setup lang="ts">
 import { LIMITS, PAINTS } from "#faces";
 
+import ChoiceSelect from "~/components/ChoiceSelect.vue";
 import { addNode, moveHandle, removeNode, setClosed, setSmooth } from "~/domain/edit";
 
 import type { Paint, Part, Point } from "#faces";

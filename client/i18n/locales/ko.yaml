@@ -232,3 +232,10 @@ common:
     decrease: 감소
     increase: 증가
     more_notices: "알림 {n}건 더 있음"
+  error:
+    choices_find_failed: 검색하지 못했습니다
+  placeholder:
+    search: 검색
+  status:
+    no_match: 찾은 항목 없음
+    no_choices: 항목 없음

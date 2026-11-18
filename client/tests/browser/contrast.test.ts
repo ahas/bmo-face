@@ -132,7 +132,8 @@ function fixture(): string {
   </style>
     ${surfaces}
     <input id="field" class="ring ring-inset focus-visible:ring-primary" value="1,631">
-    <button id="mark" type="button" class="focus-visible:outline-3">1,631</button>`;
+    <button id="mark" type="button" class="focus-visible:outline-3">1,631</button>
+    <button id="select" type="button" aria-haspopup="listbox" class="ring ring-inset focus-visible:ring-primary focus-visible:outline-3">1,631</button>`;
 }
 
 // Whether the browser this driver pins is on the machine; where it is not, the file is skipped.
@@ -305,19 +306,26 @@ describe.skipIf(!browserReady)("the one focus ring", () => {
     expect(await page.evaluate(() => getComputedStyle(document.querySelector("#mark")!).outlineStyle)).toBe("none");
   });
 
-  test("leaves a field to show focus on its own edge", async () => {
+  // A field typed in, one Tab in, and a select's trigger, past the mark.
+  test.each([
+    ["#field", 1],
+    ["#select", 3],
+  ])("leaves %s to show focus on its own edge", async (selector, tabs) => {
     await keyboardFromTop();
-    await page.keyboard.press("Tab");
 
-    const field = await page.evaluate(() => {
-      const style = getComputedStyle(document.querySelector("#field")!);
+    for (let tab = 0; tab < tabs; tab += 1) {
+      await page.keyboard.press("Tab");
+    }
+
+    const field = await page.evaluate((chosen) => {
+      const style = getComputedStyle(document.querySelector(chosen)!);
 
       return {
         outline: style.outlineStyle,
         edge: style.getPropertyValue("--tw-ring-color").trim(),
         token: getComputedStyle(document.documentElement).getPropertyValue("--bmo-focus-color").trim()
       };
-    });
+    }, selector);
 
     expect(field.outline).toBe("none");
     expect(field.token).not.toBe("");
