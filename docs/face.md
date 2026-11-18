@@ -1021,7 +1021,9 @@ is named, and the gaze socket's lines.
   - an empty list says whether nothing matched or nothing is there, in the pack's words;
   - the control names the chosen choice from the whole list, so a search that leaves it out of the
     opened list never turns the control's words into the raw value;
-  - the list opens against the control's leading edge.
+  - the list opens against the control's leading edge;
+  - a browser test opens the editor's face list on the generated screen, searches it and chooses
+    from it.
 - **Every tooltip is one component.** A screen gives it the words and whether a press on what it
   stands on does something else; how it opens, how wide it grows and how a finger reaches it are the
   component's. On a touch screen a held finger opens it and the lift presses nothing, and the next

@@ -1,8 +1,9 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { existsSync } from "node:fs";
 
 import { chromium } from "playwright-core";
 import tailwind from "tailwindcss/colors";
+
+import { BROWSER_HOOK_MS, browserReady as ready } from "../support/browser";
 
 import type { Browser, Page } from "playwright-core";
 
@@ -136,16 +137,7 @@ function fixture(): string {
     <button id="select" type="button" aria-haspopup="listbox" class="ring ring-inset focus-visible:ring-primary focus-visible:outline-3">1,631</button>`;
 }
 
-// Whether the browser this driver pins is on the machine; where it is not, the file is skipped.
-function ready(): boolean {
-  try {
-    return existsSync(chromium.executablePath());
-  } catch {
-    return false;
-  }
-}
-
-const BROWSER_HOOK_MS = 60_000;
+// Where the browser this driver pins is not on the machine, the file is skipped.
 const browserReady = ready();
 let browser: Browser | null = null;
 let page: Page;
