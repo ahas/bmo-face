@@ -114,8 +114,8 @@ async fn saves(server: FaceServer, mut backoff: Backoff, tell: UnboundedSender<E
   }
 }
 
-/// The voice engine's event stream, resumed from its cursor: the briefings of the rooms the settings name,
-/// or of every room where they name none, and every stop.
+/// The voice engine's event stream, resumed from its cursor: the summaries of the rooms the settings name, or
+/// of every room where they name none, every room's speeches, and every stop.
 async fn listen(engine: VoiceEngine, rooms: Vec<i64>, mut backoff: Backoff, tell: UnboundedSender<Event>) {
   let mut cursor = Cursor::default();
   let mut told: Option<String> = None;
@@ -128,8 +128,7 @@ async fn listen(engine: VoiceEngine, rooms: Vec<i64>, mut backoff: Backoff, tell
           cursor.on_id(event.id.as_deref());
           let news = heard(event.event.as_deref(), event.data.as_deref());
           if let Heard::Briefing(briefing) = &news
-            && !rooms.is_empty()
-            && !rooms.contains(&briefing.chat_id)
+            && !briefing.heard_from(&rooms)
           {
             continue;
           }

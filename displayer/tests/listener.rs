@@ -6,7 +6,7 @@
 use std::time::Duration;
 
 use bmo_face_core::names::{EMOTIONS, FALLBACK};
-use bmo_face_displayer::listener::{Backoff, Briefing, Cursor, Heard, heard, is_fresh};
+use bmo_face_displayer::listener::{Backoff, Briefing, Cursor, Heard, Played, heard, is_fresh};
 use serde_json::{Value, json};
 
 /// A summary the engine spoke and ended done, which plays by itself, as `GET /briefings/{briefingId}`
@@ -28,6 +28,7 @@ fn ended(face: &str) -> Heard {
   Heard::Briefing(Briefing {
     id: 41,
     chat_id: 3,
+    played: Played::Summary,
     face: face.to_owned(),
     ended_at: 2_000.0,
   })
@@ -72,6 +73,42 @@ fn only_a_done_summary_the_engine_spoke_and_that_plays_by_itself_is_played() {
   }
   assert_eq!(event("briefing.created", summary()), Heard::Other, "not ended");
   assert_eq!(event("briefing.changed", summary()), Heard::Other, "a line named");
+}
+
+// "an agent's speech ended done is heard from every room, and a summary only from the rooms the settings name"
+#[test]
+fn a_speech_is_heard_from_every_room_and_a_summary_from_the_rooms_named() {
+  let mut speech = summary();
+  speech["kind"] = json!("speech");
+  speech["chatId"] = json!(-900);
+  speech["emotion"] = json!(EMOTIONS[1]);
+  let Heard::Briefing(spoken) = event("briefing.ended", speech) else {
+    panic!("a speech is heard")
+  };
+  assert_eq!(spoken.played, Played::Speech);
+  assert_eq!(spoken.face, EMOTIONS[1]);
+  let mut far = summary();
+  far["chatId"] = json!(-900);
+  let Heard::Briefing(summarised) = event("briefing.ended", far) else {
+    panic!("a summary is heard")
+  };
+  let named = [3];
+  assert!(spoken.heard_from(&named), "a speech from a room not named");
+  assert!(!summarised.heard_from(&named), "a summary from a room not named");
+  assert!(summarised.heard_from(&[]), "a summary where no room is named");
+  assert!(summarised.heard_from(&[-900]), "a summary from a room named");
+}
+
+// "a sound the engine made that is no briefing, a generated voice among them, never reaches the face"
+#[test]
+fn a_synthesis_is_never_heard() {
+  let synthesis = json!({
+    "id": 77, "voiceName": "voice-a", "text": "a generated voice", "spoken": "a generated voice", "emotion": null,
+    "key": null, "state": "done", "wait": null, "waitingOn": null, "failure": null, "durationMs": 1200,
+    "createdAt": 1_000
+  });
+  assert_eq!(event("synthesis.ended", synthesis.clone()), Heard::Other);
+  assert_eq!(event("briefing.ended", synthesis), Heard::Other, "a member with no briefing kind");
 }
 
 #[test]

@@ -833,18 +833,22 @@ flowchart TD
   answers `410` for, its events no longer kept, is dropped and the stream reads on from the live ones.
   A stream that carries nothing at all for forty seconds — not an event, not the comment line the
   engine writes every fifteen — is taken as gone.
-- **Which briefings it speaks,** as the engine states a listener plays them by itself and the web
-  console's player reads them: a `briefing.ended` of a `summary` that is `done`, that the engine spoke —
-  it names a synthesis — and whose `plays` holds. It leaves one it hears of more than two minutes after
+- **Which briefings it speaks,** as the engine states a listener plays them by itself: a `briefing.ended`
+  of a `summary` or a `speech` that is `done`, that the engine spoke — it names a synthesis — and whose
+  `plays` holds. A summary is a line's gist, as the web console's player reads it too; a speech is the agent
+  speaking as itself in a room, its answer said aloud as a voice note, which the console's player leaves to
+  the room and the face speaks. Every other sound the engine makes, a voice generated through its own tool
+  among them, is a synthesis and no briefing, so it never reaches the face. It leaves one it hears of more than two minutes after
   it ended (its `finishedAt`, else the event's moment, read against this machine's clock, which the
   engine on the loopback shares), one already taken, and one that ended at or before a stop of its room
   or of every room. A `full` reading plays only when somebody asks for it, and nothing on the panel
   asks.
-- **Which rooms.** Its setting names the rooms whose briefings it speaks, by the numbers the engine
-  keeps them under; where it names none, every room's. The live deployment names the owner's private
-  room alone: a briefing goes to the owner's private room, and to another room only where that room's
+- **Which rooms.** A speech is spoken from every room, since the face speaks whenever its agent speaks as
+  itself. Its setting names the rooms whose summaries it speaks, by the numbers the engine keeps them under;
+  where it names none, every room's. The live deployment names the owner's private
+  room alone: a summary goes to the owner's private room, and to another room only where that room's
   own setting asks for it (bmo-receiver's `docs/voiced-notices.md`, 「The rule」), and the panel stands
-  on the owner's own machine, so a briefing another room asks for is heard in that room and not here.
+  on the owner's own machine, so a summary another room asks for is heard in that room and not here.
 - **One at a time.** A briefing heard while another is made ready or speaks waits behind it, in the
   order heard, and follows it after a breath of 600 milliseconds, as the console's player takes it.
 - **A stop,** `briefings.stopped` naming a room or every room, ends the briefing of that room being
@@ -919,7 +923,7 @@ Read from its environment, every one optional:
 | `BMO_FACE_URL` | this server's address with its base path | `http://127.0.0.1:3217/bmo-face` |
 | `BMO_FACE_DISPLAYER_VOICE` | the voice engine's address | none: no briefing is heard |
 | `BMO_FACE_DISPLAYER_VOICE_TOKEN_FILE` | the path of the file the engine's token stands in | none: the stream waits, saying so |
-| `BMO_FACE_DISPLAYER_ROOMS` | the rooms whose briefings are spoken, their numbers separated by commas | every room's |
+| `BMO_FACE_DISPLAYER_ROOMS` | the rooms whose summaries are spoken, their numbers separated by commas; a speech is spoken from every room | every room's |
 | `BMO_FACE_DISPLAYER_DATA` | its data root, where the gaze socket stands without a runtime folder | `~/.local/share/bmo/data/face-displayer` |
 | `BMO_FACE_DISPLAYER_CARD` | the card, a path such as `/dev/dri/card1` | the first card with a connected connector |
 | `BMO_FACE_DISPLAYER_CONNECTOR` | the connector, by its kernel name such as `HDMI-A-1` | the card's first connected connector |

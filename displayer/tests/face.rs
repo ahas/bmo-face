@@ -10,7 +10,7 @@ use bmo_face_core::names::{ASLEEP, EMOTIONS, FALLBACK, IDLE};
 use bmo_face_core::talk::LEAD;
 use bmo_face_displayer::face::Face;
 use bmo_face_displayer::gaze::direction;
-use bmo_face_displayer::listener::Briefing;
+use bmo_face_displayer::listener::{Briefing, Played};
 use serde_json::json;
 
 /// The engine's clock now, in milliseconds.
@@ -20,6 +20,7 @@ fn briefing(id: i64, chat_id: i64, face: &str, ended_at: f64) -> Briefing {
   Briefing {
     id,
     chat_id,
+    played: Played::Summary,
     face: face.to_owned(),
     ended_at,
   }

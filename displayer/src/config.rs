@@ -66,7 +66,8 @@ pub struct Config {
   pub voice: Option<String>,
   /// The file the voice engine's token stands in.
   pub voice_token: Option<PathBuf>,
-  /// The rooms whose briefings are spoken; every room's where none is named.
+  /// The rooms whose summaries are spoken, every room's where none is named; a speech is spoken from every
+  /// room.
   pub rooms: Vec<i64>,
   pub data: PathBuf,
   pub card: Option<PathBuf>,

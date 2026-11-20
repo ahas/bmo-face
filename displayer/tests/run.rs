@@ -404,18 +404,23 @@ async fn a_refused_token_is_tried_again_with_growing_waits_and_the_displayer_run
   .await;
 }
 
+// "a summary is spoken from the rooms named alone, and an agent's speech from every room"
 #[tokio::test]
-async fn the_rooms_named_alone_are_spoken() {
+async fn the_rooms_named_alone_are_spoken_and_a_speech_from_every_room() {
   let bench = Bench::start(Setup {
     rooms: Some("3, 5"),
     ..HEARING
   })
   .await;
   bench.stream_opened().await;
+  let mut speech = summary(10, 4, epoch_ms());
+  speech["kind"] = json!("speech");
   bench.hear(1, "briefing.ended", summary(8, 4, epoch_ms()));
   bench.hear(2, "briefing.ended", summary(9, 3, epoch_ms()));
+  bench.hear(3, "briefing.ended", speech);
   until("the named room's briefing fetched", || !bench.sound_asked(9).is_empty()).await;
-  assert!(bench.sound_asked(8).is_empty(), "another room's briefing is not spoken");
+  until("the speech of a room not named fetched", || !bench.sound_asked(10).is_empty()).await;
+  assert!(bench.sound_asked(8).is_empty(), "another room's summary is not spoken");
 }
 
 #[tokio::test]

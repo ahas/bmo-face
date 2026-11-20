@@ -60,7 +60,7 @@ declaration, `testbed.toml`; nothing here deploys itself.
   the repository (`docs/face.md`, 「Its settings」).
 - **It hears briefings from the voice engine,** on the loopback, with the engine's own token
   (`docs/face.md`, 「What it hears」): the drop-in names the engine's address, the file its token stands
-  in and the rooms whose briefings are spoken. The token file is the voice's own, the file under the
+  in and the rooms whose summaries are spoken; a speech is spoken from every room. The token file is the voice's own, the file under the
   shared data root's `env/` that the voice's settings name as `token_file` (bmo-voice's
   `docs/boundary-api.md`, 「Settings」); the unit's user reads it where it stands, and the drop-in names
   its path, never its value. The displayer signs in nowhere and keeps no token of its own.
@@ -82,7 +82,8 @@ stands for a VT no getty or display manager uses.
    `Environment=` lines (`docs/face.md`, 「Its settings」):
    - `BMO_FACE_DISPLAYER_VOICE=<the voice engine's address>`, the `address` the voice's settings name;
    - `BMO_FACE_DISPLAYER_VOICE_TOKEN_FILE=<the shared data root>/env/<the voice's token file>`;
-   - `BMO_FACE_DISPLAYER_ROOMS=<the owner's private room>`, the room's number as the engine keeps it;
+   - `BMO_FACE_DISPLAYER_ROOMS=<the owner's private room>`, the room's number as the engine keeps it, the one
+     room whose summaries are spoken;
    - and any other where its default does not hold, for example `BMO_FACE_DISPLAYER_SOUND=off` where
      nothing should be heard.
 5. Starting it now and at every boot: `sudo systemctl enable --now bmo-face-displayer@<user>.service`;
