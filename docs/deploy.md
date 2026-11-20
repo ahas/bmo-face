@@ -56,6 +56,9 @@ declaration, `testbed.toml`; nothing here deploys itself.
   moved and ends with success, and the unit starts it again from the new release. No deployment step
   and no privilege is needed for that.
 - **It starts at boot and comes back from any end:** `Restart=always`, wanted by `graphical.target`.
+- **Its lines** stand in the journal under its own identifier, read with
+  `journalctl -t bmo-face-displayer` (`docs/face.md`, 「What it says」): it runs in a logind session's
+  scope, so the unit's name finds only its starts and stops.
 - **Its settings** are set as `Environment=` lines in the unit's drop-in (`systemctl edit`), never in
   the repository (`docs/face.md`, 「Its settings」).
 - **It hears briefings from the voice engine,** on the loopback, with the engine's own token

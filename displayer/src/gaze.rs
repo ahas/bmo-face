@@ -13,6 +13,8 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::mpsc::UnboundedSender;
 
+use crate::journal::say;
+
 const SOCKET_MODE: u32 = 0o600;
 
 /// A line read as a direction: `{"x": …, "y": …}`, each a number.
@@ -44,7 +46,7 @@ pub async fn serve(listener: UnixListener, tell: UnboundedSender<Point>) {
       Ok((stream, _)) => {
         tokio::spawn(read(stream, tell.clone()));
       }
-      Err(fault) => eprintln!("bmo-face-displayer: the gaze socket: {fault}"),
+      Err(fault) => say(&format!("the gaze socket: {fault}")),
     }
   }
 }
@@ -61,7 +63,7 @@ async fn read(stream: UnixStream, tell: UnboundedSender<Point>) {
           return;
         }
       }
-      Err(fault) => eprintln!("bmo-face-displayer: a gaze line left: {fault}"),
+      Err(fault) => say(&format!("a gaze line left: {fault}")),
     }
   }
 }

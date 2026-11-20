@@ -9,6 +9,7 @@ pub mod engine;
 pub mod face;
 pub mod gaze;
 pub mod http;
+pub mod journal;
 pub mod listener;
 pub mod opus;
 pub mod panel;

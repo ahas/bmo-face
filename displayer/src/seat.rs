@@ -2,7 +2,8 @@
 //! a VT of its own it takes control of the session, has logind hand it the card with display mastery
 //! while its VT is in front and take it back when it is not, brings its VT to the front as it starts,
 //! and brings it back when a greeter started since takes the front. Outside a session it opens the card
-//! itself and takes mastery once nothing holds it.
+//! itself and takes mastery once nothing holds it. Either way the cards it tries are the one named, else
+//! those the kernel reads a connected connector on, and a card refused is passed over for the next.
 
 use std::collections::HashSet;
 use std::fs::{self, OpenOptions};
@@ -16,8 +17,9 @@ use futures_util::StreamExt;
 use tokio::sync::mpsc::UnboundedSender;
 use zbus::{Connection, OwnedFd as BusFd, OwnedObjectPath, Proxy};
 
+use crate::journal::{say, seconds};
 use crate::listener::Backoff;
-use crate::panel::{Card, has_connected};
+use crate::panel::Card;
 
 const LOGIND: &str = "org.freedesktop.login1";
 const MANAGER_PATH: &str = "/org/freedesktop/login1";
@@ -25,6 +27,9 @@ const MANAGER: &str = "org.freedesktop.login1.Manager";
 const SESSION: &str = "org.freedesktop.login1.Session";
 const SEAT: &str = "org.freedesktop.login1.Seat";
 const GREETER: &str = "greeter";
+/// The kinds of logind's `PauseDevice`: one that waits for its completion, and the device's removal.
+const PAUSE: &str = "pause";
+const GONE: &str = "gone";
 /// The first wait before bringing the VT back from a greeter that started, so it is up before it is
 /// moved to the background; each bringing back after waits twice as long, up to a minute.
 const GREETER_SETTLES: Duration = Duration::from_secs(3);
@@ -33,7 +38,11 @@ const VT_GETSTATE: libc::c_ulong = 0x5603;
 const VT_ACTIVATE: libc::c_ulong = 0x5606;
 /// The DRM cards, by their device names.
 const CARDS: &str = "/dev/dri";
+/// The kernel's DRM class, where each card's connectors stand as `<card>-<connector>` with their status.
+const CLASSES: &str = "/sys/class/drm";
 const CARD_PREFIX: &str = "card";
+const CONNECTED: &str = "connected";
+const NO_CARD: &str = "no card has a connected connector";
 
 /// What the seat tells the displayer.
 pub enum SeatEvent {
@@ -41,6 +50,13 @@ pub enum SeatEvent {
   Card(Card),
   /// The card is not the displayer's to draw on until it comes again.
   Lost,
+}
+
+/// The card logind lent: the device, and the card itself where the session stands in front.
+struct Taken {
+  device: (u32, u32),
+  path: PathBuf,
+  card: Option<Card>,
 }
 
 /// The kernel's `struct vt_stat`.
@@ -100,52 +116,63 @@ impl Seat {
   /// Takes the panel for as long as the displayer runs, telling it each time the card comes and goes.
   pub async fn hold(self, card: Option<PathBuf>, first_retry: Duration, tell: UnboundedSender<SeatEvent>) {
     let mut backoff = Backoff::new(first_retry);
+    let Some(session) = seat_session() else {
+      say("no logind session on a seat: opening the card by hand");
+      return opened_by_hand(card.as_deref(), &mut backoff, &tell).await;
+    };
     loop {
-      let fault = match seat_session() {
-        Some(session) => self.through_logind(&session, card.as_deref(), &tell).await,
-        None => return opened_by_hand(card.as_deref(), &mut backoff, &tell).await,
+      let fault = match self.logind(&session, card.as_deref(), &mut backoff, &tell).await {
+        Ok(()) => "logind's signals ended".to_owned(),
+        Err(fault) => fault,
       };
       let _ = tell.send(SeatEvent::Lost);
-      eprintln!("bmo-face-displayer: the seat: {fault}; trying again");
-      tokio::time::sleep(backoff.next_wait()).await;
+      let wait = backoff.next_wait();
+      say(&format!("the seat: {fault}; nothing is drawn; trying again in {}", seconds(wait)));
+      tokio::time::sleep(wait).await;
     }
   }
 
   /// The card through logind, for as long as the bus holds; what broke it, when it does.
-  async fn through_logind(
-    &self,
-    session: &str,
-    named: Option<&Path>,
-    tell: &UnboundedSender<SeatEvent>,
-  ) -> String {
-    match self.logind(session, named, tell).await {
-      Ok(()) => "logind's signals ended".to_owned(),
-      Err(fault) => fault.to_string(),
-    }
-  }
-
   async fn logind(
     &self,
     session_id: &str,
     named: Option<&Path>,
+    backoff: &mut Backoff,
     tell: &UnboundedSender<SeatEvent>,
-  ) -> zbus::Result<()> {
-    let bus = Connection::system().await?;
-    let manager = Proxy::new(&bus, LOGIND, MANAGER_PATH, MANAGER).await?;
-    let path: OwnedObjectPath = manager.call("GetSession", &(session_id,)).await?;
-    let session = Proxy::new(&bus, LOGIND, path.clone(), SESSION).await?;
-    session.call::<_, _, ()>("TakeControl", &(false,)).await?;
-    let mut pauses = session.receive_signal("PauseDevice").await?;
-    let mut resumes = session.receive_signal("ResumeDevice").await?;
-    let (device, card) = take_card(&session, named).await?;
-    if let Some(card) = card {
-      let _ = tell.send(SeatEvent::Card(card));
+  ) -> Result<(), String> {
+    let bus = Connection::system().await.map_err(on("the system bus"))?;
+    let manager = Proxy::new(&bus, LOGIND, MANAGER_PATH, MANAGER).await.map_err(on("logind"))?;
+    let path: OwnedObjectPath =
+      manager.call("GetSession", &(session_id,)).await.map_err(on("the session"))?;
+    let session = Proxy::new(&bus, LOGIND, path.clone(), SESSION).await.map_err(on("the session"))?;
+    session
+      .call::<_, _, ()>("TakeControl", &(false,))
+      .await
+      .map_err(on("taking control of the session"))?;
+    let mut pauses = session.receive_signal("PauseDevice").await.map_err(on("logind's pauses"))?;
+    let mut resumes = session.receive_signal("ResumeDevice").await.map_err(on("logind's resumes"))?;
+    let ours: u32 = session.get_property("VTNr").await.map_err(on("the session's VT"))?;
+    let Taken {
+      device,
+      path: card_path,
+      card,
+    } = take_card(&session, named).await?;
+    backoff.reset();
+    match card {
+      Some(card) => {
+        say(&format!("took {} from logind", card_path.display()));
+        let _ = tell.send(SeatEvent::Card(card));
+      }
+      None => say(&format!(
+        "took {} from logind while the session is not in front: nothing is drawn until logind resumes it",
+        card_path.display()
+      )),
     }
 
-    let (_, seat_path): (String, OwnedObjectPath) = session.get_property("Seat").await?;
-    let seat = Proxy::new(&bus, LOGIND, seat_path, SEAT).await?;
+    let (_, seat_path): (String, OwnedObjectPath) =
+      session.get_property("Seat").await.map_err(on("the session's seat"))?;
+    let seat = Proxy::new(&bus, LOGIND, seat_path, SEAT).await.map_err(on("the seat"))?;
     let mut fronts = seat.receive_property_changed::<(String, OwnedObjectPath)>("ActiveSession").await;
-    let ours: u32 = session.get_property("VTNr").await?;
     // The sessions standing as the displayer takes the front: a greeter among them was chosen by someone.
     let mut known: HashSet<String> = sessions(&manager).await?;
     let mut reclaims = Backoff::new(GREETER_SETTLES);
@@ -158,6 +185,7 @@ impl Seat {
         .unwrap_or_else(|poisoned| poisoned.into_inner())
         .get_or_insert((ours, before));
       if before != ours {
+        say(&format!("bringing VT {ours} to the front from VT {before}"));
         bring_forward(ours);
       }
     }
@@ -165,28 +193,45 @@ impl Seat {
     loop {
       tokio::select! {
         Some(pause) = pauses.next() => {
-          let (major, minor, kind): (u32, u32, String) = pause.body().deserialize()?;
+          let (major, minor, kind): (u32, u32, String) = pause.body().deserialize().map_err(on("a pause"))?;
           if (major, minor) == device {
             let _ = tell.send(SeatEvent::Lost);
-            if kind == "pause" {
-              session.call::<_, _, ()>("PauseDeviceComplete", &(major, minor)).await?;
+            if kind == GONE {
+              return Err(format!("{} is gone", card_path.display()));
+            }
+            say(&format!(
+              "logind paused {} ({kind}): the session left the front; nothing is drawn until it comes back",
+              card_path.display()
+            ));
+            if kind == PAUSE {
+              session
+                .call::<_, _, ()>("PauseDeviceComplete", &(major, minor))
+                .await
+                .map_err(on("completing a pause"))?;
             }
           }
         }
         Some(resume) = resumes.next() => {
-          let (major, minor, fd): (u32, u32, BusFd) = resume.body().deserialize()?;
+          let (major, minor, fd): (u32, u32, BusFd) = resume.body().deserialize().map_err(on("a resume"))?;
           if (major, minor) == device {
-            let _ = tell.send(SeatEvent::Card(Card::new(OwnedFd::from(fd))));
+            say(&format!("logind resumed {}", card_path.display()));
+            let _ = tell.send(SeatEvent::Card(Card::new(OwnedFd::from(fd), card_path.clone())));
           }
         }
         Some(front) = fronts.next() => {
-          let (id, front_path) = front.get().await?;
+          let (id, front_path) = front.get().await.map_err(on("the seat's front"))?;
           if front_path == path {
             known = sessions(&manager).await?;
           } else if ours > 0 && !id.is_empty() && !known.contains(&id) && is_greeter(&bus, front_path.clone()).await {
             // A greeter that started since the displayer last stood in front took the VT by starting.
-            tokio::time::sleep(reclaims.next_wait()).await;
-            let still: (String, OwnedObjectPath) = seat.get_property("ActiveSession").await?;
+            let wait = reclaims.next_wait();
+            say(&format!(
+              "greeter session {id} started and took the front; bringing VT {ours} back in {}",
+              seconds(wait)
+            ));
+            tokio::time::sleep(wait).await;
+            let still: (String, OwnedObjectPath) =
+              seat.get_property("ActiveSession").await.map_err(on("the seat's front"))?;
             if still.1 == front_path {
               bring_forward(ours);
             }
@@ -196,6 +241,11 @@ impl Seat {
       }
     }
   }
+}
+
+/// A bus fault said with what was being done.
+fn on(what: &str) -> impl FnOnce(zbus::Error) -> String + '_ {
+  move |fault| format!("{what}: {fault}")
 }
 
 /// The logind session this process runs in, where it stands on a seat; none for a session with no
@@ -208,14 +258,14 @@ fn seat_session() -> Option<String> {
 /// Brings the displayer's VT to the front, saying so where it cannot.
 fn bring_forward(vt: u32) {
   if let Err(fault) = Terminal.activate(vt) {
-    eprintln!("bmo-face-displayer: {fault}");
+    say(&fault);
   }
 }
 
 /// The ids of every session logind holds now.
-async fn sessions(manager: &Proxy<'_>) -> zbus::Result<HashSet<String>> {
+async fn sessions(manager: &Proxy<'_>) -> Result<HashSet<String>, String> {
   let listed: Vec<(String, u32, String, String, OwnedObjectPath)> =
-    manager.call("ListSessions", &()).await?;
+    manager.call("ListSessions", &()).await.map_err(on("logind's sessions"))?;
   Ok(listed.into_iter().map(|(id, ..)| id).collect())
 }
 
@@ -225,50 +275,76 @@ async fn is_greeter(bus: &Connection, path: OwnedObjectPath) -> bool {
   class.await.is_ok_and(|class| class == GREETER)
 }
 
-/// The cards to look at: the one named, else every card in order.
+/// The cards to try: the one named, else those with a connected connector.
 fn candidates(named: Option<&Path>) -> Vec<PathBuf> {
-  if let Some(named) = named {
-    return vec![named.to_owned()];
+  match named {
+    Some(named) => vec![named.to_owned()],
+    None => cards_with_connected(Path::new(CARDS), Path::new(CLASSES)),
   }
-  let mut cards: Vec<PathBuf> = fs::read_dir(CARDS)
+}
+
+/// The cards among the devices in `devices`, in their numbers' order, that have a connector the
+/// kernel's DRM class in `classes` reads as connected. Read before any card is opened, so a card with
+/// nothing on it is never asked for, whoever holds it.
+pub fn cards_with_connected(devices: &Path, classes: &Path) -> Vec<PathBuf> {
+  let mut cards: Vec<(u32, String)> = names_in(devices)
+    .into_iter()
+    .filter_map(|name| Some((name.strip_prefix(CARD_PREFIX)?.parse().ok()?, name)))
+    .collect();
+  cards.sort();
+  let connectors = names_in(classes);
+  cards
+    .into_iter()
+    .filter(|(_, card)| {
+      connectors
+        .iter()
+        .filter(|connector| connector.strip_prefix(card.as_str()).is_some_and(|rest| rest.starts_with('-')))
+        .any(|connector| {
+          fs::read_to_string(classes.join(connector).join("status"))
+            .is_ok_and(|status| status.trim() == CONNECTED)
+        })
+    })
+    .map(|(_, card)| devices.join(card))
+    .collect()
+}
+
+/// The names of what stands in a folder; none where it cannot be read.
+fn names_in(folder: &Path) -> Vec<String> {
+  fs::read_dir(folder)
     .map(|entries| {
       entries
         .filter_map(Result::ok)
-        .filter(|entry| {
-          entry
-            .file_name()
-            .to_string_lossy()
-            .strip_prefix(CARD_PREFIX)
-            .is_some_and(|n| n.parse::<u32>().is_ok())
-        })
-        .map(|entry| entry.path())
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
         .collect()
     })
-    .unwrap_or_default();
-  cards.sort_by_key(|card| {
-    card
-      .file_name()
-      .and_then(|name| name.to_str())
-      .and_then(|name| name[CARD_PREFIX.len()..].parse::<u32>().ok())
-  });
-  cards
+    .unwrap_or_default()
 }
 
-/// The card logind hands over: the one named, else the first with a connected connector. The card
+/// The first card logind hands over, each refusal said and passed over for the next card. The card
 /// comes with it where the session is in front.
-async fn take_card(session: &Proxy<'_>, named: Option<&Path>) -> zbus::Result<((u32, u32), Option<Card>)> {
-  for path in candidates(named) {
-    let Ok(rdev) = fs::metadata(&path).map(|meta| meta.rdev()) else { continue };
-    let device = (libc::major(rdev), libc::minor(rdev));
-    let (fd, inactive): (BusFd, bool) = session.call("TakeDevice", &device).await?;
-    let card = Card::new(OwnedFd::from(fd));
-    if named.is_some() || has_connected(&card) {
-      return Ok((device, (!inactive).then_some(card)));
-    }
-    drop(card);
-    session.call::<_, _, ()>("ReleaseDevice", &device).await?;
+async fn take_card(session: &Proxy<'_>, named: Option<&Path>) -> Result<Taken, String> {
+  let candidates = candidates(named);
+  if candidates.is_empty() {
+    return Err(NO_CARD.to_owned());
   }
-  Err(zbus::Error::Failure("no card with a connected connector".to_owned()))
+  for path in candidates {
+    let rdev = match fs::metadata(&path) {
+      Ok(meta) => meta.rdev(),
+      Err(fault) => {
+        say(&format!("{}: {fault}", path.display()));
+        continue;
+      }
+    };
+    let device = (libc::major(rdev), libc::minor(rdev));
+    match session.call::<_, _, (BusFd, bool)>("TakeDevice", &device).await {
+      Ok((fd, inactive)) => {
+        let card = (!inactive).then(|| Card::new(OwnedFd::from(fd), path.clone()));
+        return Ok(Taken { device, path, card });
+      }
+      Err(fault) => say(&format!("logind does not hand over {}: {fault}", path.display())),
+    }
+  }
+  Err("logind handed over none of the cards with a connected connector".to_owned())
 }
 
 /// The card opened by hand, outside any session: once something stops holding its mastery.
@@ -278,12 +354,10 @@ async fn opened_by_hand(named: Option<&Path>, backoff: &mut Backoff, tell: &Unbo
     for path in candidates(named) {
       match OpenOptions::new().read(true).write(true).open(&path) {
         Ok(file) => {
-          let card = Card::new(OwnedFd::from(file));
-          if named.is_none() && !has_connected(&card) {
-            continue;
-          }
+          let card = Card::new(OwnedFd::from(file), path.clone());
           match drm::Device::acquire_master_lock(&card) {
             Ok(()) => {
+              say(&format!("took {} by hand, with display mastery", path.display()));
               let _ = tell.send(SeatEvent::Card(card));
               return;
             }
@@ -293,12 +367,9 @@ async fn opened_by_hand(named: Option<&Path>, backoff: &mut Backoff, tell: &Unbo
         Err(fault) => faults.push(format!("{}: {fault}", path.display())),
       }
     }
-    let why = if faults.is_empty() {
-      "no card with a connected connector".to_owned()
-    } else {
-      faults.join("; ")
-    };
-    eprintln!("bmo-face-displayer: the panel: {why}; trying again");
-    tokio::time::sleep(backoff.next_wait()).await;
+    let why = if faults.is_empty() { NO_CARD.to_owned() } else { faults.join("; ") };
+    let wait = backoff.next_wait();
+    say(&format!("the panel: {why}; nothing is drawn; trying again in {}", seconds(wait)));
+    tokio::time::sleep(wait).await;
   }
 }

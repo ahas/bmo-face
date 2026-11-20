@@ -4,6 +4,7 @@
 
 use std::io;
 use std::os::fd::{AsFd, AsRawFd, BorrowedFd, OwnedFd, RawFd};
+use std::path::{Path, PathBuf};
 
 use drm::buffer::{Buffer, DrmFourcc};
 use drm::control::dumbbuffer::DumbBuffer;
@@ -15,30 +16,37 @@ use tokio::io::unix::AsyncFd;
 
 use crate::config::ModeWish;
 
-/// A card opened for mode setting, by logind or by the displayer itself.
-pub struct Card(OwnedFd);
-
-impl Card {
-  pub fn new(fd: OwnedFd) -> Card {
-    Card(fd)
-  }
+/// A card opened for mode setting, by logind or by the displayer itself, with the device it is.
+pub struct Card {
+  fd: OwnedFd,
+  path: PathBuf,
 }
 
-impl From<Card> for OwnedFd {
-  fn from(card: Card) -> OwnedFd {
-    card.0
+impl Card {
+  pub fn new(fd: OwnedFd, path: PathBuf) -> Card {
+    Card { fd, path }
+  }
+
+  /// The card's device, such as `/dev/dri/card1`.
+  pub fn path(&self) -> &Path {
+    &self.path
+  }
+
+  /// A second hand on the same open card.
+  pub fn try_clone(&self) -> io::Result<Card> {
+    Ok(Card::new(self.fd.try_clone()?, self.path.clone()))
   }
 }
 
 impl AsFd for Card {
   fn as_fd(&self) -> BorrowedFd<'_> {
-    self.0.as_fd()
+    self.fd.as_fd()
   }
 }
 
 impl AsRawFd for Card {
   fn as_raw_fd(&self) -> RawFd {
-    self.0.as_raw_fd()
+    self.fd.as_raw_fd()
   }
 }
 
@@ -99,17 +107,6 @@ fn mode_offer(mode: &control::Mode) -> ModeOffer {
     refresh: mode.vrefresh(),
     preferred: mode.mode_type().contains(ModeTypeFlags::PREFERRED),
   }
-}
-
-/// Whether a card has a connector with something on it, for picking a card when none is named.
-pub fn has_connected(card: &Card) -> bool {
-  card.resource_handles().is_ok_and(|resources| {
-    resources.connectors().iter().any(|handle| {
-      card
-        .get_connector(*handle, false)
-        .is_ok_and(|info| info.state() == connector::State::Connected)
-    })
-  })
 }
 
 /// One of the two pictures that take turns.
@@ -186,7 +183,12 @@ impl Panel {
     card
       .set_crtc(crtc, Some(surfaces[0].framebuffer), (0, 0), &[info.handle()], Some(mode))
       .map_err(fault("setting the mode"))?;
-    let name = format!("{} at {width}x{height}@{}", offers[chosen].name, mode.vrefresh());
+    let name = format!(
+      "{} {} at {width}x{height}@{}",
+      card.path().display(),
+      offers[chosen].name,
+      mode.vrefresh()
+    );
     // SAFETY: the card owns its descriptor, which stays open and the same until the card is dropped.
     let card =
       unsafe { AsyncFd::register(card) }.map_err(|fault| format!("watching the card: {}", fault))?;
@@ -206,7 +208,7 @@ impl Panel {
     (self.width, self.height)
   }
 
-  /// The connector and mode shown on, for the output.
+  /// The card, the connector and the mode shown on, for what the displayer says.
   pub fn name(&self) -> &str {
     &self.name
   }

@@ -768,6 +768,15 @@ flowchart TD
   `docs/deploy.md`). It takes control of that session and asks logind for the panel's card; logind
   hands it the card with display mastery while its VT is in the foreground, and takes it back when
   it is not. The card is never opened past logind while a session is there.
+- **Which card it asks for.** The card its setting names; else each card the kernel reads a connected
+  connector on, by the connectors' status in its DRM class, in the cards' numbers' order. That is read
+  before any card is asked for, so a card with nothing connected is never asked for, and another
+  session holding display mastery of such a card, as a remote desktop's compositor may on a card with
+  no panel, is no hindrance. A card logind refuses is said and passed over for the next. Where it hands
+  over none, the displayer says why and tries again with growing waits, from the first wait again once
+  a card is handed over.
+- **A card gone.** Where logind reports the card gone, as when its device is made again, the displayer
+  lets the session go and takes the panel again from the start, choosing the card the same way.
 - **It brings its own VT to the foreground as it starts,** remembering which VT stood there.
 - **Coexisting with the display manager.** A greeter that holds the seat is only moved to the
   background: logind pauses its card, as for any switch of VT, and resumes it when its VT comes back.
@@ -817,7 +826,7 @@ flowchart TD
   again, and nothing runs at the panel's refresh.
 - **The mode** is the one its setting names, else the panel's preferred mode, else the first it
   offers. **The connector** is the one its setting names, else the card's first connected one. **The
-  card** is the one its setting names, else the first card with a connected connector.
+  card** is chosen as 「How it takes the panel」 states.
 - **Before the document has come** it draws the core's default document, so a panel whose server is
   not answering still shows BMO.
 
@@ -925,12 +934,27 @@ Read from its environment, every one optional:
 | `BMO_FACE_DISPLAYER_VOICE_TOKEN_FILE` | the path of the file the engine's token stands in | none: the stream waits, saying so |
 | `BMO_FACE_DISPLAYER_ROOMS` | the rooms whose summaries are spoken, their numbers separated by commas; a speech is spoken from every room | every room's |
 | `BMO_FACE_DISPLAYER_DATA` | its data root, where the gaze socket stands without a runtime folder | `~/.local/share/bmo/data/face-displayer` |
-| `BMO_FACE_DISPLAYER_CARD` | the card, a path such as `/dev/dri/card1` | the first card with a connected connector |
+| `BMO_FACE_DISPLAYER_CARD` | the card, a path such as `/dev/dri/card1` | the first card with a connected connector that is handed over |
 | `BMO_FACE_DISPLAYER_CONNECTOR` | the connector, by its kernel name such as `HDMI-A-1` | the card's first connected connector |
 | `BMO_FACE_DISPLAYER_MODE` | the mode, `<width>x<height>` or `<width>x<height>@<hz>` | the connector's preferred mode |
 | `BMO_FACE_DISPLAYER_SOUND` | the ALSA PCM name, or `off` | `default` |
 | `BMO_FACE_DISPLAYER_GAZE` | the gaze socket's path | `bmo-face-gaze.sock` in `XDG_RUNTIME_DIR`, else in the data root |
 | `BMO_FACE_DISPLAYER_RETRY_MS` | the first of the growing waits, for a test that cannot spend seconds | `1000` |
+
+### What it says
+
+- **Into the journal, under the identifier `bmo-face-displayer`,** through the journal's own protocol
+  wherever its standard error is the journal's stream, as under its system unit; elsewhere on standard
+  error, each line led by that name. Its logind session moves the process into the session's own
+  scope, and the journal files its lines under that scope, so they are read with
+  `journalctl -t bmo-face-displayer`; the unit's name finds only the service manager's lines of its
+  starts and stops.
+- **The panel's state, whole:** the card it took, from logind or by hand; the card, the connector and
+  the mode it shows on; each pause logind asks, with its kind, and each resume; a card refused or gone;
+  its VT brought to the front, and brought back from a greeter. Whenever it draws nothing it says why
+  and, where it tries again, when: no card handed over, the panel not set up on the card, a flip
+  failed, its session out of the front.
+- **Besides:** the document's and the streams' faults, the sound's, and the gaze socket's.
 
 ### Frames and shots
 
@@ -950,14 +974,16 @@ Read from its environment, every one optional:
 - **No presence and no full reading** (「What it hears」).
 - **No less-motion setting.** Every change of face is drawn with its in-betweens.
 - **No hotplug watch.** A panel connected after the displayer started is found the next time taking
-  the panel is tried again, which a failed flip or a resumed seat brings about.
+  the panel is tried again: while no card has a connected connector, after a card gone, a failed flip
+  or a resumed seat.
 - **No Opus output gain.** The Ogg stream's output gain is not applied, as the voice's encoder writes
   none.
 - **Plain HTTP only** to this server and to the voice engine, both on the loopback.
 
 ### Tested
 
-By the crate's own tests: the rasterising of a drawing to pixels against its geometry — where the
+By the crate's own tests: the cards tried for the panel, those the kernel reads a connected connector
+on, in their numbers' order; the rasterising of a drawing to pixels against its geometry — where the
 screen and the body stand, a stroke's round ends, a clip's cut, the order paint is laid down in —
 the core's hearing of a decoded sound, the playback clock's mapping onto frames, the engine's events read into what they
 tell — which briefings play, the face of each, the stops — the cursor, the freshness and the growing

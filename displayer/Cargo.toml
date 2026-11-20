@@ -34,6 +34,8 @@ libc = "0.2.177"
 # The system's libasound and libopus, loaded as the program runs, so a build needs neither library's
 # development files and the reference decoder and the system's sound stack are the ones used.
 libloading = "0.9.1"
+# A line said, as the journal logger takes it.
+log = "0.4.34"
 # The document keeps its keys in the order they were written, as the core reads it.
 serde_json = { version = "1.0.138", features = ["float_roundtrip", "preserve_order"] }
 # The server-sent event streams read as events off a response body.
@@ -42,6 +44,9 @@ sse-stream = "0.3.0"
 # trimming read: Symphonia's demuxer alone, with none of its decoders.
 symphonia-core = "0.6.1"
 symphonia-format-ogg = "0.6.1"
+# The journal's native protocol, so the displayer's lines stand under its own identifier though its
+# logind session files them under the session's scope.
+systemd-journal-logger = "2.2.2"
 # The CPU rasteriser: anti-aliased cubic fills, round-capped strokes and clip masks, and the PNG
 # writer the frames and shots use.
 tiny-skia = "0.12.0"

@@ -3,7 +3,6 @@
 //! with growing waits, and the one loop that tells the face what they say, draws when the drawing may
 //! change and sleeps in between.
 
-use std::os::fd::{AsFd, OwnedFd};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -20,6 +19,7 @@ use crate::engine::{Unasked, VoiceEngine};
 use crate::face::Face;
 use crate::gaze;
 use crate::http::Fault;
+use crate::journal::{say, seconds};
 use crate::listener::{Backoff, Cursor, ENGINE_SILENCE, Heard, SILENCE, heard};
 use crate::panel::{Card, Panel};
 use crate::playback;
@@ -60,10 +60,6 @@ enum Event {
   Gaze(Point),
   Seat(SeatEvent),
   Stop,
-}
-
-fn say(line: &str) {
-  eprintln!("bmo-face-displayer: {line}");
 }
 
 /// Milliseconds on this machine's wall clock, as the engine's moments are written.
@@ -188,7 +184,7 @@ async fn ready(
 
 /// The panel as it stands: the card while the seat lends it, and the panel set up on it.
 struct Shown {
-  card: Option<OwnedFd>,
+  card: Option<Card>,
   panel: Option<Panel>,
   retry: Option<Instant>,
   backoff: Backoff,
@@ -198,11 +194,11 @@ impl Shown {
   /// Sets the panel up on the card held, or says why not and when to try again.
   fn set_up(&mut self, config: &Config) {
     let Some(card) = &self.card else { return };
-    let copy = match card.as_fd().try_clone_to_owned() {
+    let copy = match card.try_clone() {
       Ok(copy) => copy,
-      Err(fault) => return say(&format!("the card: {fault}")),
+      Err(fault) => return say(&format!("{}: {fault}", card.path().display())),
     };
-    match Panel::new(Card::new(copy), config.connector.as_deref(), config.mode) {
+    match Panel::new(copy, config.connector.as_deref(), config.mode) {
       Ok(panel) => {
         say(&format!("showing on {}", panel.name()));
         self.panel = Some(panel);
@@ -210,8 +206,13 @@ impl Shown {
         self.backoff.reset();
       }
       Err(fault) => {
-        say(&format!("the panel: {fault}; trying again"));
-        self.retry = Some(Instant::now() + self.backoff.next_wait());
+        let wait = self.backoff.next_wait();
+        say(&format!(
+          "the panel on {}: {fault}; nothing is drawn; trying again in {}",
+          card.path().display(),
+          seconds(wait)
+        ));
+        self.retry = Some(Instant::now() + wait);
       }
     }
   }
@@ -371,7 +372,7 @@ pub async fn display(
       Some(Event::Gaze(point)) => face.gaze(point, now),
       Some(Event::Seat(SeatEvent::Card(card))) => {
         shown.panel = None;
-        shown.card = Some(OwnedFd::from(card));
+        shown.card = Some(card);
         shown.set_up(&config);
         drawn = None;
       }
@@ -418,9 +419,13 @@ pub async fn display(
         match panel.show(canvas.pixmap()).await {
           Ok(()) => drawn = Some(drawing),
           Err(fault) => {
-            say(&format!("the panel: {fault}; setting it up again"));
+            let wait = shown.backoff.next_wait();
+            say(&format!(
+              "the panel: {fault}; nothing is drawn; setting it up again in {}",
+              seconds(wait)
+            ));
             shown.panel = None;
-            shown.retry = Some(Instant::now() + shown.backoff.next_wait());
+            shown.retry = Some(Instant::now() + wait);
           }
         }
       }

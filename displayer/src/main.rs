@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use bmo_face_displayer::config::Config;
+use bmo_face_displayer::journal;
 use bmo_face_displayer::run::{Output, run};
 use bmo_face_displayer::shots;
 use clap::{Parser, Subcommand};
@@ -43,6 +44,7 @@ fn main() -> ExitCode {
       eprintln!("{written} pictures written into {}", folder.display());
       return Ok(());
     }
+    journal::open();
     let config = Config::from_env()?;
     let runtime = tokio::runtime::Builder::new_current_thread()
       .enable_all()
@@ -64,7 +66,7 @@ fn main() -> ExitCode {
   match outcome {
     Ok(()) => ExitCode::SUCCESS,
     Err(fault) => {
-      eprintln!("bmo-face-displayer: {fault}");
+      journal::say(&fault);
       ExitCode::FAILURE
     }
   }

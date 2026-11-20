@@ -7,4 +7,5 @@ mod listener;
 mod panel;
 mod render;
 mod run;
+mod seat;
 mod sound;
