@@ -24,7 +24,7 @@ BMO의 얼굴, `bmo-face`입니다. 케이스 화면에 띄우는 전체 화면 
 
 루트에는 `core/`, `displayer/`, `server/`를 멤버로 둔 Cargo 워크스페이스 매니페스트와 그 lockfile, `src/`,
 `scripts/`, `tests/`를 담는 루트 Bun 프로젝트의 매니페스트와 lockfile, `tsconfig.json`, `VERSION`,
-`testbed.toml`, 두 스키마를 곁에 둔 `tool.toml`, 콘솔 얼굴의 선언으로서 매니페스트 중 얼굴이 정하는 필드를 담은
+`testbed.toml`, `install.toml`(새 머신에 유닛을 설치하는 데 필요한 것), 두 스키마를 곁에 둔 `tool.toml`, 콘솔 얼굴의 선언으로서 매니페스트 중 얼굴이 정하는 필드를 담은
 `console-manifest.json`, `rustfmt.toml`, `korean-ledger.json`, `LICENSE`, `CLAUDE.md`가 있습니다.
 `docs/PERSONAL-DATA.md`는 검사 `tests/personal-data.test.ts`를 지정하며, 테스트 스위트가 이를 다른 테스트와 함께
 실행합니다.

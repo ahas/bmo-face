@@ -24,7 +24,7 @@ BMO の顔、`bmo-face` です。ケースの画面に映すフルスクリー�
 
 ルートには、`core/`、`displayer/`、`server/` をメンバーとする Cargo ワークスペースのマニフェストとその lockfile、
 `src/`、`scripts/`、`tests/` を収めるルート Bun プロジェクトのマニフェストと lockfile、`tsconfig.json`、`VERSION`、
-`testbed.toml`、二つのスキーマを添えた `tool.toml`、コンソールフェイスの宣言としてマニフェストのうち顔が決める
+`testbed.toml`、`install.toml`（新しいマシンにユニットをインストールするのに必要なもの）、二つのスキーマを添えた `tool.toml`、コンソールフェイスの宣言としてマニフェストのうち顔が決める
 フィールドを持つ `console-manifest.json`、`rustfmt.toml`、`korean-ledger.json`、`LICENSE`、`CLAUDE.md` があります。
 `docs/PERSONAL-DATA.md` はチェック `tests/personal-data.test.ts` を指定しており、テストスイートが他のテストと
 一緒に実行します。

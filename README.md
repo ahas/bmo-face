@@ -24,7 +24,7 @@ listener stream, which carries every briefing with its emotion and BMO's presenc
 
 At the root stand the Cargo workspace manifest and its lockfile, whose members are `core/`, `displayer/` and `server/`; the
 root Bun project's manifest, lockfile and `tsconfig.json`, which hold `src/`, `scripts/` and `tests/`;
-`VERSION`; `testbed.toml`; `tool.toml` with its two schemas; `console-manifest.json`, the console
+`VERSION`; `testbed.toml`; `install.toml` (what installing the unit on a fresh machine needs); `tool.toml` with its two schemas; `console-manifest.json`, the console
 face's declaration, the manifest's fields the face decides; `rustfmt.toml`; `korean-ledger.json`;
 `LICENSE`; and `CLAUDE.md`. `docs/PERSONAL-DATA.md` names the check `tests/personal-data.test.ts`,
 which the suite runs with the rest.

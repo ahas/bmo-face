@@ -21,7 +21,7 @@ BMO 的脸，`bmo-face`：机壳屏幕上的全屏显示、绘制和修正表情
 | `tests/` | 表情文档定义、核心 WebAssembly 构建和开发副本的测试 |
 
 根目录下有：以 `core/`、`displayer/` 和 `server/` 为成员的 Cargo workspace 清单及其 lockfile；包含 `src/`、
-`scripts/` 和 `tests/` 的根 Bun 项目的清单、lockfile 和 `tsconfig.json`；`VERSION`；`testbed.toml`；附带两个
+`scripts/` 和 `tests/` 的根 Bun 项目的清单、lockfile 和 `tsconfig.json`；`VERSION`；`testbed.toml`；`install.toml`（在新机器上安装本单元所需的内容）；附带两个
 schema 的 `tool.toml`；`console-manifest.json`，即控制台界面的声明，包含清单中由本服务决定的字段；`rustfmt.toml`；
 `korean-ledger.json`；`LICENSE`；以及 `CLAUDE.md`。`docs/PERSONAL-DATA.md` 指定了检查
 `tests/personal-data.test.ts`，测试套件会与其他测试一起运行它。

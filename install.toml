@@ -1,0 +1,57 @@
+# What installing the face on a fresh machine needs, read by the testbed's install verb (bmo-testbed's
+# docs/install.md, 「The install declaration」). Its environment is docs/face.md's 「The server」 and docs/deploy.md's
+# 「What a deployment does」.
+
+install = 1
+
+restart = "systemctl --user restart bmo-face.service"
+
+[[needs]]
+program = "cargo"
+what = "Builds the server and the native displayer; the Rust toolchain from https://rustup.rs."
+
+[[needs]]
+program = "bun"
+what = "Installs the packages and generates the screen and the console bundle at every release; the Bun runtime from https://bun.sh."
+
+[[needs]]
+program = "curl"
+what = "Asks the server for its document and its screen at every deployment; the curl package."
+
+[[needs]]
+program = "jq"
+what = "Writes the console probe's reach at every deployment; the jq package."
+
+# The display on another screen reaches the face through this machine's web server alone.
+[[needs]]
+check = "grep -rqsF 'location /bmo-face/' /etc/nginx/"
+what = "A reverse proxy location for the face: a person adds the two /bmo-face locations of the repository's deploy/nginx.conf to the server block of this machine's nginx (the nginx package) and reloads it; the install never edits a reverse proxy."
+
+[[port]]
+name = "face.server"
+number = 3217
+
+# The credential the console calls the console routes with; the face holds no token of its own.
+[[token]]
+name = "face.console"
+file = "env/face-console.token"
+
+# The unit's environment file, env/face.env: the console's credential and the console the listener routes pass
+# through to, on its loopback port under its base path. The archive the editor's login reads is the address the
+# data root's env/archive-url holds, read where this file names none.
+[[settings]]
+file = "env/face.env"
+text = """
+BMO_FACE_TOKEN={{token.face.console}}
+BMO_CONSOLE_URL=http://127.0.0.1:{{port.web.console}}/bmo
+"""
+
+[[line]]
+file = "env/web-console.env"
+key = "FACE_ADDRESS"
+value = "http://127.0.0.1:{{port.face.server}}/bmo-face"
+
+[[line]]
+file = "env/web-console.env"
+key = "FACE_TOKEN"
+value = "{{token.face.console}}"
