@@ -38,11 +38,15 @@ declaration, `testbed.toml`; nothing here deploys itself.
   for `BMO_FACE_TOKEN`, the credential a console calls the console routes with, which that console's
   own settings hold beside the face's address. All are this machine's settings, never the
   repository's.
-- **The proxy:** `deploy/nginx.conf` holds the two `/bmo-face` locations of the host's server block:
-  the bare path redirected to the one with the slash, and everything under it passed to port 3217
-  through the shared proxy snippet, which does not buffer, so a stream passes as it comes. No basic
-  auth stands in front: the display signs in with a BMO account and the editor with its own
-  session. A deployment never touches the proxy; the path and the port are fixed.
+- **The proxy:** the two `/bmo-face` locations of the host's server block are a settings file the
+  install writes, `proxy/bmo-face.conf` under the data root (`install.toml`): the bare path
+  redirected to the one with the slash, and everything under it passed to the face's port as the
+  install chose it, with the request's host and scheme handed on and nothing buffered, so a stream
+  passes as it comes. The web server includes it once, `include <data root>/proxy/*.conf;` inside the
+  server block that serves the console, written by a person with root; the install's verification
+  says where it is missing. No basic auth stands in front: the display signs in with a BMO account
+  and the editor with its own session. A deployment never touches the proxy, and the repository
+  holds no host's proxy configuration.
 
 ## The native displayer
 

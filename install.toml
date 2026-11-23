@@ -22,11 +22,6 @@ what = "Asks the server for its document and its screen at every deployment; the
 program = "jq"
 what = "Writes the console probe's reach at every deployment; the jq package."
 
-# The display on another screen reaches the face through this machine's web server alone.
-[[needs]]
-check = "grep -rqsF 'location /bmo-face/' /etc/nginx/"
-what = "A reverse proxy location for the face: a person adds the two /bmo-face locations of the repository's deploy/nginx.conf to the server block of this machine's nginx (the nginx package) and reloads it; the install never edits a reverse proxy."
-
 [[port]]
 name = "face.server"
 number = 3217
@@ -46,6 +41,24 @@ BMO_FACE_TOKEN={{token.face.console}}
 BMO_CONSOLE_URL=http://127.0.0.1:{{port.web.console}}/bmo
 """
 
+# The face's two proxy locations, written with the port the install chose (docs/deploy.md, 「The proxy」). The display
+# on another screen reaches the face through this machine's web server alone, which includes the file once.
+[[settings]]
+file = "proxy/bmo-face.conf"
+mode = "644"
+text = '''
+location = /bmo-face { return 308 /bmo-face/; }
+location /bmo-face/ {
+  proxy_pass http://127.0.0.1:{{port.face.server}};
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_buffering off;
+  proxy_read_timeout 3600s;
+}
+'''
+
 [[line]]
 file = "env/web-console.env"
 key = "FACE_ADDRESS"
@@ -55,3 +68,12 @@ value = "http://127.0.0.1:{{port.face.server}}/bmo-face"
 file = "env/web-console.env"
 key = "FACE_TOKEN"
 value = "{{token.face.console}}"
+
+# This machine's nginx serves the proxy locations the install wrote.
+[[verify]]
+id = "proxy"
+what = "This machine's nginx does not include the proxy locations the install wrote: a person with root adds `include <data root>/proxy/*.conf;` inside the server block that serves the console and reloads nginx; the install never edits a reverse proxy."
+run = '''
+set -eu
+grep -rqsF "${BMO_DATA_DIR:-$HOME/.local/share/bmo/data}/proxy/" /etc/nginx/
+'''
