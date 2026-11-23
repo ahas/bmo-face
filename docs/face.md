@@ -1195,9 +1195,13 @@ is named, and the gaze socket's lines.
   - **The stylesheet** is the utility classes the screen's pages and components write, built against
     the theme's names without the theme, the base or the library's own classes, and the components'
     own styles. The theme, the focus ring and the fonts are the console's.
-  - **The words** are the `face` tree of the pack, under `ko`. Every word the screens show stands
-    under `face` in `client/i18n/locales/ko.yaml`, beside the `common.*` words a console answers
-    itself, so the standalone screens and the bundle read one pack by the same keys.
+  - **The words** are the `face` tree of each language pack, under its locale: Korean, English,
+    Japanese and Simplified Chinese (`ko`, `en`, `ja`, `zh-CN`), one pack to a locale under
+    `client/i18n/locales/`, every pack holding the same keys in the same order with the same
+    placeholders and markup. Every word the screens show stands under `face` there, beside the
+    `common.*` words a console answers itself, so the standalone screens and the bundle read the
+    packs by the same keys, and the bundle speaks the console's own locale. The standalone screens
+    speak Korean.
 - **Tested:** the crate's test reads the manifest the server answers through the console face's
   reading, run on the release this repository vendors, and its contract tests ask the screens' calls
   without the credential, without a role and with one, and a server with no credential and one with

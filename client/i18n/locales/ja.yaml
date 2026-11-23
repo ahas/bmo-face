@@ -1,0 +1,253 @@
+face:
+  title: BMOの顔
+  start: タップして開始
+  stop: 聞くのをやめる
+  unloaded: 表情を読み込めませんでした
+  name:
+    neutral: 基本の表情
+    happy: 嬉しい表情
+    sad: 悲しい表情
+    surprised: 驚いた表情
+    angry: 怒った表情
+    sleepy: 眠い表情
+    laughing: 大笑いの表情
+    worried: 心配そうな表情
+    hurt: 痛がる表情
+    straining: 歯を食いしばった表情
+    writing: 返事を書いています
+    thinking: 考え中
+    idle: 休憩中
+  signin:
+    title: BMOの顔にログイン
+    name: ID
+    password: パスワード
+    device: 端末名
+    device_default: BMOの顔の画面
+    submit: ログイン
+    wrong: IDまたはパスワードが正しくありません。
+    unreachable: BMOにつながりません。しばらくしてからもう一度お試しください。
+    refused: ログインできませんでした。しばらくしてからもう一度お試しください。
+  edit:
+    title: 表情エディター
+    tab:
+      faces: 感情の表情
+      talk: 話す口
+    element:
+      eyes: 目
+      brows: 眉
+      blush: 頬
+      mouth: 口
+      marks: 涙・汗
+    side:
+      left: 左
+      right: 右
+    anchor_n: "{n}番"
+    target:
+      face: 表情
+      element: 部位
+      side: 側
+      anchor: 口の形
+    action:
+      save: 保存
+      logout: ログアウト
+      add_part: 形を追加
+      add_oval: 楕円
+      add_line: 線
+      remove_part: 形を削除
+      add_anchor: 口の形
+      add_part_mouth: 形・口を追加
+      remove_anchor: 口の形を削除
+      measure: 描いたとおりに置く
+      add_node: ノードを追加
+      remove_node: ノードを削除
+      add_teeth: 上の歯
+      add_lowerTeeth: 下の歯
+      add_tongue: 舌
+      add_tongueLight: 舌の明るい面
+      add_shine: 目の輝き
+      outline: 外形
+      fields: 形
+      more: その他
+      reload: 読み込む
+    status:
+      changed: 変更あり
+      saved: 保存しました。
+    conflict: 別のウィンドウが先に保存しました。ここでの変更を破棄して、保存された表情を読み込みますか？
+    fields:
+      title: 形
+      none: 形をタップして選択してください。
+      empty: この部位には形がありません。
+      closed: 閉じた線
+      fill: 塗り
+      line: 線
+      width: 線の太さ
+      node: ノード
+      node_n: "ノード {n}"
+      node_none: ノードをタップして選択してください。
+      anchor: 位置
+      coming: 入るハンドル
+      leaving: 出るハンドル
+      x: 横
+      y: 縦
+      smooth: なめらかに
+      inside: 内側の形
+      inside_part: "{paint} {n}"
+      mirror: 左右対称
+      reach: 視線の範囲
+      voice: 声への反応
+      grow: 拡大
+      squint: しかめ
+      shine: 輝き
+      corners: 口角
+      place: 位置
+      open: 開き
+      wide: 幅
+      teeth: 歯の噛み合わせ
+    paint:
+      none: なし
+      ink: 黒
+      light: 白
+      mouth: 口の中
+      tongue: 舌
+      tongueLight: 舌の明るい面
+      cheek: 頬
+      tear: 涙
+    preview:
+      title: プレビュー
+      sample: サンプル音声
+      file: 音声ファイル
+      stop: 停止
+      file_failed: 音声ファイルを読み込めませんでした。
+      blink: まばたき
+      gaze_x: 視線の横
+      gaze_y: 視線の縦
+      strip: 聞こえた音
+      level: 音の大きさ
+      open: 開き
+      round: すぼめ
+      teeth: 歯
+    tuning:
+      title: 音への反応
+      group:
+        sound: 音
+        mouth: 口
+        time: 時間
+        eyes: 目
+      from: 開始
+      to: 終了
+      key:
+        floor: いちばん小さな音
+        range: 音の範囲
+        open: 開き
+        jaw: あご
+        round: すぼめ
+        teeth: 歯
+        tongue: 舌
+        corners: 口角の高さ
+        cues: 字幕の反映
+        attack: 開く時間
+        release: 閉じる時間
+        glide: 追従時間
+        rest: 休む時間
+        eyePulse: 音の大きさ
+        eyeOnset: 音の立ち上がり
+        eyeSquint: 長く続く大きな音
+        eyeShine: 歯擦音
+        lowHz: 第1フォルマント
+        midHz: 第2フォルマント
+        highHz: 歯擦音の帯域
+        jawHz: あごの帯域
+        roundHz: すぼめの帯域
+        onTwos: 2コマ打ち
+      hint:
+        floor: 口が開き始めるいちばん小さな音（dBFS）です。
+        range: 大きい側からこの分（dB）小さい音から口が開きます。
+        open: 大きな音で口が開く度合いです。
+        jaw: 開きのうち第1フォルマントが決める割合で、大きいほど「ア」が「イ」より大きく開きます。
+        round: 丸い母音（「オ」「ウ」）で口をすぼめる強さです。
+        teeth: 歯擦音（「ス」「ッス」）で歯を噛み合わせる強さです。
+        tongue: 大きく開いた有声音で舌が見える強さです。
+        corners: 表情の口角がいちばん上がったとき、幅30の口の端が動く距離です。
+        cues: 時刻付きの文が口の形を変える度合いです。
+        attack: 口が開くまでにかかる時間（ms）です。
+        release: 口が閉じるまでにかかる時間（ms）です。
+        glide: すぼめ、歯、舌が音に追従する時間（ms）です。
+        rest: 話が止まったとき、表情の口に戻るまでの時間（ms）です。
+        eyePulse: 音の大きさに応じて目が大きくなる強さです。
+        eyeOnset: 音が急に始まったとき目が大きくなる強さです。
+        eyeSquint: 大きな音が長く続くとき目をしかめる強さです。
+        eyeShine: 歯擦音で目の輝きが大きくなる強さです。
+        lowHz: 第1フォルマントを探す帯域（Hz）です。
+        midHz: 第2フォルマントを探す帯域（Hz）です。
+        highHz: 歯擦音を探す帯域（Hz）です。
+        jawHz: 第1フォルマントがこの範囲（Hz）の始まりならあごが閉じ、終わりなら完全に開きます。
+        roundHz: 丸い母音の2つのフォルマントより上の帯域（Hz）で、この帯域の音がその下より小さいほど口をすぼめます。
+        onTwos: 口と目を毎コマではなく2コマに1回描き、アニメーションのように見せます。
+    rest:
+      title: 休憩中の表情
+      key:
+        blank: 無表情まで
+        asleep: 眠い表情まで
+      hint:
+        blank: 話や作業を終えたあと、この時間は最後の表情を保ち、その後無表情になります。
+        asleep: 休んでからこの時間が過ぎると眠い表情になります。
+    place:
+      color: "色 {name}"
+      part: "形 {n}"
+      inside: "内側 {n}"
+      node: "ノード {n}"
+      anchor: "口の形 {n}"
+      idle:
+        blank: 無表情までの時間
+        asleep: 眠い表情までの時間
+    refusal:
+      not-a-document: 表情ドキュメントの形式が正しくありません。
+      color: "#rrggbb の形式で入力してください。"
+      unknown-face: "不明な表情名です: {name}"
+      no-fallback: 基本の表情は削除できません。
+      not-a-face: 表情が正しくありません。
+      not-a-pair: 左と右が一致しません。
+      reach: "視線の範囲は {least} から {most} の間にしてください。"
+      eye-voice: "声への反応は {least} から {most} の間にしてください。"
+      corners: "口角は {least} から {most} の間にしてください。"
+      parts: "形は {most} 個までです。"
+      not-a-part: 形ではありません。
+      closedness: 閉じた線かどうかが正しくありません。
+      node-count: "ノードは {least} 個から {most} 個の間にしてください。"
+      node-value: ノードの値が正しくありません。
+      off-screen: ノードかハンドルが画面の外に出ています。
+      fill-paint: 塗りの色が正しくありません。
+      line-value: 線の値が正しくありません。
+      line-width: "線の太さは {least} から {most} の間にしてください。"
+      neither-fill-nor-line: 塗りか線のどちらかが必要です。
+      open-filled: 開いた線は塗れません。
+      nested-inside: 内側に入れた形の中には、さらに形を入れられません。
+      inside-open: 開いた線の中には形を入れられません。
+      inside-count: "内側に入れる形は {most} 個までです。"
+      anchors: "口の形は {least} 個から {most} 個の間にしてください。"
+      anchor-value: 口の形の値が正しくありません。
+      anchor-place: 同じ位置に別の口の形があります。
+      tuning: "{least} から {most} の間にしてください。"
+      idle: "{least} 秒から {most} 秒の間にしてください。"
+    login:
+      title: 表情エディターにログイン
+      wrong: IDまたはパスワードが正しくありません。
+      failed: ログインできませんでした。しばらくしてからもう一度お試しください。
+    error:
+      save_failed: 保存できませんでした。
+      load_failed: 表情を読み込めませんでした。
+common:
+  action:
+    cancel: キャンセル
+    close: 閉じる
+  aria:
+    decrease: 減らす
+    increase: 増やす
+    more_notices: "ほかに {n} 件の通知"
+  error:
+    choices_find_failed: 検索できませんでした
+  placeholder:
+    search: 検索
+  status:
+    no_match: 一致する項目なし
+    no_choices: 項目なし

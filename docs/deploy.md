@@ -12,8 +12,8 @@ declaration, `testbed.toml`; nothing here deploys itself.
   builds the console bundle with `bun run console`, into `client/.output/console`. The server serves
   both from there, reading the bundle once as it starts: its own defaults are those two folders
   beside the release's `bin/` (`docs/face.md`, 「The server」 and 「The console screen」). The screen
-  is generated in Korean, from the pack this repository holds, `client/i18n/locales/ko.yaml`, and the
-  bundle's words are read from the same pack. Both take the face's core from the WebAssembly build the
+  is generated in Korean, from the Korean pack this repository holds under `client/i18n/locales/`, and the
+  bundle's words are read from every pack there, one to a locale. Both take the face's core from the WebAssembly build the
   repository carries under `src/wasm/` (`docs/face.md`, 「The face's core」), so a release builds no
   WebAssembly and needs no toolchain for it; the server's binary is built with the core as a crate.
 - **The unit:** `deploy/bmo-face.service`, kept by the testbed as a user unit. It runs

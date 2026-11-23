@@ -1,0 +1,253 @@
+face:
+  title: BMO Face
+  start: Tap to start
+  stop: Stop listening
+  unloaded: Couldn't load the expressions
+  name:
+    neutral: Neutral face
+    happy: Happy face
+    sad: Sad face
+    surprised: Surprised face
+    angry: Angry face
+    sleepy: Sleepy face
+    laughing: Laughing face
+    worried: Worried face
+    hurt: Hurt face
+    straining: Gritted teeth
+    writing: Writing an answer
+    thinking: Thinking
+    idle: Resting
+  signin:
+    title: Sign in to BMO Face
+    name: Username
+    password: Password
+    device: Device name
+    device_default: BMO face screen
+    submit: Sign in
+    wrong: The username or password is not right.
+    unreachable: Can't reach BMO. Please try again in a moment.
+    refused: Couldn't sign in. Please try again in a moment.
+  edit:
+    title: Expression editor
+    tab:
+      faces: Emotions
+      talk: Talking mouth
+    element:
+      eyes: Eyes
+      brows: Brows
+      blush: Cheeks
+      mouth: Mouth
+      marks: Tears and sweat
+    side:
+      left: Left
+      right: Right
+    anchor_n: "No. {n}"
+    target:
+      face: Expression
+      element: Feature
+      side: Side
+      anchor: Mouth shape
+    action:
+      save: Save
+      logout: Sign out
+      add_part: Add shape
+      add_oval: Oval
+      add_line: Line
+      remove_part: Delete shape
+      add_anchor: Mouth shape
+      add_part_mouth: Add shape or mouth
+      remove_anchor: Delete mouth shape
+      measure: Place as drawn
+      add_node: Add node
+      remove_node: Delete node
+      add_teeth: Upper teeth
+      add_lowerTeeth: Lower teeth
+      add_tongue: Tongue
+      add_tongueLight: Tongue highlight
+      add_shine: Eye shine
+      outline: Outline
+      fields: Shape
+      more: More
+      reload: Reload
+    status:
+      changed: Changed
+      saved: Saved.
+    conflict: Another window saved first. Discard the changes made here and load the saved expressions?
+    fields:
+      title: Shape
+      none: Tap a shape to select it.
+      empty: This feature has no shapes.
+      closed: Closed line
+      fill: Fill
+      line: Line
+      width: Line width
+      node: Node
+      node_n: "Node {n}"
+      node_none: Tap a node to select it.
+      anchor: Position
+      coming: Incoming handle
+      leaving: Outgoing handle
+      x: Horizontal
+      y: Vertical
+      smooth: Smooth
+      inside: Inner shape
+      inside_part: "{paint} {n}"
+      mirror: Mirror left and right
+      reach: Gaze range
+      voice: Voice response
+      grow: Grow
+      squint: Squint
+      shine: Shine
+      corners: Mouth corners
+      place: Position
+      open: Open
+      wide: Width
+      teeth: Teeth together
+    paint:
+      none: None
+      ink: Black
+      light: White
+      mouth: Inside of mouth
+      tongue: Tongue
+      tongueLight: Tongue highlight
+      cheek: Cheek
+      tear: Tear
+    preview:
+      title: Preview
+      sample: Sample sound
+      file: Sound file
+      stop: Stop
+      file_failed: Couldn't read the sound file.
+      blink: Blink
+      gaze_x: Gaze horizontal
+      gaze_y: Gaze vertical
+      strip: Sound heard
+      level: Loudness
+      open: Open
+      round: Round
+      teeth: Teeth
+    tuning:
+      title: Sound response
+      group:
+        sound: Sound
+        mouth: Mouth
+        time: Timing
+        eyes: Eyes
+      from: From
+      to: To
+      key:
+        floor: Quietest sound
+        range: Sound range
+        open: Open
+        jaw: Jaw
+        round: Round
+        teeth: Teeth
+        tongue: Tongue
+        corners: Mouth corner height
+        cues: Caption cues
+        attack: Opening time
+        release: Closing time
+        glide: Follow time
+        rest: Rest time
+        eyePulse: Loudness
+        eyeOnset: Sound onset
+        eyeSquint: Long loud sound
+        eyeShine: Sibilants
+        lowHz: First formant
+        midHz: Second formant
+        highHz: Sibilant band
+        jawHz: Jaw band
+        roundHz: Rounding band
+        onTwos: On twos
+      hint:
+        floor: The quietest sound (dBFS) at which the mouth starts to open.
+        range: The mouth opens from sounds this much (dB) below the loud end.
+        open: How wide the mouth opens on a loud sound.
+        jaw: The share of the opening the first formant decides; the higher it is, the wider 'ah' opens than 'ee'.
+        round: How strongly the mouth rounds on round vowels ('oh', 'oo').
+        teeth: How strongly the teeth meet on sibilants ('s', 'ss').
+        tongue: How strongly the tongue shows on wide-open voiced sounds.
+        corners: How far the ends of a mouth 30 wide move when the expression's mouth corners rise all the way.
+        cues: How much timed sentences change the mouth's shape.
+        attack: The time (ms) the mouth takes to open.
+        release: The time (ms) the mouth takes to close.
+        glide: The time (ms) rounding, teeth and tongue take to follow the sound.
+        rest: The time (ms) to return to the expression's mouth when speech pauses.
+        eyePulse: How strongly the eyes grow with loudness.
+        eyeOnset: How strongly the eyes grow when a sound starts suddenly.
+        eyeSquint: How strongly the eyes squint when a loud sound goes on.
+        eyeShine: How strongly the eye shine grows on sibilants.
+        lowHz: The band (Hz) the first formant is looked for in.
+        midHz: The band (Hz) the second formant is looked for in.
+        highHz: The band (Hz) sibilants are looked for in.
+        jawHz: When the first formant is at the start of this range (Hz) the jaw is closed, and at its end fully open.
+        roundHz: The band (Hz) above a round vowel's two formants; the quieter this band is than the sound below it, the more the mouth rounds.
+        onTwos: Draws the mouth and eyes every second frame instead of every frame, so it looks like animation.
+    rest:
+      title: Resting face
+      key:
+        blank: Until blank
+        asleep: Until sleepy
+      hint:
+        blank: After speaking or working, the last expression holds for this long and then goes blank.
+        asleep: After resting this long, the face turns sleepy.
+    place:
+      color: "Colour {name}"
+      part: "Shape {n}"
+      inside: "Inner {n}"
+      node: "Node {n}"
+      anchor: "Mouth shape {n}"
+      idle:
+        blank: Time until blank
+        asleep: Time until sleepy
+    refusal:
+      not-a-document: The expression document is not in the right shape.
+      color: "Must be in the form #rrggbb."
+      unknown-face: "Unknown expression name: {name}"
+      no-fallback: The neutral expression can't be deleted.
+      not-a-face: The expression is not right.
+      not-a-pair: The left and right sides do not match.
+      reach: "The gaze range must be between {least} and {most}."
+      eye-voice: "The voice response must be between {least} and {most}."
+      corners: "The mouth corners must be between {least} and {most}."
+      parts: "Up to {most} shapes."
+      not-a-part: This is not a shape.
+      closedness: Whether the line is closed is not right.
+      node-count: "There must be between {least} and {most} nodes."
+      node-value: A node's value is not right.
+      off-screen: A node or handle goes off the screen.
+      fill-paint: The fill paint is not right.
+      line-value: The line's value is not right.
+      line-width: "The line width must be between {least} and {most}."
+      neither-fill-nor-line: A shape needs a fill or a line.
+      open-filled: An open line can't be filled.
+      nested-inside: A shape inside another can't hold shapes of its own.
+      inside-open: An open line can't hold shapes.
+      inside-count: "Up to {most} inner shapes."
+      anchors: "There must be between {least} and {most} mouth shapes."
+      anchor-value: A mouth shape's value is not right.
+      anchor-place: Another mouth shape is at the same position.
+      tuning: "Must be between {least} and {most}."
+      idle: "Must be between {least} and {most} seconds."
+    login:
+      title: Sign in to the expression editor
+      wrong: The username or password is not right.
+      failed: Couldn't sign in. Please try again in a moment.
+    error:
+      save_failed: Couldn't save.
+      load_failed: Couldn't load the expressions.
+common:
+  action:
+    cancel: Cancel
+    close: Close
+  aria:
+    decrease: Decrease
+    increase: Increase
+    more_notices: "{n} more notices"
+  error:
+    choices_find_failed: Couldn't search
+  placeholder:
+    search: Search
+  status:
+    no_match: No matches
+    no_choices: No items

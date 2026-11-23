@@ -1,0 +1,253 @@
+face:
+  title: BMO 的脸
+  start: 点按开始
+  stop: 停止收听
+  unloaded: 无法加载表情
+  name:
+    neutral: 默认表情
+    happy: 开心的表情
+    sad: 难过的表情
+    surprised: 惊讶的表情
+    angry: 生气的表情
+    sleepy: 困倦的表情
+    laughing: 大笑的表情
+    worried: 担心的表情
+    hurt: 疼痛的表情
+    straining: 咬紧牙关的表情
+    writing: 正在写回复
+    thinking: 正在思考
+    idle: 休息中
+  signin:
+    title: 登录 BMO 的脸
+    name: 账号
+    password: 密码
+    device: 设备名称
+    device_default: BMO 的脸屏幕
+    submit: 登录
+    wrong: 账号或密码不正确。
+    unreachable: 无法连接 BMO，请稍后再试。
+    refused: 无法登录，请稍后再试。
+  edit:
+    title: 表情编辑器
+    tab:
+      faces: 情绪表情
+      talk: 说话的嘴
+    element:
+      eyes: 眼睛
+      brows: 眉毛
+      blush: 脸颊
+      mouth: 嘴
+      marks: 眼泪·汗
+    side:
+      left: 左
+      right: 右
+    anchor_n: "第 {n} 个"
+    target:
+      face: 表情
+      element: 部位
+      side: 侧
+      anchor: 嘴形
+    action:
+      save: 保存
+      logout: 退出登录
+      add_part: 添加形状
+      add_oval: 椭圆
+      add_line: 线条
+      remove_part: 删除形状
+      add_anchor: 嘴形
+      add_part_mouth: 添加形状·嘴形
+      remove_anchor: 删除嘴形
+      measure: 按图放置
+      add_node: 添加节点
+      remove_node: 删除节点
+      add_teeth: 上牙
+      add_lowerTeeth: 下牙
+      add_tongue: 舌头
+      add_tongueLight: 舌头亮面
+      add_shine: 眼睛高光
+      outline: 外形
+      fields: 形状
+      more: 更多
+      reload: 重新加载
+    status:
+      changed: 已更改
+      saved: 已保存。
+    conflict: 另一个窗口已先保存。要放弃这里的修改并加载已保存的表情吗？
+    fields:
+      title: 形状
+      none: 点按形状以选择。
+      empty: 这个部位没有形状。
+      closed: 闭合线条
+      fill: 填充
+      line: 线条
+      width: 线条粗细
+      node: 节点
+      node_n: "节点 {n}"
+      node_none: 点按节点以选择。
+      anchor: 位置
+      coming: 进入手柄
+      leaving: 离开手柄
+      x: 水平
+      y: 垂直
+      smooth: 平滑
+      inside: 内部形状
+      inside_part: "{paint} {n}"
+      mirror: 左右对称
+      reach: 视线范围
+      voice: 声音反应
+      grow: 放大
+      squint: 眯眼
+      shine: 高光
+      corners: 嘴角
+      place: 位置
+      open: 张开
+      wide: 宽度
+      teeth: 牙齿咬合
+    paint:
+      none: 无
+      ink: 黑色
+      light: 白色
+      mouth: 口腔
+      tongue: 舌头
+      tongueLight: 舌头亮面
+      cheek: 脸颊
+      tear: 眼泪
+    preview:
+      title: 预览
+      sample: 示例声音
+      file: 声音文件
+      stop: 停止
+      file_failed: 无法读取声音文件。
+      blink: 眨眼
+      gaze_x: 视线水平
+      gaze_y: 视线垂直
+      strip: 听到的声音
+      level: 音量
+      open: 张开
+      round: 撮口
+      teeth: 牙齿
+    tuning:
+      title: 声音反应
+      group:
+        sound: 声音
+        mouth: 嘴
+        time: 时间
+        eyes: 眼睛
+      from: 起点
+      to: 终点
+      key:
+        floor: 最小声音
+        range: 声音范围
+        open: 张开
+        jaw: 下巴
+        round: 撮口
+        teeth: 牙齿
+        tongue: 舌头
+        corners: 嘴角高度
+        cues: 字幕影响
+        attack: 张开时间
+        release: 闭合时间
+        glide: 跟随时间
+        rest: 休息时间
+        eyePulse: 音量
+        eyeOnset: 声音起始
+        eyeSquint: 持续的大声
+        eyeShine: 咝音
+        lowHz: 第一共振峰
+        midHz: 第二共振峰
+        highHz: 咝音频段
+        jawHz: 下巴频段
+        roundHz: 撮口频段
+        onTwos: 一拍二
+      hint:
+        floor: 嘴开始张开的最小声音（dBFS）。
+        range: 从比大声端小这么多（dB）的声音起，嘴就会张开。
+        open: 大声时嘴张开的程度。
+        jaw: 张开幅度中由第一共振峰决定的比例，越大"a"比"i"张得越大。
+        round: 圆唇元音（"o"、"u"）时嘴撮起的强度。
+        teeth: 咝音（"s"、"ss"）时牙齿咬合的强度。
+        tongue: 嘴张大的浊音中舌头露出的强度。
+        corners: 表情的嘴角完全上扬时，宽度为 30 的嘴的两端移动的距离。
+        cues: 带时间的句子改变嘴形的程度。
+        attack: 嘴张开所需的时间（ms）。
+        release: 嘴闭合所需的时间（ms）。
+        glide: 撮口、牙齿、舌头跟随声音的时间（ms）。
+        rest: 说话停下时回到表情嘴形的时间（ms）。
+        eyePulse: 眼睛随音量变大的强度。
+        eyeOnset: 声音突然开始时眼睛变大的强度。
+        eyeSquint: 大声持续时眯眼的强度。
+        eyeShine: 咝音时眼睛高光变大的强度。
+        lowHz: 寻找第一共振峰的频段（Hz）。
+        midHz: 寻找第二共振峰的频段（Hz）。
+        highHz: 寻找咝音的频段（Hz）。
+        jawHz: 第一共振峰位于此范围（Hz）的起点时下巴闭合，位于终点时完全张开。
+        roundHz: 圆唇元音两个共振峰之上的频段（Hz），此频段的声音比其下方越小，嘴撮得越紧。
+        onTwos: 嘴和眼睛不是每帧都画，而是每两帧画一次，看起来像动画。
+    rest:
+      title: 休息中的表情
+      key:
+        blank: 到无表情
+        asleep: 到困倦表情
+      hint:
+        blank: 说完话或做完事后，在这段时间内保持最后的表情，然后变为无表情。
+        asleep: 休息超过这段时间后变为困倦表情。
+    place:
+      color: "颜色 {name}"
+      part: "形状 {n}"
+      inside: "内部 {n}"
+      node: "节点 {n}"
+      anchor: "嘴形 {n}"
+      idle:
+        blank: 到无表情的时间
+        asleep: 到困倦表情的时间
+    refusal:
+      not-a-document: 表情文档的格式不正确。
+      color: "必须是 #rrggbb 格式。"
+      unknown-face: "未知的表情名称：{name}"
+      no-fallback: 默认表情无法删除。
+      not-a-face: 表情不正确。
+      not-a-pair: 左右两侧不匹配。
+      reach: "视线范围必须在 {least} 到 {most} 之间。"
+      eye-voice: "声音反应必须在 {least} 到 {most} 之间。"
+      corners: "嘴角必须在 {least} 到 {most} 之间。"
+      parts: "形状最多 {most} 个。"
+      not-a-part: 这不是形状。
+      closedness: 是否为闭合线条不正确。
+      node-count: "节点必须在 {least} 到 {most} 个之间。"
+      node-value: 节点的值不正确。
+      off-screen: 节点或手柄超出了屏幕。
+      fill-paint: 填充颜色不正确。
+      line-value: 线条的值不正确。
+      line-width: "线条粗细必须在 {least} 到 {most} 之间。"
+      neither-fill-nor-line: 必须有填充或线条之一。
+      open-filled: 开放线条无法填充。
+      nested-inside: 放在内部的形状里不能再放形状。
+      inside-open: 开放线条内不能放形状。
+      inside-count: "内部形状最多 {most} 个。"
+      anchors: "嘴形必须在 {least} 到 {most} 个之间。"
+      anchor-value: 嘴形的值不正确。
+      anchor-place: 同一位置已有另一个嘴形。
+      tuning: "必须在 {least} 到 {most} 之间。"
+      idle: "必须在 {least} 秒到 {most} 秒之间。"
+    login:
+      title: 登录表情编辑器
+      wrong: 账号或密码不正确。
+      failed: 无法登录，请稍后再试。
+    error:
+      save_failed: 无法保存。
+      load_failed: 无法加载表情。
+common:
+  action:
+    cancel: 取消
+    close: 关闭
+  aria:
+    decrease: 减少
+    increase: 增加
+    more_notices: "还有 {n} 条通知"
+  error:
+    choices_find_failed: 无法搜索
+  placeholder:
+    search: 搜索
+  status:
+    no_match: 没有匹配项
+    no_choices: 没有项目

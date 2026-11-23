@@ -20,7 +20,9 @@ reached at the console's address; nothing of BMO's is imported.
   manifest it serves through that crate's reading. BMO is reached over the address a setting names.
   The testbed's dependency sweep fails on anything else.
 - **English in code, comments, tests, documents and commit messages.** Every word a person reads on
-  the screen stands in `client/i18n/locales/ko.yaml`, named by key. The Korean the code still holds is
+  the screen stands in the language packs under `client/i18n/locales/` (`ko`, `en`, `ja`, `zh-CN`, every
+  pack holding the same keys), named by key; Japanese and Chinese stand there alone besides the README's
+  translations. The Korean the code still holds is
   the debt `korean-ledger.json` records file by file; a file it does not name is allowed none, and the
   ledger only shrinks.
 - **No personal data in code, comments, documents, test fixtures or commit messages.**

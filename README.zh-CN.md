@@ -11,7 +11,7 @@ BMO 的脸，`bmo-face`：机壳屏幕上的全屏显示、绘制和修正表情
 | 目录 | 内容 |
 |---|---|
 | `core/` | 脸的核心，一个 Rust crate：表情文档的校验及从旧格式的迁移、眼睛集合与说话的嘴型集合、几何、混合以及固定时钟的驱动器；测试位于 `tests/`，其迁移的旧文档位于 `tests/fixtures/` |
-| `client/` | 屏幕部分，一个独立的 Bun 项目：基于 `@nuxt/ui` 的 Nuxt 显示端和编辑器；界面上的每一处文字都是 `i18n/locales/ko.yaml` 中的键；`app/console/` 下的控制台包入口及 `scripts/` 下的构建；`vendor/` 下内置的 bmo-ui 发布版本，以及 `patches/` 下该层对所固定软件包的补丁；测试位于 `tests/` |
+| `client/` | 屏幕部分，一个独立的 Bun 项目：基于 `@nuxt/ui` 的 Nuxt 显示端和编辑器；界面上的每一处文字都是 `i18n/locales/` 下韩语、英语、日语和简体中文语言包中的键；`app/console/` 下的控制台包入口及 `scripts/` 下的构建；`vendor/` 下内置的 bmo-ui 发布版本，以及 `patches/` 下该层对所固定软件包的补丁；测试位于 `tests/` |
 | `deploy/` | 部署时保留的用户单元 `bmo-face.service`、以及 `system/` 下由人工一次性安装的原生显示器系统单元和 PAM 服务 |
 | `displayer/` | 基于核心的原生显示器 Rust crate：通过 logind 接管面板并用 CPU 绘制，接收表情服务器的文档和语音引擎的简报，播放声音并提供注视 socket；测试及其 fixture 位于 `tests/` |
 | `docs/` | 规范文档：脸及其服务器（`face.md`）、绘制所依据的设计（`expressions.md`）、部署（`deploy.md`）和开发台（`development.md`） |

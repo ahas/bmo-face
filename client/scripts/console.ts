@@ -46,10 +46,16 @@ function nuxtUi(name: string): { name: string; from: string } | undefined {
   return file !== null && existsSync(join(nuxtUiComponents, file)) ? { name: "default", from: `@nuxt/ui/components/${file}` } : undefined;
 }
 
-// The words: the bundle's namespace of the pack, under its locale.
-const pack = Bun.YAML.parse(readFileSync(join(client, "i18n/locales/ko.yaml"), "utf8")) as Record<string, unknown>;
+// The words: the bundle's namespace of every pack, each under its locale, so the console speaks its own.
+const LOCALES = ["ko", "en", "ja", "zh-CN"];
 const manifest = JSON.parse(readFileSync(resolve(client, "../console-manifest.json"), "utf8")) as { name: string };
-const words = { ko: { [manifest.name]: pack[manifest.name] } };
+const words = Object.fromEntries(
+  LOCALES.map((locale) => {
+    const pack = Bun.YAML.parse(readFileSync(join(client, `i18n/locales/${locale}.yaml`), "utf8")) as Record<string, unknown>;
+
+    return [locale, { [manifest.name]: pack[manifest.name] }];
+  }),
+);
 
 writeConsoleTheme();
 

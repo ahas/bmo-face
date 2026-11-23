@@ -49,12 +49,18 @@ export default defineNuxtConfig({
     },
     vite: { server: { allowedHosts: ["dev.example.test"] } }
   },
-  // One language, one pack: every word the face shows is a key into `i18n/locales/ko.yaml`.
+  // Four packs holding the same keys, one to a locale under `i18n/locales/`: every word the face
+  // shows is a key into them. The standalone screens speak Korean; the console bundle carries all four.
   i18n: {
     strategy: "no_prefix",
     defaultLocale: "ko",
     detectBrowserLanguage: false,
-    locales: [{ code: "ko", language: "ko-KR", name: "한국어", file: "ko.yaml" }]
+    locales: [
+      { code: "ko", language: "ko-KR", file: "ko.yaml" },
+      { code: "en", language: "en-US", file: "en.yaml" },
+      { code: "ja", language: "ja-JP", file: "ja.yaml" },
+      { code: "zh-CN", language: "zh-CN", file: "zh-CN.yaml" }
+    ]
   },
   ui: {
     theme: {

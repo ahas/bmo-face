@@ -59,13 +59,16 @@ describe("the bundle as built", () => {
     expect(module).not.toContain("common.placeholder.search");
   });
 
-  test("names its menu by a word the bundle's words hold", async () => {
+  test("names its menu by a word the bundle's words hold, in every locale", async () => {
     const read = await manifest();
     const answer = await fetch(`${base}${read.words as string}`, { headers: credential });
-    const words = (await answer.json()) as { ko: Record<string, Record<string, unknown>> };
+    const words = (await answer.json()) as Record<string, Record<string, Record<string, unknown>>>;
 
-    expect(Object.keys(words)).toEqual(["ko"]);
-    expect(Object.keys(words.ko)).toEqual([read.name as string]);
-    expect(words.ko[read.name as string]?.title).toBeString();
+    expect(Object.keys(words)).toEqual(["ko", "en", "ja", "zh-CN"]);
+
+    for (const [locale, held] of Object.entries(words)) {
+      expect({ locale, names: Object.keys(held) }).toEqual({ locale, names: [read.name as string] });
+      expect(held[read.name as string]?.title, locale).toBeString();
+    }
   });
 });
