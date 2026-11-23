@@ -1,3 +1,5 @@
+**English** | [한국어](README.ko.md) | [日本語](README.ja.md) | [简体中文](README.zh-CN.md)
+
 # face
 
 BMO's face, `bmo-face`: the full-screen display on the case's screen, the editor its faces are drawn
