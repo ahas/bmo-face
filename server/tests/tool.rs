@@ -70,7 +70,18 @@ fn the_entry_is_the_systems_alone_and_its_schema_holds_the_emotion_to_the_briefi
   assert!(entry.get("timeout").is_none());
   assert_eq!(
     emotions,
-    ["기본", "기쁨", "슬픔", "놀람", "화남", "졸림", "폭소", "걱정", "아픔", "안간힘"]
+    [
+      "neutral",
+      "happy",
+      "sad",
+      "surprised",
+      "angry",
+      "sleepy",
+      "laughing",
+      "worried",
+      "hurt",
+      "straining"
+    ]
   );
   assert!(emotions.contains(&schema["properties"]["emotion"]["default"].as_str().unwrap()));
 }
@@ -79,7 +90,10 @@ fn the_entry_is_the_systems_alone_and_its_schema_holds_the_emotion_to_the_briefi
 fn answers_the_face_of_the_emotion_named_and_the_schemas_default_where_none_is() {
   let default = schema()["properties"]["emotion"]["default"].as_str().unwrap().to_owned();
 
-  assert_eq!(call(json!({ "emotion": "기쁨" }))["structuredContent"], json!({ "expression": "기쁨" }));
+  assert_eq!(
+    call(json!({ "emotion": "happy" }))["structuredContent"],
+    json!({ "expression": "happy" })
+  );
   assert_eq!(call(json!({}))["structuredContent"], json!({ "expression": default }));
   assert_eq!(call(json!({ "emotion": 3 }))["isError"], json!(true));
 }

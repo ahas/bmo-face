@@ -6,7 +6,7 @@
 import { checkDocument, defaultDocument, FACTS } from "./core";
 
 /** The emotions BMO speaks a briefing with; one face each. None named reads as the fallback face. */
-export const EMOTIONS = ["기본", "기쁨", "슬픔", "놀람", "화남", "졸림", "폭소", "걱정", "아픔", "안간힘"] as const;
+export const EMOTIONS = ["neutral", "happy", "sad", "surprised", "angry", "sleepy", "laughing", "worried", "hurt", "straining"] as const;
 export type Emotion = (typeof EMOTIONS)[number];
 
 /** What BMO is doing, as its presence names it; one face each. */

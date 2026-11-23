@@ -20,11 +20,11 @@ describe("the stream cut into frames", () => {
 describe("what a frame tells the display", () => {
   const frame = (event: string, data: unknown, id: string | null = null) => ({ event, id, data: JSON.stringify(data) });
 
-  test("a briefing, with its emotion, or 기본 where it names none", () => {
-    const briefing = { type: "briefing", chatId: 42, messageId: 901, briefing: { text: "다 됐어요.", seconds: 2, sentAt: 5, emotion: "기쁨" } };
+  test("a briefing, with its emotion, or neutral where it names none", () => {
+    const briefing = { type: "briefing", chatId: 42, messageId: 901, briefing: { text: "다 됐어요.", seconds: 2, sentAt: 5, emotion: "happy" } };
 
-    expect(heardOf(frame("bot", briefing, "9"))).toEqual({ kind: "briefing", briefing: { chatId: 42, messageId: 901, text: "다 됐어요.", emotion: "기쁨", sentAt: 5 } });
-    expect(heardOf(frame("bot", { ...briefing, briefing: { text: "", seconds: null, sentAt: 5 } }))).toMatchObject({ briefing: { emotion: "기본" } });
+    expect(heardOf(frame("bot", briefing, "9"))).toEqual({ kind: "briefing", briefing: { chatId: 42, messageId: 901, text: "다 됐어요.", emotion: "happy", sentAt: 5 } });
+    expect(heardOf(frame("bot", { ...briefing, briefing: { text: "", seconds: null, sentAt: 5 } }))).toMatchObject({ briefing: { emotion: "neutral" } });
   });
 
   test("the expression the face's entry answered, before the emotion, and the default face where it is one this display does not know", () => {

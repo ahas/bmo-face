@@ -4,16 +4,16 @@ face:
   stop: 그만듣기
   unloaded: 표정을 불러오지 못했어요
   name:
-    기본: 기본 표정
-    기쁨: 기쁜 표정
-    슬픔: 슬픈 표정
-    놀람: 놀란 표정
-    화남: 화난 표정
-    졸림: 졸린 표정
-    폭소: 크게 웃는 표정
-    걱정: 걱정하는 표정
-    아픔: 아픈 표정
-    안간힘: 이 악문 표정
+    neutral: 기본 표정
+    happy: 기쁜 표정
+    sad: 슬픈 표정
+    surprised: 놀란 표정
+    angry: 화난 표정
+    sleepy: 졸린 표정
+    laughing: 크게 웃는 표정
+    worried: 걱정하는 표정
+    hurt: 아픈 표정
+    straining: 이 악문 표정
     writing: 답 쓰는 중
     thinking: 생각 중
     idle: 쉬는 중

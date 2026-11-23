@@ -5,8 +5,13 @@
 use bmo_face_core::check::check;
 use bmo_face_core::default;
 use bmo_face_core::migrate::migrate;
-use bmo_face_core::names::{EMOTIONS, FALLBACK};
+use bmo_face_core::names::{EMOTIONS, FALLBACK, former_name, present_name};
 use serde_json::{Value, json};
+
+// The fallback face's name as a stored document of an older form holds it.
+fn old_fallback() -> &'static str {
+  former_name(FALLBACK).expect("the fallback has a former name")
+}
 
 fn fixture(name: &str) -> Value {
   let text =
@@ -23,7 +28,7 @@ fn the_default_of_form_one_is_carried_whole_its_mirrored_eyes_one_side() {
   assert_eq!(checked["colors"]["ink"], old["colors"]["ink"]);
   assert_eq!(checked["colors"]["tongueLight"], default::document().to_json()["colors"]["tongueLight"]);
   for (name, face) in old["faces"].as_object().unwrap() {
-    let eyes = &checked["faces"][name]["eyes"];
+    let eyes = &checked["faces"][present_name(name)]["eyes"];
     let count = face["eyes"].as_array().unwrap().len();
     // Every face of the old default draws its right eye as its left reflected, but the one whose eyes
     // both look to the left.
@@ -33,7 +38,7 @@ fn the_default_of_form_one_is_carried_whole_its_mirrored_eyes_one_side() {
       assert_eq!(eyes["right"], Value::Null, "{name}");
       assert_eq!(eyes["left"].as_array().unwrap().len() * 2, count, "{name}");
     }
-    assert_eq!(checked["faces"][name]["mouth"], face["mouth"], "{name}");
+    assert_eq!(checked["faces"][present_name(name)]["mouth"], face["mouth"], "{name}");
   }
   assert_eq!(checked["faces"][FALLBACK]["eyes"]["reach"], json!([2.2, 1.6]));
 }
@@ -41,12 +46,12 @@ fn the_default_of_form_one_is_carried_whole_its_mirrored_eyes_one_side() {
 #[test]
 fn a_right_side_that_is_no_reflection_is_kept_as_drawn() {
   let mut old = fixture("form-1-default.json");
-  old["faces"][FALLBACK]["eyes"][1]["nodes"][0]["anchor"][1] = json!(26);
+  old["faces"][old_fallback()]["eyes"][1]["nodes"][0]["anchor"][1] = json!(26);
   old["savedAt"] = json!(5);
   let checked = check(&migrate(&old)).unwrap().to_json();
   let eyes = &checked["faces"][FALLBACK]["eyes"];
-  assert_eq!(eyes["left"], json!([old["faces"][FALLBACK]["eyes"][0]]));
-  assert_eq!(eyes["right"], json!([old["faces"][FALLBACK]["eyes"][1]]));
+  assert_eq!(eyes["left"], json!([old["faces"][old_fallback()]["eyes"][0]]));
+  assert_eq!(eyes["right"], json!([old["faces"][old_fallback()]["eyes"][1]]));
 }
 
 #[test]
@@ -63,7 +68,7 @@ fn what_form_one_accepted_is_carried_and_accepted_and_what_it_refused_stays_refu
       None => {
         let mended = [
           "a paint's colour missing".to_owned(),
-          format!("no {FALLBACK} face"),
+          format!("no {} face", old_fallback()),
           "a part of the old ellipse shape".to_owned(),
           "not a document".to_owned(),
           "too few mouth stages".to_owned(),
@@ -144,7 +149,7 @@ fn an_edited_set_of_form_two_becomes_anchors_measured_from_its_mouths() {
   let bean = old["talk"][0]["mouths"][0].clone();
   old["talk"][1]["mouths"].as_array_mut().unwrap().push(bean.clone());
   old["talk"][5]["mouths"] = json!([{ "size": "small", "parts": [] }]);
-  old["faces"][FALLBACK]["eyes"]["left"][0]["nodes"][0]["anchor"][0] = json!(27.5);
+  old["faces"][old_fallback()]["eyes"]["left"][0]["nodes"][0]["anchor"][0] = json!(27.5);
   let carried = check(&migrate(&old)).expect("the carried document passes");
   let defaults = default::document();
   // The widened bean stands wider; the repeated mouth stands once; the empty family gives none.

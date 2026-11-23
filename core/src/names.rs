@@ -3,8 +3,47 @@
 
 /// The emotions BMO speaks a briefing with; one face each. The first is the face every missing one
 /// falls back to.
-pub const EMOTIONS: [&str; 10] =
-  ["기본", "기쁨", "슬픔", "놀람", "화남", "졸림", "폭소", "걱정", "아픔", "안간힘"];
+pub const EMOTIONS: [&str; 10] = [
+  "neutral",
+  "happy",
+  "sad",
+  "surprised",
+  "angry",
+  "sleepy",
+  "laughing",
+  "worried",
+  "hurt",
+  "straining",
+];
+
+/// The names a stored document may still hold an emotion's face under, each beside the name it stands
+/// for (`former-emotions.json` beside this file); preparing the document moves such a face to its name (docs/face.md,
+/// 「Preparing the document」).
+static FORMER_EMOTIONS: std::sync::LazyLock<Vec<(String, String)>> = std::sync::LazyLock::new(|| {
+  let held: serde_json::Map<String, serde_json::Value> =
+    serde_json::from_str(include_str!("former-emotions.json")).expect("former-emotions.json is an object");
+  held
+    .into_iter()
+    .map(|(former, present)| (former, present.as_str().unwrap_or_default().to_owned()))
+    .collect()
+});
+
+/// The name a face is held under: an emotion's former name gives way to its name, any other stands.
+pub fn present_name(name: &str) -> &str {
+  FORMER_EMOTIONS
+    .iter()
+    .find(|(former, _)| former == name)
+    .and_then(|(_, present)| EMOTIONS.into_iter().find(|emotion| emotion == present))
+    .unwrap_or(name)
+}
+
+/// The former name an emotion's face may still be held under in a stored document, where it has one.
+pub fn former_name(present: &str) -> Option<&'static str> {
+  FORMER_EMOTIONS
+    .iter()
+    .find(|(_, now)| now == present)
+    .map(|(former, _)| former.as_str())
+}
 
 /// What BMO is doing, as its presence names it; one face each.
 pub const STATES: [&str; 3] = ["writing", "thinking", "idle"];

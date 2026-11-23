@@ -44,11 +44,11 @@ caller, the native displayer that draws it on a machine's own panel, and the ser
   new is opened on BMO's side for the face; the face is one more listener.
 - **What the stream carries that the face uses:**
   - `briefing` — a voice briefing went out: the voice message it is, the words, the length, when it
-    was sent, the emotion it was spoken with (`기본`, `기쁨`, `슬픔`, `놀람`, `화남`, `졸림`, `폭소`,
-    `걱정`, `아픔`, `안간힘`), and the expression it shows, which is what this face's own entry
+    was sent, the emotion it was spoken with (`neutral`, `happy`, `sad`, `surprised`, `angry`, `sleepy`, `laughing`,
+    `worried`, `hurt`, `straining`), and the expression it shows, which is what this face's own entry
     answered for that emotion (「The expression entry」).
     - The display shows the expression the event carries; an event carrying none shows its emotion,
-      and none of either, or one this display does not know, reads as `기본`.
+      and none of either, or one this display does not know, reads as `neutral`.
   - `presence` — what BMO is doing, one state for all of it: `writing` (답 쓰는 중), `thinking`
     (생각 중) or `idle` (쉬는 중), with when it began. It comes once as soon as the stream opens and
     again whenever it moves.
@@ -85,10 +85,10 @@ caller, the native displayer that draws it on a machine's own panel, and the ser
   and puts the expression it answered on the event. The display reads it there like the rest of the
   event; nothing else is opened between BMO and the face.
 - **What it is asked and answers:** the emotion a briefing is spoken with, one of the briefing's set,
-  or none; it answers the face that emotion shows, `기본` where none was named.
+  or none; it answers the face that emotion shows, `neutral` where none was named.
   - The schema holds the emotion to the set a briefing launch is checked against, so the host refuses
     any other before the entry runs.
-  - The schema also names `기본` as the emotion's default, and the executable answers that default
+  - The schema also names `neutral` as the emotion's default, and the executable answers that default
     read off the schema placed beside it, so the set and the default are stated once, in the schema.
 - **Its executable is the workspace's binary,** started as `bmo-face tool`. It reads the call on
   standard input and answers it on standard output, in the protocol's first version, and reads the
@@ -125,8 +125,8 @@ caller, the native displayer that draws it on a machine's own panel, and the ser
 
 ## The faces
 
-- **Ten emotion faces**, one per emotion BMO can speak with: `기본`, `기쁨`, `슬픔`, `놀람`, `화남`,
-  `졸림`, `폭소`, `걱정`, `아픔`, `안간힘`.
+- **Ten emotion faces**, one per emotion BMO can speak with: `neutral`, `happy`, `sad`, `surprised`, `angry`,
+  `sleepy`, `laughing`, `worried`, `hurt`, `straining`.
 - **Three state faces**, one per presence: `writing`, `thinking`, `idle`.
 - **Which face shows**, first match wins, as the core decides it for every caller:
   1. **Pinned** — a face the caller pins shows whatever else is heard; the editor's preview pins the
@@ -140,13 +140,13 @@ caller, the native displayer that draws it on a machine's own panel, and the ser
      rested counts from the later of the moment it went `idle` and the end of the last briefing; the
      expression document's `idle` settings say how long each stage lasts (「The expression document」):
      - **held** — until `blank` (ten minutes by default): the face of the last briefing, its mouth
-       closed as it closed when the briefing ended, or `기본` where no briefing was heard, or where the
+       closed as it closed when the briefing ended, or `neutral` where no briefing was heard, or where the
        last one's face has eyes drawn as strokes, so the eyes held go on blinking;
      - **blank** — from `blank` until `asleep`: the `idle` face;
-     - **asleep** — from `asleep` (thirty minutes by default): the `졸림` face.
+     - **asleep** — from `asleep` (thirty minutes by default): the `sleepy` face.
 - **A rest that reached `blank` forgets the last briefing.** Told what BMO is doing next, a scene whose
-  rest had reached the blank face holds `기본` the next time it rests, until another briefing is heard.
-- **A face that is missing** from the document falls back to `기본`, so a document with fewer faces
+  rest had reached the blank face holds `neutral` the next time it rests, until another briefing is heard.
+- **A face that is missing** from the document falls back to `neutral`, so a document with fewer faces
   still draws.
 - **What each default face draws** is the animation's own design, measured frame by frame and
   redrawn clean (`docs/expressions.md`): dot eyes far apart and high, and a small mouth centred well
@@ -189,7 +189,7 @@ caller, the native displayer that draws it on a machine's own panel, and the ser
   for it, but none starts during a change's in-betweens.
 - **Only an open eye blinks.** An eye drawn as a filled closed shape is half covered by cutting away
   its top, and shut as an ink arc 0.9 wide a little wider than the eye across its lower half; a face
-  whose eyes are strokes — already closed, as `폭소`'s and `안간힘`'s are — never blinks.
+  whose eyes are strokes — already closed, as `laughing`'s and `straining`'s are — never blinks.
 
 ### The gaze
 
@@ -303,7 +303,7 @@ caller, the native displayer that draws it on a machine's own panel, and the ser
 - **Silence closes the mouth.** The mouth drawn is the face's resting mouth blended to the talking
   mouth by the voice, so the first syllable grows out of it and a pause returns to it.
   - **A face whose own mouth is a line** rests on its own mouth.
-  - **A face whose own mouth is open** — one holding a filled closed part, as `기쁨`, `놀람` and `폭소`
+  - **A face whose own mouth is open** — one holding a filled closed part, as `happy`, `surprised` and `laughing`
     do — rests on a closed mouth instead: one ink line as wide as the talking mouth of the last shape
     heard above quiet, standing level across that mouth's middle, its corners lifted by the face's
     `corners` as the talking mouth's are. A face that lifts its corners closes in a smile, deeper the
@@ -390,7 +390,7 @@ caller, the native displayer that draws it on a machine's own panel, and the ser
     `parts`; and its `tuning`.
   - `idle` — how long BMO rests before its face changes (「The faces」), each in seconds from nought to
     86,400: `blank`, when the held face gives way to the `idle` face, 600 by default; and `asleep`, when
-    that gives way to `졸림`, 1,800 by default and never before `blank`. The editor sets both in
+    that gives way to `sleepy`, 1,800 by default and never before `blank`. The editor sets both in
     minutes (「Tuning by ear」).
   - `savedAt` — when it was last saved, which is also its version.
 - **A part** is one path (「How a path is written」), in the screen's own coordinates, a box one
@@ -512,9 +512,13 @@ drawings it stands between — which is where a hook would grow.
     build, and is replaced by the default drawn now;
   - a saved document holding no face for a name the default draws is given the default's face for
     it, written in place with its version unchanged, so a face added here reaches a document saved
-    before it rather than falling back to `기본`; colours it does not hold come from the default;
+    before it rather than falling back to `neutral`; colours it does not hold come from the default;
   - a saved document of this form is given the tuning and `idle` values it lacks from the default,
     written in place with its version unchanged;
+  - a saved document holding a face under an emotion's Korean name — `기본`, `기쁨`, `슬픔`, `놀람`,
+    `화남`, `졸림`, `폭소`, `걱정`, `아픔`, `안간힘` — has it moved to that emotion's name, in the same
+    order `neutral` to `straining`, written in place with its version unchanged; the names are English
+    alone, as the briefing carries them;
   - a saved document of an older form is carried into this one by the core, with the default's `idle`
     values, and written in place with its version unchanged:
     - **form 2** talked in families of mouths, picked by chance and held on twos. Each mouth of every
@@ -684,7 +688,7 @@ drawings it stands between — which is where a hook would grow.
 - **The preview** beside the canvas is the core's own drawing of the face being edited, on the held
   clock, as a display draws it: it blinks as a display does, which a switch, 깜빡임, turns off, and two
   sliders, 시선 가로 and 시선 세로, turn the gaze. In the talking mouth tab it shows the anchor being
-  edited in `기본`'s face while it is not speaking.
+  edited in `neutral`'s face while it is not speaking.
 - **Speaking in the preview.** 예시 소리 plays the core's sampled voice aloud and 소리 파일 a sound
   file the person picks, decoded in the browser at 48 kHz; the face being edited speaks it as a display
   would, with the document as it is being edited, and 정지 stops it. Beneath the face a strip draws what
@@ -867,13 +871,13 @@ flowchart TD
 - **The sound** is the engine's `GET /briefings/{briefingId}/sound`, with the same token.
 - **The face a briefing shows** is the face of the emotion it carries, the face the expression entry
   answers for that emotion (「The expression entry」); one that carries none, or one this display does
-  not know, shows `기본`. The engine's briefing carries its emotion and no expression of its own. Today's
+  not know, shows `neutral`. The engine's briefing carries its emotion and no expression of its own. Today's
   summaries carry no emotion: the receiver names none when it asks the engine for one, so every briefing
-  on the panel speaks with `기본` until the briefing's caller names one.
+  on the panel speaks with `neutral` until the briefing's caller names one.
 - **Presence is not heard.** Nothing documented says today what BMO is doing: the listener stream that
   carries `presence` waits for the briefing unit (「What BMO sends, and by which road」). The core is told
   no presence, so outside a briefing the panel rests from the moment it started, as the core reads a
-  scene told nothing: `기본` or the last briefing's face, then the `idle` face, then `졸림`, at the
+  scene told nothing: `neutral` or the last briefing's face, then the `idle` face, then `sleepy`, at the
   document's `idle` settings (「The faces」).
 - **The engine's token** is read from the file its setting names each time the stream opens or a sound
   is fetched, so a token put in place is taken without a restart; it is never written and never said
@@ -961,8 +965,8 @@ Read from its environment, every one optional:
 - **`run --frames <folder>`** runs the whole displayer with every drawing it would show written as a
   PNG at the panel's size, 1024 by 600, into the folder, instead of taking a panel.
 - **`shots <folder>`** writes, from the core's default document and with no server, every default face,
-  a blink frame by frame, a talking sequence over the core's sampled voice spoken by `기본` and again by
-  `기쁨`, whose own mouth is open, and the rest after `기쁨`'s at each stage — just spoken, held at the
+  a blink frame by frame, a talking sequence over the core's sampled voice spoken by `neutral` and again by
+  `happy`, whose own mouth is open, and the rest after `happy`'s at each stage — just spoken, held at the
   last frame before `blank`, blank and asleep — at 1024 by 600. With `--sound <file>` the talking
   sequences speak that Ogg Opus sound instead, decoded and heard as a briefing's is, so a real voice can
   be looked at frame by frame.

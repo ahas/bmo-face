@@ -42,13 +42,14 @@ pub fn migrate(value: &Value) -> Value {
   let faces = match document.get("faces") {
     Some(Value::Object(held)) => {
       let mut faces = defaults["faces"].as_object().cloned().unwrap_or_default();
-      for (name, face) in held {
+      for (held_name, face) in held {
+        let name = crate::names::present_name(held_name);
         let carried = match face {
           Value::Object(face) if form < FAMILIES_FORM => answering(name, &carry_face(face), &defaults),
           Value::Object(_) if form < FORM => answering(name, face, &defaults),
           other => other.clone(),
         };
-        faces.insert(name.clone(), carried);
+        faces.insert(name.to_owned(), carried);
       }
       Some(Value::Object(faces))
     }

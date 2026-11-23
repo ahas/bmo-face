@@ -31,7 +31,7 @@ describe("the document a display draws", () => {
   });
 
   test("stays the last good one when what arrived is a shape it does not know", () => {
-    const old = { ...saved, faces: { 기본: { eyes: [{ shape: "ellipse", cx: 33, cy: 30, rx: 3, ry: 3, filled: true, width: 1 }] } } };
+    const old = { ...saved, faces: { neutral: { eyes: [{ shape: "ellipse", cx: 33, cy: 30, rx: 3, ry: 3, filled: true, width: 1 }] } } };
 
     expect(keptDocument(DEFAULT_FACES, old)).toBe(DEFAULT_FACES);
     expect(keptDocument(null, old)).toBeNull();

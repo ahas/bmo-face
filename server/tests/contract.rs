@@ -780,8 +780,10 @@ async fn a_stored_document_is_made_right_before_the_server_answers() {
   let document = face.document().await;
   assert_eq!(document["savedAt"], 1700);
   assert_eq!(document["colors"]["ink"], "#1f3b35");
-  assert_eq!(document["faces"]["기본"]["eyes"]["left"][0]["nodes"].as_array().unwrap().len(), 4);
-  assert_eq!(document["faces"]["폭소"], default_document()["faces"]["폭소"]);
+  // A face under an emotion's former name is moved to its name.
+  assert_eq!(document["faces"]["neutral"]["eyes"]["left"][0]["nodes"].as_array().unwrap().len(), 4);
+  assert!(document["faces"].get("기본").is_none());
+  assert_eq!(document["faces"]["laughing"], default_document()["faces"]["laughing"]);
   drop(face);
 
   // A file that is not JSON is moved aside, never deleted, and the default written in its place.

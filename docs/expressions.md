@@ -145,16 +145,16 @@ Every face stands on the common design: its eyes at the eyes' places, its mouth 
 
 | Face | Eyes | Brows | Mouth |
 | --- | --- | --- | --- |
-| `기본` | `dot` | — | a line 14 wide, smiling 1 deep |
-| `기쁨` | `dot` | — | the large bean 28.8 × 15.8, teeth and tongue |
-| `슬픔` | `oval` | raised toward the middle | a small wail 18 × 9, its round side up, a tongue |
-| `놀람` | `oval-wide`, a little higher | — | a round O 15 × 14, teeth and tongue |
-| `화남` | `dot`, a little lower | slanted down toward the middle | a wail 24 × 10 under its teeth band |
-| `졸림` | `half-lid` | — | a level line 9 wide |
-| `폭소` | `closed-u-deep` | — | the widest bean 38 × 18, teeth and tongue |
-| `걱정` | `dot-small` | raised toward the middle | a slit of clenched teeth, both rows |
-| `아픔` | `x x` of two straight strokes each | — | a slit 24 × 7 under a deep teeth band |
-| `안간힘` | `squeezed` | — | the grimace 34.8 × 10.5, both rows of teeth |
+| `neutral` | `dot` | — | a line 14 wide, smiling 1 deep |
+| `happy` | `dot` | — | the large bean 28.8 × 15.8, teeth and tongue |
+| `sad` | `oval` | raised toward the middle | a small wail 18 × 9, its round side up, a tongue |
+| `surprised` | `oval-wide`, a little higher | — | a round O 15 × 14, teeth and tongue |
+| `angry` | `dot`, a little lower | slanted down toward the middle | a wail 24 × 10 under its teeth band |
+| `sleepy` | `half-lid` | — | a level line 9 wide |
+| `laughing` | `closed-u-deep` | — | the widest bean 38 × 18, teeth and tongue |
+| `worried` | `dot-small` | raised toward the middle | a slit of clenched teeth, both rows |
+| `hurt` | `x x` of two straight strokes each | — | a slit 24 × 7 under a deep teeth band |
+| `straining` | `squeezed` | — | the grimace 34.8 × 10.5, both rows of teeth |
 | `writing` | `dot`, a little lower | level | a level line 8 wide |
 | `thinking` | `dot`, up and to the left | the left one raised | a line rising to the right |
 | `idle` | `dot` | — | a level line 10 wide |
