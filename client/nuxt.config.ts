@@ -27,10 +27,17 @@ export default defineNuxtConfig({
       ]
     }
   },
-  // A generated page has no server to ask for an icon, so every icon the face draws is bundled.
+  // A generated page has no server to ask for an icon, so every icon the face draws is bundled: its own files', and
+  // those of the error page it takes from bmo-ui (docs/face.md, 「The screens' shared style」), which the scan reads
+  // inside the installed package, so the installed packages are not passed over as a whole.
   icon: {
     provider: "none",
-    clientBundle: { scan: { globInclude: ["app/**/*.{vue,ts}"] } }
+    clientBundle: {
+      scan: {
+        globInclude: ["app/**/*.{vue,ts}", "node_modules/bmo-ui/app/components/ErrorScreen.vue", "node_modules/bmo-ui/app/domain/error-page.ts"],
+        globExclude: ["dist", "build", "coverage", "test", "tests", ".*"]
+      }
+    }
   },
   nitro: {
     // A deployment generates into a release directory of its own and names it here.

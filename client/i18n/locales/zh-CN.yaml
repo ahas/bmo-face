@@ -240,6 +240,9 @@ common:
   action:
     cancel: 取消
     close: 关闭
+    go_back: 返回
+    go_home: 返回首页
+    retry: 重试
   aria:
     decrease: 减少
     increase: 增加
@@ -251,3 +254,13 @@ common:
   status:
     no_match: 没有匹配项
     no_choices: 没有项目
+  title:
+    page_not_found: 找不到页面
+    no_permission: 没有权限
+    unreachable: 无法连接
+    page_failed: 出错了
+  message:
+    page_not_found: 地址有误或页面已被删除。
+    no_permission: 此账号无法查看此页面。
+    unreachable: 无法连接到服务器。
+    page_failed: 服务器未能加载此页面。

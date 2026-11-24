@@ -240,6 +240,9 @@ common:
   action:
     cancel: キャンセル
     close: 閉じる
+    go_back: 戻る
+    go_home: ホームへ
+    retry: 再試行
   aria:
     decrease: 減らす
     increase: 増やす
@@ -251,3 +254,13 @@ common:
   status:
     no_match: 一致する項目なし
     no_choices: 項目なし
+  title:
+    page_not_found: ページが見つかりません
+    no_permission: 権限がありません
+    unreachable: 接続できません
+    page_failed: エラーが発生しました
+  message:
+    page_not_found: アドレスが間違っているか、ページが削除されました。
+    no_permission: このアカウントではこのページを表示できません。
+    unreachable: サーバーに接続できませんでした。
+    page_failed: サーバーがこのページを読み込めませんでした。

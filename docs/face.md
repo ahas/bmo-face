@@ -1038,6 +1038,11 @@ is named, and the gaze socket's lines.
     their foot, the `--bmo-create-room` token, so on a phone the face is drawn, and the drawer's last
     fields scroll, clear of it. The token is nought on a wide screen; the
     console answers it on the console screen, and the standalone screens' stylesheet states it.
+- **A page that cannot be shown is bmo-ui's error page** (bmo-ui's `docs/components.md`, 「The error page」),
+  never the framework's: a path under the prefix no screen answers, and any error that stands in place of a
+  screen, draws the layer's `ErrorScreen`, which the standalone screens import whole from the packed layer rather
+  than copy, inside an app root of their own. Its words are the `common.*` keys the layer names, in the screens'
+  packs, and its way to the start opens the face.
 - **A value is chosen from a list in one select,** bmo-ui's `ChoiceSelect` (bmo-ui's
   `docs/components.md`, 「Choosing a value」), and no screen draws the library's select, select menu
   or input menu bare. Every list the editor offers is one: the face, the element, the side and the

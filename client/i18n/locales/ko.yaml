@@ -240,6 +240,9 @@ common:
   action:
     cancel: 취소
     close: 닫기
+    go_back: 뒤로
+    go_home: 홈으로
+    retry: 다시 시도
   aria:
     decrease: 감소
     increase: 증가
@@ -251,3 +254,13 @@ common:
   status:
     no_match: 찾은 항목 없음
     no_choices: 항목 없음
+  title:
+    page_not_found: 페이지를 찾을 수 없습니다
+    no_permission: 권한이 없습니다
+    unreachable: 연결할 수 없습니다
+    page_failed: 오류가 발생했습니다
+  message:
+    page_not_found: 주소가 잘못되었거나 삭제된 페이지입니다.
+    no_permission: 이 계정으로는 이 페이지를 볼 수 없습니다.
+    unreachable: 서버에 연결하지 못했습니다.
+    page_failed: 서버가 이 페이지를 불러오지 못했습니다.

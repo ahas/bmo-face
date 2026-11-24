@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
+@source "../../../node_modules/bmo-ui/app/components/ErrorScreen.vue";
 
 /* How wide reading and entry content stands before it stops growing. */
 :root {

@@ -240,6 +240,9 @@ common:
   action:
     cancel: Cancel
     close: Close
+    go_back: Back
+    go_home: Home
+    retry: Try again
   aria:
     decrease: Decrease
     increase: Increase
@@ -251,3 +254,13 @@ common:
   status:
     no_match: No matches
     no_choices: No items
+  title:
+    page_not_found: Page not found
+    no_permission: No permission
+    unreachable: "Can't connect"
+    page_failed: Something went wrong
+  message:
+    page_not_found: The address is wrong or the page was deleted.
+    no_permission: "This account can't view this page."
+    unreachable: "Couldn't reach the server."
+    page_failed: "The server couldn't load this page."
