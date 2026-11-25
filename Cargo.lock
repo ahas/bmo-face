@@ -249,6 +249,7 @@ dependencies = [
  "bmo-console-face",
  "bmo-face-core",
  "cookie",
+ "dotenvy",
  "futures-util",
  "http-body-util",
  "hyper",

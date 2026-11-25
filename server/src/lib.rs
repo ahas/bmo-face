@@ -6,8 +6,10 @@
 pub mod accounts;
 pub mod console;
 pub mod handler;
+pub mod health;
 pub mod login;
 pub mod pass;
+pub mod settings;
 pub mod stop;
 pub mod store;
 pub mod tool;

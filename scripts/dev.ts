@@ -21,6 +21,8 @@ if (!existsSync(join(devDataRoot, FACES_FILE))) {
 const env = {
   ...process.env,
   BMO_FACE_DATA: devDataRoot,
+  // A data root holding no env/face.env, so the live install's settings never reach the bench.
+  BMO_DATA_DIR: devDataRoot,
   BMO_FACE_PORT: String(API_PORT),
   BMO_DB_PATH: process.env.BMO_DB_PATH ?? join(homedir(), ".local/share/bmo/data/workbench/worker/bmo.db"),
   BMO_CONSOLE_URL: process.env.BMO_CONSOLE_URL ?? "http://127.0.0.1:3211/bmo-dev",

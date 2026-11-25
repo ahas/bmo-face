@@ -104,6 +104,8 @@ export async function startServer(setting: ServerSetting): Promise<FaceServer> {
     env: {
       ...process.env,
       BMO_FACE_DATA: join(setting.scratch, "data"),
+      // A data root holding no env/face.env, so no install-written setting of this machine reaches the server.
+      BMO_DATA_DIR: setting.scratch,
       BMO_FACE_PORT: "0",
       BMO_FACE_STATIC: setting.screen,
       BMO_FACE_CONSOLE: setting.console ?? join(setting.scratch, "console"),

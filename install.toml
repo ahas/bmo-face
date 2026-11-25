@@ -14,14 +14,6 @@ what = "Builds the server and the native displayer; the Rust toolchain from http
 program = "bun"
 what = "Installs the packages and generates the screen and the console bundle at every release; the Bun runtime from https://bun.sh."
 
-[[needs]]
-program = "curl"
-what = "Asks the server for its document and its screen at every deployment; the curl package."
-
-[[needs]]
-program = "jq"
-what = "Writes the console probe's reach at every deployment; the jq package."
-
 [[port]]
 name = "face.server"
 number = 3217
@@ -31,8 +23,8 @@ number = 3217
 name = "face.console"
 file = "env/face-console.token"
 
-# The unit's environment file, env/face.env: the port the install chose for the server, which the health reads too,
-# the console's credential and the console the listener routes pass through to, on its loopback port under its base
+# The server's settings file, env/face.env, which the server, its health and its console reach read: the port the
+# install chose for the server, the console's credential and the console the listener routes pass through to, on its loopback port under its base
 # path. The archive the editor's login reads is the address the
 # data root's env/archive-url holds, read where this file names none.
 [[settings]]

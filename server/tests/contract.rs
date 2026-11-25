@@ -284,6 +284,8 @@ impl Face {
     self.server = Some(
       command
         .env("BMO_FACE_DATA", self.root().join("data"))
+        // A data root holding no env/face.env, so no install-written setting of this machine reaches it.
+        .env("BMO_DATA_DIR", self.root())
         // A port of its own choosing, which it names as it starts answering, so no other process
         // can take the port between its choosing and its binding; started again, the port it had.
         .env("BMO_FACE_PORT", self.port.to_string())

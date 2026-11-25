@@ -1085,9 +1085,7 @@ is named, and the gaze socket's lines.
 
 - **It is a Rust program,** the workspace's crate in `server/`, built on the core (「The face's core」),
   which checks, prepares and draws its default. It starts on loopback at the port `BMO_FACE_PORT` names,
-  3217 where it names none, and answers everything under `/bmo-face`. Started as `bmo-face address`, it
-  prints that address with its base path, read from the same environment, and starts nothing. It
-  answers:
+  3217 where it names none, and answers everything under `/bmo-face`. It answers:
   - the generated screen, and its page for every path that is not the server's;
   - the generated screen's build manifest, `/bmo-face/_nuxt/builds/latest.json`, whose build id a
     display compares with its own;
@@ -1105,7 +1103,18 @@ is named, and the gaze socket's lines.
   with BMO's other units; a process without the variable uses `~/.local/share/bmo-face/`. It is live
   data: never committed, never written by a test, and never opened by development work, which uses a
   copy (`docs/development.md`).
-- **What it reads from its environment:** `BMO_FACE_DATA`, `BMO_FACE_PORT`, `BMO_FACE_STATIC` (the
+- **Its settings are its environment over its settings file,** `env/face.env` under the data root
+  `BMO_DATA_DIR` names, else under `~/.local/share/bmo/data`: a dotenv file of `KEY=VALUE` lines the
+  install writes, read by a dotenv reader where it stands, none where it does not, and a file that does
+  not read stops the binary with a sentence. A variable set in the environment stands over the file's
+  line, an empty one as none.
+- **Three commands answer from the same settings and serve nothing:** `bmo-face address` prints the
+  loopback address under the base path the server listens at; `bmo-face health` asks the server there for
+  `/api/faces` and its screen, and ends 0 only where both answer a success and the screen holds HTML;
+  `bmo-face console-reach` prints the console probe's reach as one JSON object, `address`,
+  `consoleToken`, the settings' `BMO_FACE_TOKEN`, refused where they name none, and `token`, a value made
+  new for each call.
+- **What it reads from its settings:** `BMO_FACE_DATA`, `BMO_FACE_PORT`, `BMO_FACE_STATIC` (the
   generated screen, `client/.output/public` beside the binary's project by default),
   `BMO_FACE_CONSOLE` (the built console bundle, `client/.output/console` beside it by default),
   `BMO_FACE_TOKEN` (the console's credential), BMO's archive for the editor's login and

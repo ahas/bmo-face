@@ -1,7 +1,8 @@
 //! The face server the unit `bmo-face` runs (docs/face.md, 「The server」), configured by its
-//! environment: `BMO_FACE_DATA`, `BMO_FACE_PORT`, `BMO_FACE_STATIC`, `BMO_FACE_CONSOLE`,
-//! `BMO_FACE_TOKEN`, BMO's archive, `BMO_CONSOLE_URL` and `BMO_FACE_DRAIN_MS`, and drained when asked
-//! to stop. Started as `bmo-face address`, it prints the address it would listen at and starts nothing.
+//! environment over the install-written `env/face.env`: `BMO_FACE_DATA`, `BMO_FACE_PORT`,
+//! `BMO_FACE_STATIC`, `BMO_FACE_CONSOLE`, `BMO_FACE_TOKEN`, BMO's archive, `BMO_CONSOLE_URL` and
+//! `BMO_FACE_DRAIN_MS`, and drained when asked to stop. Started as `bmo-face address`, `health` or
+//! `console-reach`, it answers the deployment's question from the same settings and serves nothing.
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -12,22 +13,12 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use bmo_face::accounts::{Accounts, archive_place};
 use bmo_face::console::Console;
 use bmo_face::handler::{Face, PREFIX, router};
+use bmo_face::health;
 use bmo_face::login::EditorLogin;
+use bmo_face::settings::Settings;
 use bmo_face::stop::{DRAIN, drain};
 use bmo_face::store::{FaceStore, Preparation};
 use tokio::net::TcpListener;
-
-fn named(variable: &str) -> Option<String> {
-  std::env::var(variable).ok().filter(|value| !value.is_empty())
-}
-
-/// The port the server listens on where its environment names none.
-const PORT: u16 = 3217;
-
-/// The port the server listens on: the one `BMO_FACE_PORT` names, else [`PORT`].
-fn port() -> u16 {
-  named("BMO_FACE_PORT").and_then(|port| port.parse().ok()).unwrap_or(PORT)
-}
 
 fn now() -> u64 {
   SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |since| since.as_millis() as u64)
@@ -44,14 +35,38 @@ fn own_output(folder: &str) -> PathBuf {
 }
 
 fn main() -> ExitCode {
-  // `tool` is the tool host's one call; every other start is the server.
+  // `tool` is the tool host's one call; every other start reads the settings.
   if std::env::args().nth(1).as_deref() == Some("tool") {
     return bmo_face::tool::run();
   }
-  // `address` is the deployment's health's one question: where the server listens.
-  if std::env::args().nth(1).as_deref() == Some("address") {
-    println!("http://127.0.0.1:{}{PREFIX}", port());
-    return ExitCode::SUCCESS;
+  let settings = match Settings::load() {
+    Ok(settings) => settings,
+    Err(why) => {
+      eprintln!("bmo-face: the settings could not be read: {why}");
+      return ExitCode::FAILURE;
+    }
+  };
+  let command = std::env::args().nth(1);
+
+  // The deployment's three questions, each answered from the settings the server reads.
+  match command.as_deref() {
+    Some("address") => {
+      println!("{}", health::address(&settings));
+      return ExitCode::SUCCESS;
+    }
+    Some("console-reach") => {
+      return match health::console_reach(&settings) {
+        Ok(reach) => {
+          println!("{reach}");
+          ExitCode::SUCCESS
+        }
+        Err(why) => {
+          eprintln!("bmo-face: {why}");
+          ExitCode::FAILURE
+        }
+      };
+    }
+    _ => {}
   }
 
   tokio::runtime::Runtime::new().map_or_else(
@@ -59,16 +74,34 @@ fn main() -> ExitCode {
       eprintln!("bmo-face: the runtime could not be started: {why}");
       ExitCode::FAILURE
     },
-    |runtime| runtime.block_on(serve()),
+    |runtime| match command.as_deref() {
+      Some("health") => runtime.block_on(ready(&settings)),
+      _ => runtime.block_on(serve(settings)),
+    },
   )
 }
 
-async fn serve() -> ExitCode {
-  let home = PathBuf::from(std::env::var_os("HOME").unwrap_or_else(|| "/".into()));
+async fn ready(settings: &Settings) -> ExitCode {
+  let address = health::address(settings);
+  match health::ready(&address).await {
+    Ok(()) => {
+      println!("bmo-face: ready at {address}/");
+      ExitCode::SUCCESS
+    }
+    Err(why) => {
+      eprintln!("bmo-face: not ready: {why}");
+      ExitCode::FAILURE
+    }
+  }
+}
+
+async fn serve(settings: Settings) -> ExitCode {
+  let named = |variable: &str| settings.named(variable);
+  let home = settings.home();
   let root = named("BMO_FACE_DATA")
     .map(PathBuf::from)
     .unwrap_or_else(|| home.join(".local/share/bmo-face"));
-  let port = port();
+  let port = settings.port();
   let static_dir = named("BMO_FACE_STATIC").map(PathBuf::from).unwrap_or_else(|| own_output("public"));
   let console_dir = named("BMO_FACE_CONSOLE").map(PathBuf::from).unwrap_or_else(|| own_output("console"));
   let console = match Console::new(&console_dir, named("BMO_FACE_TOKEN")) {

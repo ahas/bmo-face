@@ -42,38 +42,15 @@ root = "~/.local/share/bmo-face"
 link = "deploy"
 data_root = "~/.local/share/bmo/data"
 units = ["deploy/*.service"]
-# Answers 0 once the server, at the address it prints with the unit's environment file read, answers its document
-# and serves the generated screen.
-health = '''
-set -eu
-data="${BMO_DATA_DIR:-$HOME/.local/share/bmo/data}"
-if [ -f "$data/env/face.env" ]; then
-  set -a
-  . "$data/env/face.env"
-  set +a
-fi
-face="$("$HOME/.local/share/bmo-face/deploy/bin/bmo-face" address)"
-curl -sf "$face/api/faces" >/dev/null
-curl -sf "$face/" | grep -qi '<html'
-'''
+# Answers 0 once the server, at the address the install-written settings give it, answers its document and
+# serves the generated screen (docs/deploy.md, 「What a deployment does」).
+health = "~/.local/share/bmo-face/deploy/bin/bmo-face health"
 
 # The console face the deployment probes once the server is up (docs/deploy.md, 「The console probe」):
-# the server's loopback address under /bmo-face as it prints it, the console's credential from the host's environment
-# file under the data root, and, since the face holds no token of its own, a value made new for each run
-# in its place, which the console's routes refuse as they refuse every credential but the console's.
+# the server's loopback address under /bmo-face, the console's credential from the install-written settings,
+# and a stand-in for the service's own token made new for each run, all printed by the release's binary.
 [deploy.console]
-reach = '''
-set -eu
-data="${BMO_DATA_DIR:-$HOME/.local/share/bmo/data}"
-set -a
-. "$data/env/face.env"
-set +a
-jq -nc \
-  --arg address "$(bin/bmo-face address)" \
-  --arg consoleToken "$BMO_FACE_TOKEN" \
-  --arg token "$(od -An -tx1 -N24 /dev/urandom | tr -d ' \n')" \
-  '{address: $address, consoleToken: $consoleToken, token: $token}'
-'''
+reach = "bin/bmo-face console-reach"
 
 # The screen and the console bundle, built into the release where the server serves them from beside
 # the binary; the bundle after the screen, whose generation empties the output folder first.

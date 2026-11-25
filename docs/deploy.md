@@ -17,27 +17,27 @@ declaration, `testbed.toml`; nothing here deploys itself.
   repository carries under `src/wasm/` (`docs/face.md`, 「The face's core」), so a release builds no
   WebAssembly and needs no toolchain for it; the server's binary is built with the core as a crate.
 - **The unit:** `deploy/bmo-face.service`, kept by the testbed as a user unit. It runs
-  `bin/bmo-face` in the release on loopback at the port `env/face.env` names as `BMO_FACE_PORT`, which an
-  install writes with the port it chose for the face, and 3217 where it names none, with `BMO_FACE_DATA`
-  naming the document and the session database under the shared data root, `face/`. Its health reads the
-  same file, asks `bmo-face address` where the server listens, and reads the document route and the
-  generated screen's HTML there. A stop sends the server SIGTERM, on which it drains: it takes
+  `bin/bmo-face` in the release on loopback at the port the server's settings name as `BMO_FACE_PORT`,
+  which an install writes into `env/face.env` with the port it chose for the face, and 3217 where they
+  name none, with `BMO_FACE_DATA` naming the document and the session database under the shared data
+  root, `face/`. Its health is `bmo-face health`, which reads the same settings and asks the server
+  there for its document route and its generated screen's HTML. A stop sends the server SIGTERM, on which it drains: it takes
   no new connection, ends its open streams and lets the calls in hand finish within its own deadline
   (`docs/face.md`, 「The server」). The unit waits for that end with no stop timeout, so the server's
   deadline is the one that bounds a stop.
 - **The console probe:** once the health answers, the testbed probes the console face against the
   console plugin contract, as the testbed's `docs/deploy.md` states in 「The console probe」, and a
-  point that does not hold fails the deployment. The declaration's `[deploy.console]` reach answers
-  the server's loopback address under `/bmo-face`, as `bmo-face address` prints it with `env/face.env` read,
-  the console's credential from that file under
-  the data root, and, for the service's own token, a value made new for each run: the face holds no
+  point that does not hold fails the deployment. The declaration's `[deploy.console]` reach is
+  `bmo-face console-reach`, which prints from the same settings the server's loopback address under
+  `/bmo-face` and the console's credential, and, for the service's own token, a value made new for each
+  run: the face holds no
   token of its own (`docs/face.md`, 「The console screen」), so any credential but the console's
   stands for one, and the console's routes must refuse it.
 - **After health:** the release's binary, `tool.toml` and the two schemas are placed as one folder
   and registered with the tool host as this service's own, under the repository's name. A failed
   registration leaves the service live and is said.
-- **BMO:** the unit reads `env/face.env` under the data root where it exists, for the port the server
-  listens on, for the address of
+- **BMO:** the server reads `env/face.env` under the data root where it exists (`docs/face.md`, 「The
+  server」), for the port it listens on, for the address of
   BMO's archive (the editor's login) and of BMO's console (the passed-through listener routes), and
   for `BMO_FACE_TOKEN`, the credential a console calls the console routes with, which that console's
   own settings hold beside the face's address. All are this machine's settings, never the
