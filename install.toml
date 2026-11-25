@@ -31,12 +31,14 @@ number = 3217
 name = "face.console"
 file = "env/face-console.token"
 
-# The unit's environment file, env/face.env: the console's credential and the console the listener routes pass
-# through to, on its loopback port under its base path. The archive the editor's login reads is the address the
+# The unit's environment file, env/face.env: the port the install chose for the server, which the health reads too,
+# the console's credential and the console the listener routes pass through to, on its loopback port under its base
+# path. The archive the editor's login reads is the address the
 # data root's env/archive-url holds, read where this file names none.
 [[settings]]
 file = "env/face.env"
 text = """
+BMO_FACE_PORT={{port.face.server}}
 BMO_FACE_TOKEN={{token.face.console}}
 BMO_CONSOLE_URL=http://127.0.0.1:{{port.web.console}}/bmo
 """

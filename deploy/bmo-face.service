@@ -10,8 +10,8 @@ WorkingDirectory=%h/.local/share/bmo-face/deploy
 ExecStart=%h/.local/share/bmo-face/deploy/bin/bmo-face
 # The document and the session database, under the data root this machine shares with BMO's other units.
 Environment=BMO_FACE_DATA=%h/.local/share/bmo/data/face
-Environment=BMO_FACE_PORT=3217
-# BMO's archive and console, where this machine keeps them (docs/face.md, 「The server」).
+# The port the install chose for the face, BMO's archive and console, where this machine keeps them; the
+# server listens on 3217 where the file names no port (docs/face.md, 「The server」).
 EnvironmentFile=-%h/.local/share/bmo/data/env/face.env
 Restart=on-failure
 RestartSec=3

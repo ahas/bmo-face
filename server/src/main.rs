@@ -1,7 +1,7 @@
 //! The face server the unit `bmo-face` runs (docs/face.md, 「The server」), configured by its
 //! environment: `BMO_FACE_DATA`, `BMO_FACE_PORT`, `BMO_FACE_STATIC`, `BMO_FACE_CONSOLE`,
 //! `BMO_FACE_TOKEN`, BMO's archive, `BMO_CONSOLE_URL` and `BMO_FACE_DRAIN_MS`, and drained when asked
-//! to stop.
+//! to stop. Started as `bmo-face address`, it prints the address it would listen at and starts nothing.
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -19,6 +19,14 @@ use tokio::net::TcpListener;
 
 fn named(variable: &str) -> Option<String> {
   std::env::var(variable).ok().filter(|value| !value.is_empty())
+}
+
+/// The port the server listens on where its environment names none.
+const PORT: u16 = 3217;
+
+/// The port the server listens on: the one `BMO_FACE_PORT` names, else [`PORT`].
+fn port() -> u16 {
+  named("BMO_FACE_PORT").and_then(|port| port.parse().ok()).unwrap_or(PORT)
 }
 
 fn now() -> u64 {
@@ -40,6 +48,11 @@ fn main() -> ExitCode {
   if std::env::args().nth(1).as_deref() == Some("tool") {
     return bmo_face::tool::run();
   }
+  // `address` is the deployment's health's one question: where the server listens.
+  if std::env::args().nth(1).as_deref() == Some("address") {
+    println!("http://127.0.0.1:{}{PREFIX}", port());
+    return ExitCode::SUCCESS;
+  }
 
   tokio::runtime::Runtime::new().map_or_else(
     |why| {
@@ -55,7 +68,7 @@ async fn serve() -> ExitCode {
   let root = named("BMO_FACE_DATA")
     .map(PathBuf::from)
     .unwrap_or_else(|| home.join(".local/share/bmo-face"));
-  let port: u16 = named("BMO_FACE_PORT").and_then(|port| port.parse().ok()).unwrap_or(3217);
+  let port = port();
   let static_dir = named("BMO_FACE_STATIC").map(PathBuf::from).unwrap_or_else(|| own_output("public"));
   let console_dir = named("BMO_FACE_CONSOLE").map(PathBuf::from).unwrap_or_else(|| own_output("console"));
   let console = match Console::new(&console_dir, named("BMO_FACE_TOKEN")) {

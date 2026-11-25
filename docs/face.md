@@ -1084,8 +1084,10 @@ is named, and the gaze socket's lines.
 ## The server
 
 - **It is a Rust program,** the workspace's crate in `server/`, built on the core (「The face's core」),
-  which checks, prepares and draws its default. It starts on `BMO_FACE_PORT`
-  (127.0.0.1:3217 live) and answers everything under `/bmo-face`:
+  which checks, prepares and draws its default. It starts on loopback at the port `BMO_FACE_PORT` names,
+  3217 where it names none, and answers everything under `/bmo-face`. Started as `bmo-face address`, it
+  prints that address with its base path, read from the same environment, and starts nothing. It
+  answers:
   - the generated screen, and its page for every path that is not the server's;
   - the generated screen's build manifest, `/bmo-face/_nuxt/builds/latest.json`, whose build id a
     display compares with its own;
