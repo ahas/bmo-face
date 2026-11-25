@@ -6,7 +6,7 @@
   "serviceName": "face",
   "apiPrefix": "/console",
   "sidebarSection": "administration",
-  "role": "member",
+  "role": "administrator",
   "ownerKey": false,
   "events": false,
   "websocket": false,

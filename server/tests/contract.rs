@@ -818,7 +818,7 @@ async fn the_manifest_reads_through_the_vendored_release_with_the_faces_own_fiel
 }
 
 #[tokio::test]
-async fn the_screens_call_needs_the_credential_and_a_role_the_manifest_allows() {
+async fn the_screens_call_needs_the_credential_and_the_administrators_role() {
   let face = Face::new(None, true).await.start().await;
   let path = "/bmo-face/console/faces";
 
@@ -831,18 +831,17 @@ async fn the_screens_call_needs_the_credential_and_a_role_the_manifest_allows() 
     401
   );
   assert_eq!(face.call("GET", path, &[("authorization", BEARER)], "").await.0, 403);
-  assert_eq!(
-    face
-      .call("GET", path, &[("authorization", BEARER), ("owner-role", "guest")], "")
-      .await
-      .0,
-    403
-  );
-  for role in ["member", "administrator"] {
-    let (status, _, body) =
-      face.call("GET", path, &[("authorization", BEARER), ("owner-role", role)], "").await;
-    assert_eq!((status, serde_json::from_str::<Value>(&body).unwrap()), (200, default_document()));
+  for role in ["guest", "member"] {
+    assert_eq!(
+      face.call("GET", path, &[("authorization", BEARER), ("owner-role", role)], "").await.0,
+      403,
+      "{role}"
+    );
   }
+  let (status, _, body) = face
+    .call("GET", path, &[("authorization", BEARER), ("owner-role", "administrator")], "")
+    .await;
+  assert_eq!((status, serde_json::from_str::<Value>(&body).unwrap()), (200, default_document()));
 }
 
 #[tokio::test]
@@ -851,7 +850,11 @@ async fn the_console_screen_saves_as_the_editor_does_without_a_session_or_this_s
   let mut edited = default_document();
   edited["colors"]["body"] = json!("#223344");
   let save = json!({ "document": edited, "basedOn": 0 });
-  let console = [("origin", "http://console.test"), ("authorization", BEARER), ("owner-role", "member")];
+  let console = [
+    ("origin", "http://console.test"),
+    ("authorization", BEARER),
+    ("owner-role", "administrator"),
+  ];
 
   assert_eq!(face.write("PUT", "/bmo-face/console/faces", &save, &[]).await.0, 401);
   assert_eq!(

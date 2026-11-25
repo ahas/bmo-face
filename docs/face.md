@@ -1170,7 +1170,8 @@ is named, and the gaze socket's lines.
   - the screen stands in the console sidebar's `administration` section, among the services an
     administrator runs the system with, since the face is the machine's own display and no reader's
     application;
-  - a member opens the screen, and an administrator with it;
+  - the administrator alone opens the screen: the face is the machine's own display, which no member
+    of a company keeps, so no member's console carries it;
   - no owner key: the expression document is the machine's one document, no reader's own;
   - no events, no websocket and no pushes: the editor reads the document when it opens and after a
     conflict, and listens for nothing;
