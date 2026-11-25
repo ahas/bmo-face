@@ -1,6 +1,6 @@
 # BMO's face
 
-**Fixed at 0.1.0-rev.1.**
+**Fixed at the release the commit is tagged with.**
 
 What the face display shows, what BMO sends it and by which road, how a screen signs in, the
 expression document both the display and the editor read, the core that draws the face for every

@@ -58,4 +58,4 @@ A change moves through three stages in order:
 3. Verification: the test targets the change touched, then the suite `testbed.toml` declares once.
 
 The suite runs the crates' tests, the root Bun test files, and the screen's check script, which is its
-typecheck and its domain tests. The version is the repository's, and `VERSION` holds it. It moves only at a release the owner declares, as bmo-chat's `docs/conventions.md` 「Versions」 states; a commit, a deploy, a fix or a contract change moves none, and a deployment is told apart by its commit.
+typecheck and its domain tests. The version is the set's, read off the git tag when a build is made and handed to it as `BMO_VERSION`; the manifests' versions are a placeholder that never moves. It moves only at a release the owner declares, as bmo-chat's `docs/conventions.md` 「Versions」 states; a commit, a deploy, a fix or a contract change moves none, and a deployment is told apart by its commit.

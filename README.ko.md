@@ -23,7 +23,7 @@ BMO의 얼굴, `bmo-face`입니다. 케이스 화면에 띄우는 전체 화면 
 | `tests/` | 표정 문서 정의, 코어의 WebAssembly 빌드, 개발용 복사본에 대한 테스트입니다 |
 
 루트에는 `core/`, `displayer/`, `server/`를 멤버로 둔 Cargo 워크스페이스 매니페스트와 그 lockfile, `src/`,
-`scripts/`, `tests/`를 담는 루트 Bun 프로젝트의 매니페스트와 lockfile, `tsconfig.json`, `VERSION`,
+`scripts/`, `tests/`를 담는 루트 Bun 프로젝트의 매니페스트와 lockfile, `tsconfig.json`,
 `testbed.toml`, `install.toml`(새 머신에 유닛을 설치하는 데 필요한 것), 두 스키마를 곁에 둔 `tool.toml`, 콘솔 얼굴의 선언으로서 매니페스트 중 얼굴이 정하는 필드를 담은
 `console-manifest.json`, `rustfmt.toml`, `korean-ledger.json`, `LICENSE`, `CLAUDE.md`가 있습니다.
 `docs/PERSONAL-DATA.md`는 검사 `tests/personal-data.test.ts`를 지정하며, 테스트 스위트가 이를 다른 테스트와 함께
@@ -59,7 +59,8 @@ Cargo 명령은 공유 빌드 디렉터리를 가진 `bmo-testbed`를 거쳐 실
 
 ## 버전
 
-버전은 `VERSION`, Cargo 워크스페이스의 패키지, 화면의 매니페스트에 같은 번호로 적혀 있습니다. bmo-chat의
+버전은 세트 전체의 것이며 빌드할 때 git 태그에서 읽습니다. Cargo 워크스페이스의 패키지와 화면의 매니페스트에는
+움직이지 않는 자리표시 버전이 적혀 있습니다. bmo-chat의
 `docs/conventions.md` 「Versions」에 적힌 대로, 소유자가 선언한 릴리스에서만 올라갑니다. 계약이 바뀌어도 버전은
 움직이지 않으며, 배포는 커밋으로 구별합니다.
 

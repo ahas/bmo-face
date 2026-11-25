@@ -23,7 +23,7 @@ BMO の顔、`bmo-face` です。ケースの画面に映すフルスクリー�
 | `tests/` | 表情ドキュメントの定義、コアの WebAssembly ビルド、開発用コピーのテストです |
 
 ルートには、`core/`、`displayer/`、`server/` をメンバーとする Cargo ワークスペースのマニフェストとその lockfile、
-`src/`、`scripts/`、`tests/` を収めるルート Bun プロジェクトのマニフェストと lockfile、`tsconfig.json`、`VERSION`、
+`src/`、`scripts/`、`tests/` を収めるルート Bun プロジェクトのマニフェストと lockfile、`tsconfig.json`、
 `testbed.toml`、`install.toml`（新しいマシンにユニットをインストールするのに必要なもの）、二つのスキーマを添えた `tool.toml`、コンソールフェイスの宣言としてマニフェストのうち顔が決める
 フィールドを持つ `console-manifest.json`、`rustfmt.toml`、`korean-ledger.json`、`LICENSE`、`CLAUDE.md` があります。
 `docs/PERSONAL-DATA.md` はチェック `tests/personal-data.test.ts` を指定しており、テストスイートが他のテストと
@@ -59,7 +59,8 @@ Cargo のコマンドは、共有ビルドディレクトリを持つ `bmo-testb
 
 ## バージョン
 
-バージョンは `VERSION`、Cargo ワークスペースのパッケージ、画面のマニフェストに同じ番号で記されています。
+バージョンはセット全体のもので、ビルド時に git タグから読み取ります。Cargo ワークスペースのパッケージと画面の
+マニフェストには、動かないプレースホルダーのバージョンが記されています。
 bmo-chat の `docs/conventions.md` 「Versions」にあるとおり、オーナーが宣言するリリースでのみ上がります。
 契約が変わってもバージョンは動かず、デプロイはコミットで区別します。
 
