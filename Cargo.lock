@@ -229,7 +229,7 @@ dependencies = [
 
 [[package]]
 name = "bmo-console-face"
-version = "0.1.0-rev.10"
+version = "0.0.0"
 dependencies = [
  "axum",
  "headers",
@@ -242,7 +242,7 @@ dependencies = [
 
 [[package]]
 name = "bmo-face"
-version = "0.1.0-rev.1"
+version = "0.0.0"
 dependencies = [
  "argon2",
  "axum",
@@ -269,7 +269,7 @@ dependencies = [
 
 [[package]]
 name = "bmo-face-core"
-version = "0.1.0-rev.1"
+version = "0.0.0"
 dependencies = [
  "libm",
  "rustfft",
@@ -279,7 +279,7 @@ dependencies = [
 
 [[package]]
 name = "bmo-face-displayer"
-version = "0.1.0-rev.1"
+version = "0.0.0"
 dependencies = [
  "axum",
  "bmo-face-core",
